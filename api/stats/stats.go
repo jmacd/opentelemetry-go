@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 
 	"github.com/open-telemetry/opentelemetry-go/api/core"
+	"github.com/open-telemetry/opentelemetry-go/api/loader"
 	"github.com/open-telemetry/opentelemetry-go/api/registry"
 )
 
@@ -61,6 +62,12 @@ func GlobalRecorder() Recorder {
 // SetGlobalRecorder sets provided meter as a global meter.
 func SetGlobalRecorder(t Recorder) {
 	global.Store(t)
+}
+
+func init() {
+	if recorder, _ := loader.Load().(Recorder); recorder != nil {
+		SetGlobalRecorder(recorder)
+	}
 }
 
 func Record(ctx context.Context, m ...Measurement) {

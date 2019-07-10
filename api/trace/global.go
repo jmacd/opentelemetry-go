@@ -14,7 +14,11 @@
 
 package trace
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+
+	"github.com/open-telemetry/opentelemetry-go/api/loader"
+)
 
 // The process global tracer could have process-wide resource
 // tags applied directly, or we can have a SetGlobal tracer to
@@ -22,6 +26,12 @@ import "sync/atomic"
 var global atomic.Value
 
 var _ Tracer = noopTracer{}
+
+func init() {
+	if tracer, _ := loader.Load().(Tracer); tracer != nil {
+		SetGlobalTracer(tracer)
+	}
+}
 
 // GlobalTracer return tracer registered with global registry.
 // If no tracer is registered then an instance of noop Tracer is returned.

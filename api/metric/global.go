@@ -14,9 +14,19 @@
 
 package metric
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+
+	"github.com/open-telemetry/opentelemetry-go/api/loader"
+)
 
 var global atomic.Value
+
+func init() {
+	if meter, _ := loader.Load().(Meter); meter != nil {
+		SetGlobalMeter(meter)
+	}
+}
 
 // GlobalMeter return meter registered with global registry.
 // If no meter is registered then an instance of noop Meter is returned.
