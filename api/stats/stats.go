@@ -44,37 +44,25 @@ type Recorder interface {
 	RecordSingle(ctx context.Context, m Measurement)
 }
 
-type noopRecorder struct{}
+type NoopRecorder struct{}
 type noopMeasure struct{}
 
 var global atomic.Value
 
-// GlobalRecorder return meter registered with global registry.
-// If no meter is registered then an instance of noop Recorder is returned.
-func GlobalRecorder() Recorder {
+// globalRecorder is equivalent to global.Recoder() but avoids an import cycle.
+func globalRecorder() Recorder {
 	if t := global.Load(); t != nil {
 		return t.(Recorder)
 	}
-	return noopRecorder{}
+	return NoopRecorder{}
 }
-
-// SetGlobalRecorder sets provided meter as a global meter.
-func SetGlobalRecorder(t Recorder) {
-	global.Store(t)
-}
-
-// func init() {
-// 	if recorder, _ := loader.Load().(Recorder); recorder != nil {
-// 		SetGlobalRecorder(recorder)
-// 	}
-// }
 
 func Record(ctx context.Context, m ...Measurement) {
-	GlobalRecorder().Record(ctx, m...)
+	globalRecorder().Record(ctx, m...)
 }
 
 func RecordSingle(ctx context.Context, m Measurement) {
-	GlobalRecorder().RecordSingle(ctx, m)
+	globalRecorder().RecordSingle(ctx, m)
 }
 
 type AnyStatistic struct{}
@@ -105,13 +93,13 @@ func (m *MeasureHandle) V() registry.Variable {
 	return m.Variable
 }
 
-func (noopRecorder) Record(ctx context.Context, m ...Measurement) {
+func (NoopRecorder) Record(ctx context.Context, m ...Measurement) {
 }
 
-func (noopRecorder) RecordSingle(ctx context.Context, m Measurement) {
+func (NoopRecorder) RecordSingle(ctx context.Context, m Measurement) {
 }
 
-func (noopRecorder) GetMeasure(ctx context.Context, handle *MeasureHandle, labels ...core.KeyValue) Measure {
+func (NoopRecorder) GetMeasure(ctx context.Context, handle *MeasureHandle, labels ...core.KeyValue) Measure {
 	return noopMeasure{}
 }
 

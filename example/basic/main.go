@@ -19,22 +19,26 @@ import (
 
 	"github.com/open-telemetry/opentelemetry-go/api/key"
 	"github.com/open-telemetry/opentelemetry-go/api/metric"
+	globalmetric "github.com/open-telemetry/opentelemetry-go/api/metric/global"
 	"github.com/open-telemetry/opentelemetry-go/api/registry"
 	"github.com/open-telemetry/opentelemetry-go/api/stats"
+	globalstats "github.com/open-telemetry/opentelemetry-go/api/stats/global"
 	"github.com/open-telemetry/opentelemetry-go/api/tag"
 	"github.com/open-telemetry/opentelemetry-go/api/trace"
-	"github.com/open-telemetry/opentelemetry-go/api/trace/global"
+	globaltrace "github.com/open-telemetry/opentelemetry-go/api/trace/global"
 	"github.com/open-telemetry/opentelemetry-go/experimental/streaming/sdk/event"
 )
 
 var (
-	tracer = global.Tracer().
+	tracer = globaltrace.Tracer().
 		WithComponent("example").
 		WithResources(
 			key.New("whatevs").String("yesss"),
 		)
 
-	meter = metric.GlobalMeter() // TODO: should share resources ^^^?
+	meter = globalmetric.Meter() // TODO: should share resources ^^^?
+
+	_ = globalstats.Recorder()
 
 	fooKey     = key.New("ex.com/foo", registry.WithDescription("A Foo var"))
 	barKey     = key.New("ex.com/bar", registry.WithDescription("A Bar var"))
