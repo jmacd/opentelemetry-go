@@ -16,6 +16,8 @@ package trace
 
 import (
 	"context"
+
+	"github.com/open-telemetry/opentelemetry-go/api/trace/internal"
 )
 
 type currentSpanKeyType struct{}
@@ -33,4 +35,12 @@ func CurrentSpan(ctx context.Context) Span {
 		return span
 	}
 	return noopSpan{}
+}
+
+// globalTracer is equivalent to global.Tracer() but avoids an import cycle.
+func globalTracer() Tracer {
+	if t := internal.Global.Load(); t != nil {
+		return t.(Tracer)
+	}
+	return NoopTracer{}
 }

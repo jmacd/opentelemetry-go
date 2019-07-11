@@ -21,11 +21,12 @@ import (
 	"github.com/open-telemetry/opentelemetry-go/api/key"
 	"github.com/open-telemetry/opentelemetry-go/api/tag"
 	"github.com/open-telemetry/opentelemetry-go/api/trace"
+	"github.com/open-telemetry/opentelemetry-go/api/trace/global"
 	"github.com/open-telemetry/opentelemetry-go/plugin/httptrace"
 )
 
 var (
-	tracer = trace.GlobalTracer().
+	tracer = global.Tracer().
 		WithService("server").
 		WithComponent("main").
 		WithResources(

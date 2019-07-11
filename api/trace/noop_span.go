@@ -69,7 +69,7 @@ func (noopSpan) Finish() {
 
 // Tracer returns noop implementation of Tracer.
 func (noopSpan) Tracer() Tracer {
-	return noopTracer{}
+	return NoopTracer{}
 }
 
 // AddEvent does nothing.

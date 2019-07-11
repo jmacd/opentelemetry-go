@@ -44,12 +44,6 @@ var (
 
 var t = &tracer{}
 
-// Register registers tracer to global registry and returns the registered tracer.
-func Register() apitrace.Tracer {
-	apitrace.SetGlobalTracer(t)
-	return t
-}
-
 func (t *tracer) WithResources(attributes ...core.KeyValue) apitrace.Tracer {
 	return t
 	// s := scope.New(t.resources.Scope(), attributes...)

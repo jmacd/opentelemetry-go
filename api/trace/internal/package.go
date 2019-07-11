@@ -12,30 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metric
+package internal
 
 import (
 	"sync/atomic"
 )
 
-var global atomic.Value
-
-// func init() {
-// 	if meter, _ := loader.Load().(Meter); meter != nil {
-// 		SetGlobalMeter(meter)
-// 	}
-// }
-
-// GlobalMeter return meter registered with global registry.
-// If no meter is registered then an instance of noop Meter is returned.
-func GlobalMeter() Meter {
-	if t := global.Load(); t != nil {
-		return t.(Meter)
-	}
-	return noopMeter{}
-}
-
-// SetGlobalMeter sets provided meter as a global meter.
-func SetGlobalMeter(t Meter) {
-	global.Store(t)
-}
+// The process global tracer is Loaded/Stored here.
+var Global atomic.Value

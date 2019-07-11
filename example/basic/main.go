@@ -23,11 +23,12 @@ import (
 	"github.com/open-telemetry/opentelemetry-go/api/stats"
 	"github.com/open-telemetry/opentelemetry-go/api/tag"
 	"github.com/open-telemetry/opentelemetry-go/api/trace"
+	"github.com/open-telemetry/opentelemetry-go/api/trace/global"
 	"github.com/open-telemetry/opentelemetry-go/experimental/streaming/sdk/event"
 )
 
 var (
-	tracer = trace.GlobalTracer().
+	tracer = global.Tracer().
 		WithComponent("example").
 		WithResources(
 			key.New("whatevs").String("yesss"),

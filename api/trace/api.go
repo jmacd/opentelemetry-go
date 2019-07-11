@@ -119,7 +119,7 @@ const (
 
 // Start starts a new span using registered global tracer.
 func Start(ctx context.Context, name string, opts ...SpanOption) (context.Context, Span) {
-	return GlobalTracer().Start(ctx, name, opts...)
+	return globalTracer().Start(ctx, name, opts...)
 }
 
 // Inject is convenient function to inject current span context using injector.
