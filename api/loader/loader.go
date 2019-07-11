@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"plugin"
+	"reflect"
 	"sync"
 )
 
@@ -39,11 +40,17 @@ func Load() interface{} {
 			fmt.Println("Open failed", pluginName, err)
 			return
 		}
-		impl, err = so.Lookup("Implementation")
+		implPtr, err := so.Lookup("Implementation")
 		if err != nil {
 			fmt.Println("Not an OTel implementation", pluginName, err)
 			return
 		}
+		implRef := reflect.ValueOf(implPtr)
+		if implRef.Type().Kind() != reflect.Ptr {
+			fmt.Println("Invalid OTel implementation", pluginName, err)
+			return
+		}
+		impl = implRef.Elem().Interface()
 	})
 	return impl
 }
