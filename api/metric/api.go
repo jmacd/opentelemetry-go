@@ -27,16 +27,32 @@ type MetricType int
 const (
 	Invalid    MetricType = iota
 	Gauge                 // Supports Set()
-	Cumulative            // Supports Inc()
+	Cumulative            // Supports Inc(): only positive values
+	Additive              // Supports Add(): positive or negative
+	Measure               // Supports Record()
 )
 
 type Meter interface {
-	// TODO more Metric types
 	GetFloat64Gauge(ctx context.Context, gauge *Float64GaugeHandle, labels ...core.KeyValue) Float64Gauge
+	GetFloat64Cumulative(ctx context.Context, gauge *Float64CumulativeHandle, labels ...core.KeyValue) Float64Cumulative
+	GetFloat64Additive(ctx context.Context, gauge *Float64AdditiveHandle, labels ...core.KeyValue) Float64Additive
+	GetFloat64Measure(ctx context.Context, gauge *Float64MeasureHandle, labels ...core.KeyValue) Float64Measure
 }
 
 type Float64Gauge interface {
 	Set(ctx context.Context, value float64, labels ...core.KeyValue)
+}
+
+type Float64Cumulative interface {
+	Inc(ctx context.Context, value float64, labels ...core.KeyValue)
+}
+
+type Float64Additive interface {
+	Add(ctx context.Context, value float64, labels ...core.KeyValue)
+}
+
+type Float64Measure interface {
+	Record(ctx context.Context, value float64, labels ...core.KeyValue)
 }
 
 type Handle struct {
