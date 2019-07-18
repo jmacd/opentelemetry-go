@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	"go.opentelemetry.io/api/core"
-	"go.opentelemetry.io/api/stats"
+	"go.opentelemetry.io/api/metric"
 	"go.opentelemetry.io/api/tag"
 )
 
@@ -34,6 +34,12 @@ type EventID uint64
 type ScopeID struct {
 	EventID
 	core.SpanContext
+}
+
+type Measurement struct {
+	Metric metric.Handle
+	Value  float64
+	Scope  ScopeID
 }
 
 // TODO: this Event is confusing with event.Event.
@@ -56,11 +62,9 @@ type Event struct {
 	Status     codes.Code      // SET_STATUS
 
 	// Values
-	String  string // START_SPAN, EVENT, ...
-	Float64 float64
-	Parent  ScopeID // START_SPAN
-	Stats   []stats.Measurement
-	Stat    stats.Measurement
+	String      string  // START_SPAN, EVENT, ...
+	Parent      ScopeID // START_SPAN
+	Measurement Measurement
 }
 
 type Observer interface {
@@ -76,13 +80,14 @@ const (
 	START_SPAN
 	FINISH_SPAN
 	ADD_EVENT
-	ADD_EVENTF
 	NEW_SCOPE
-	NEW_MEASURE
-	NEW_METRIC
 	MODIFY_ATTR
-	RECORD_STATS
 	SET_STATUS
+
+	GAUGE_SET
+	CUMULATIVE_INC
+	ADDITIVE_ADD
+	MEASURE_RECORD
 )
 
 var (
@@ -151,6 +156,9 @@ func Foreach(f func(Observer)) {
 }
 
 func NewScope(parent ScopeID, attributes ...core.KeyValue) ScopeID {
+	if len(attributes) == 0 {
+		return parent
+	}
 	eventID := Record(Event{
 		Type:       NEW_SCOPE,
 		Scope:      parent,

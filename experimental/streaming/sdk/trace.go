@@ -22,13 +22,8 @@ import (
 	"go.opentelemetry.io/api/key"
 	"go.opentelemetry.io/api/tag"
 	"go.opentelemetry.io/api/trace"
-	apitrace "go.opentelemetry.io/api/trace"
 	"go.opentelemetry.io/experimental/streaming/exporter/observer"
 )
-
-type tracer struct {
-	resources observer.EventID
-}
 
 var (
 	// TODO These should move somewhere in the api, right?
@@ -42,31 +37,31 @@ var (
 	)
 )
 
-func New() trace.Tracer {
-	return &tracer{}
+func New() SDK {
+	return &sdk{}
 }
 
-func (t *tracer) WithResources(attributes ...core.KeyValue) apitrace.Tracer {
-	s := observer.NewScope(observer.ScopeID{
-		EventID: t.resources,
+func (s *sdk) WithResources(attributes ...core.KeyValue) trace.Tracer {
+	scope := observer.NewScope(observer.ScopeID{
+		EventID: s.resources,
 	}, attributes...)
-	return &tracer{
-		resources: s.EventID,
+	return &sdk{
+		resources: scope.EventID,
 	}
 }
 
-func (t *tracer) WithComponent(name string) apitrace.Tracer {
-	return t.WithResources(ComponentKey.String(name))
+func (s *sdk) WithComponent(name string) trace.Tracer {
+	return s.WithResources(ComponentKey.String(name))
 }
 
-func (t *tracer) WithService(name string) apitrace.Tracer {
-	return t.WithResources(ServiceKey.String(name))
+func (s *sdk) WithService(name string) trace.Tracer {
+	return s.WithResources(ServiceKey.String(name))
 }
 
-func (t *tracer) WithSpan(ctx context.Context, name string, body func(context.Context) error) error {
-	// TODO: use runtime/trace.WithRegion for execution tracer support
+func (s *sdk) WithSpan(ctx context.Context, name string, body func(context.Context) error) error {
+	// TODO: use runtime/trace.WithRegion for execution sdk support
 	// TODO: use runtime/pprof.Do for profile tags support
-	ctx, span := t.Start(ctx, name)
+	ctx, span := s.Start(ctx, name)
 	defer span.Finish()
 
 	if err := body(ctx); err != nil {
@@ -77,12 +72,12 @@ func (t *tracer) WithSpan(ctx context.Context, name string, body func(context.Co
 	return nil
 }
 
-func (t *tracer) Start(ctx context.Context, name string, opts ...apitrace.SpanOption) (context.Context, apitrace.Span) {
+func (s *sdk) Start(ctx context.Context, name string, opts ...trace.SpanOption) (context.Context, trace.Span) {
 	var child core.SpanContext
 
 	child.SpanID = rand.Uint64()
 
-	o := &apitrace.SpanOptions{}
+	o := &trace.SpanOptions{}
 
 	for _, opt := range opts {
 		opt(o)
@@ -93,7 +88,7 @@ func (t *tracer) Start(ctx context.Context, name string, opts ...apitrace.SpanOp
 	if o.Reference.HasTraceID() {
 		parentScope.SpanContext = o.Reference.SpanContext
 	} else {
-		parentScope.SpanContext = apitrace.CurrentSpan(ctx).SpanContext()
+		parentScope.SpanContext = trace.CurrentSpan(ctx).SpanContext()
 	}
 
 	if parentScope.HasTraceID() {
@@ -107,11 +102,11 @@ func (t *tracer) Start(ctx context.Context, name string, opts ...apitrace.SpanOp
 
 	childScope := observer.ScopeID{
 		SpanContext: child,
-		EventID:     t.resources,
+		EventID:     s.resources,
 	}
 
 	span := &span{
-		tracer: t,
+		sdk: s,
 		initial: observer.ScopeID{
 			SpanContext: child,
 			EventID: observer.Record(observer.Event{
@@ -128,6 +123,6 @@ func (t *tracer) Start(ctx context.Context, name string, opts ...apitrace.SpanOp
 	return trace.SetCurrentSpan(ctx, span), span
 }
 
-func (t *tracer) Inject(ctx context.Context, span apitrace.Span, injector apitrace.Injector) {
+func (s *sdk) Inject(ctx context.Context, span trace.Span, injector trace.Injector) {
 	injector.Inject(span.SpanContext(), tag.FromContext(ctx))
 }

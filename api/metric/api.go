@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"go.opentelemetry.io/api/core"
+	"go.opentelemetry.io/api/metric/aggregation"
 	"go.opentelemetry.io/api/registry"
 	"go.opentelemetry.io/api/unit"
 )
@@ -33,10 +34,10 @@ const (
 )
 
 type Meter interface {
-	GetFloat64Gauge(ctx context.Context, gauge *Float64GaugeHandle, labels ...core.KeyValue) Float64Gauge
-	GetFloat64Cumulative(ctx context.Context, gauge *Float64CumulativeHandle, labels ...core.KeyValue) Float64Cumulative
-	GetFloat64Additive(ctx context.Context, gauge *Float64AdditiveHandle, labels ...core.KeyValue) Float64Additive
-	GetFloat64Measure(ctx context.Context, gauge *Float64MeasureHandle, labels ...core.KeyValue) Float64Measure
+	GetFloat64Gauge(context.Context, *Float64GaugeHandle, ...core.KeyValue) Float64Gauge
+	GetFloat64Cumulative(context.Context, *Float64CumulativeHandle, ...core.KeyValue) Float64Cumulative
+	GetFloat64Additive(context.Context, *Float64AdditiveHandle, ...core.KeyValue) Float64Additive
+	GetFloat64Measure(context.Context, *Float64MeasureHandle, ...core.KeyValue) Float64Measure
 }
 
 type Float64Gauge interface {
@@ -58,8 +59,9 @@ type Float64Measure interface {
 type Handle struct {
 	Variable registry.Variable
 
-	Type MetricType
-	Keys []core.Key
+	Type         MetricType
+	Keys         []core.Key
+	Aggregations []aggregation.Descriptor
 }
 
 type Option func(*Handle, *[]registry.Option)
@@ -78,10 +80,18 @@ func WithUnit(unit unit.Unit) Option {
 	}
 }
 
-// WithKeys applies the provided dimension keys.
+// WithKeys applies recommended dimension keys.  Multiple `WithKeys`
+// options accumulate.
 func WithKeys(keys ...core.Key) Option {
 	return func(m *Handle, _ *[]registry.Option) {
-		m.Keys = keys
+		m.Keys = append(m.Keys, keys...)
+	}
+}
+
+// WithAggregation applies user-recommended aggregations to this metric.
+func WithAggregations(aggrs ...aggregation.Descriptor) Option {
+	return func(m *Handle, _ *[]registry.Option) {
+		m.Aggregations = append(m.Aggregations, aggrs...)
 	}
 }
 
@@ -94,4 +104,8 @@ func (mtype MetricType) String() string {
 	default:
 		return "unknown"
 	}
+}
+
+func (h Handle) Defined() bool {
+	return h.Variable.Defined()
 }

@@ -25,10 +25,16 @@ var (
 )
 
 func SetCurrentSpan(ctx context.Context, span Span) context.Context {
+	if ctx == nil {
+		return ctx
+	}
 	return context.WithValue(ctx, currentSpanKey, span)
 }
 
 func CurrentSpan(ctx context.Context) Span {
+	if ctx == nil {
+		return noopSpan{}
+	}
 	if span, has := ctx.Value(currentSpanKey).(Span); has {
 		return span
 	}

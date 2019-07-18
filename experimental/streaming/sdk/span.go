@@ -27,7 +27,7 @@ import (
 )
 
 type span struct {
-	tracer  *tracer
+	sdk     *sdk
 	initial observer.ScopeID
 }
 
@@ -100,7 +100,7 @@ func (sp *span) Finish() {
 }
 
 func (sp *span) Tracer() apitrace.Tracer {
-	return sp.tracer
+	return sp.sdk
 }
 
 func (sp *span) AddEvent(ctx context.Context, event event.Event) {

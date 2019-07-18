@@ -20,6 +20,7 @@ import (
 
 	"go.opentelemetry.io/api/core"
 	"go.opentelemetry.io/api/key"
+	"go.opentelemetry.io/experimental/streaming/exporter/observer"
 	"go.opentelemetry.io/experimental/streaming/exporter/reader"
 
 	// TODO this should not be an SDK dependency; move conventional tags into the API.
@@ -37,7 +38,10 @@ func AppendEvent(buf *strings.Builder, data reader.Event) {
 			if skipIf && data.Attributes.HasValue(kv.Key) {
 				return true
 			}
-			buf.WriteString(" " + kv.Key.Variable.Name + "=" + kv.Value.Emit())
+			buf.WriteString(" ")
+			buf.WriteString(kv.Key.Variable.Name)
+			buf.WriteString("=")
+			buf.WriteString(kv.Value.Emit())
 			return true
 		}
 	}
@@ -46,7 +50,7 @@ func AppendEvent(buf *strings.Builder, data reader.Event) {
 	buf.WriteString(" ")
 
 	switch data.Type {
-	case reader.START_SPAN:
+	case observer.START_SPAN:
 		buf.WriteString("start ")
 		buf.WriteString(data.Name)
 
@@ -63,7 +67,7 @@ func AppendEvent(buf *strings.Builder, data reader.Event) {
 			buf.WriteString(" >")
 		}
 
-	case reader.FINISH_SPAN:
+	case observer.FINISH_SPAN:
 		buf.WriteString("finish ")
 		buf.WriteString(data.Name)
 
@@ -71,40 +75,41 @@ func AppendEvent(buf *strings.Builder, data reader.Event) {
 		buf.WriteString(data.Duration.String())
 		buf.WriteString(")")
 
-	case reader.ADD_EVENT:
+	case observer.ADD_EVENT:
 		buf.WriteString("event: ")
 		buf.WriteString(data.Event.Message())
 		buf.WriteString(" (")
 		for _, kv := range data.Event.Attributes() {
-			buf.WriteString(" " + kv.Key.Variable.Name + "=" + kv.Value.Emit())
+			buf.WriteString(" ")
+			buf.WriteString(kv.Key.Variable.Name)
+			buf.WriteString("=")
+			buf.WriteString(kv.Value.Emit())
 		}
 		buf.WriteString(")")
 
-	case reader.MODIFY_ATTR:
-		buf.WriteString("modify attr")
-	case reader.RECORD_STATS:
-		buf.WriteString("record")
+	case observer.MODIFY_ATTR:
+		buf.WriteString(data.Type.String())
 
-		for _, s := range data.Stats {
-			f(false)(core.Key{
-				Variable: s.Measure.V(),
-			}.Float64(s.Value))
-
-			buf.WriteString(" {")
-			i := 0
-			s.Tags.Foreach(func(kv core.KeyValue) bool {
-				if i != 0 {
-					buf.WriteString(",")
-				}
-				i++
-				buf.WriteString(kv.Key.Variable.Name)
-				buf.WriteString("=")
-				buf.WriteString(kv.Value.Emit())
-				return true
-			})
-			buf.WriteString("}")
-		}
-	case reader.SET_STATUS:
+	case observer.GAUGE_SET, observer.CUMULATIVE_INC, observer.ADDITIVE_ADD, observer.MEASURE_RECORD:
+		buf.WriteString(data.Type.String())
+		buf.WriteString(" ")
+		buf.WriteString(data.Measurement.Metric.Variable.Name)
+		buf.WriteString("=")
+		buf.WriteString(fmt.Sprint(data.Measurement.Value))
+		buf.WriteString(" {")
+		i := 0
+		data.Tags.Foreach(func(kv core.KeyValue) bool {
+			if i != 0 {
+				buf.WriteString(",")
+			}
+			i++
+			buf.WriteString(kv.Key.Variable.Name)
+			buf.WriteString("=")
+			buf.WriteString(kv.Value.Emit())
+			return true
+		})
+		buf.WriteString("}")
+	case observer.SET_STATUS:
 		buf.WriteString("set status ")
 		buf.WriteString(data.Status.String())
 
