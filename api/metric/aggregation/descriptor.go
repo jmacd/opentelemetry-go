@@ -14,8 +14,7 @@
 
 package aggregation
 
-import "go.opentelemetry.io/api/core"
-
+//go:generate stringer -type=Operator
 type Operator int
 
 const (
@@ -27,56 +26,3 @@ const (
 	LAST_VALUE
 	DISTRIBUTION
 )
-
-type Descriptor struct {
-	Operator Operator
-	Keys     []core.Key
-}
-
-func None() Descriptor {
-	return Descriptor{
-		Operator: NONE,
-	}
-}
-
-func Sum(keys ...core.Key) Descriptor {
-	return Descriptor{
-		Operator: SUM,
-		Keys:     keys,
-	}
-}
-
-func Count(keys ...core.Key) Descriptor {
-	return Descriptor{
-		Operator: COUNT,
-		Keys:     keys,
-	}
-}
-
-func Min(keys ...core.Key) Descriptor {
-	return Descriptor{
-		Operator: MIN,
-		Keys:     keys,
-	}
-}
-
-func Max(keys ...core.Key) Descriptor {
-	return Descriptor{
-		Operator: MAX,
-		Keys:     keys,
-	}
-}
-
-func LastValue(keys ...core.Key) Descriptor {
-	return Descriptor{
-		Operator: LAST_VALUE,
-		Keys:     keys,
-	}
-}
-
-func Distribution(keys ...core.Key) Descriptor {
-	return Descriptor{
-		Operator: DISTRIBUTION,
-		Keys:     keys,
-	}
-}

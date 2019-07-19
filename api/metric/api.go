@@ -23,15 +23,15 @@ import (
 	"go.opentelemetry.io/api/unit"
 )
 
-type MetricType int
+type Type int
 
-//go:generate stringer -type=MetricType
+//go:generate stringer -type=Type
 const (
-	Invalid    MetricType = iota
-	Gauge                 // Supports Set()
-	Cumulative            // Supports Inc(): only positive values
-	Additive              // Supports Add(): positive or negative
-	Measure               // Supports Record()
+	Invalid    Type = iota
+	Gauge           // Supports Set()
+	Cumulative      // Supports Inc(): only positive values
+	Additive        // Supports Add(): positive or negative
+	Measure         // Supports Record()
 )
 
 type Meter interface {
@@ -60,9 +60,9 @@ type Float64Measure interface {
 type Handle struct {
 	Variable registry.Variable
 
-	Type         MetricType
-	Keys         []core.Key
-	Aggregations []aggregation.Descriptor
+	Type        Type
+	Keys        []core.Key
+	Aggregation aggregation.Operator
 }
 
 type Option func(*Handle, *[]registry.Option)
@@ -92,12 +92,11 @@ func WithKeys(keys ...core.Key) Option {
 	}
 }
 
-// WithAggregation applies user-recommended aggregations to this
-// metric.  This is useful to declare the non-default aggregations,
-// particularly for Measure type metrics.
-func WithAggregations(aggrs ...aggregation.Descriptor) Option {
+// WithAggregation applies a user-recommended aggregation to this
+// metric, useful particularly for Measure type metrics.
+func WithAggregation(aggr aggregation.Operator) Option {
 	return func(m *Handle, _ *[]registry.Option) {
-		m.Aggregations = append(m.Aggregations, aggrs...)
+		m.Aggregation = aggr
 	}
 }
 

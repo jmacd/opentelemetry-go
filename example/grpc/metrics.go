@@ -32,21 +32,24 @@ var (
 		"grpc.io/client/sent_bytes_per_rpc",
 		metric.WithUnit(unit.Bytes),
 		metric.WithDescription("Number of bytes sent per RPC"),
-		metric.WithAggregations(aggregation.Distribution(clientMethodKey)),
+		metric.WithKeys(clientMethodKey),
+		metric.WithAggregation(aggregation.DISTRIBUTION),
 	)
 
 	receivedBytesPerRPC = metric.NewFloat64Measure(
 		"grpc.io/client/received_bytes_per_rpc",
 		metric.WithUnit(unit.Bytes),
 		metric.WithDescription("Number of bytes received per RPC"),
-		metric.WithAggregations(aggregation.Distribution(clientMethodKey)),
+		metric.WithKeys(clientMethodKey),
+		metric.WithAggregation(aggregation.DISTRIBUTION),
 	)
 
 	roundtripLatency = metric.NewFloat64Measure(
 		"grpc.io/client/roundtrip_latency",
 		metric.WithUnit(unit.Milliseconds),
 		metric.WithDescription("Roundtrip request latency"),
-		metric.WithAggregations(aggregation.Distribution(clientMethodKey)),
+		metric.WithKeys(clientMethodKey),
+		metric.WithAggregation(aggregation.DISTRIBUTION),
 	)
 
 	// Note: the specification says to use "Count" aggregation by
@@ -65,13 +68,15 @@ var (
 	completedRPCs = metric.NewFloat64Measure(
 		"grpc.io/client/completed_rpcs",
 		metric.WithDescription("Count of completed RPCs"),
-		metric.WithAggregations(aggregation.Sum(clientMethodKey, clientStatusKey)),
+		metric.WithKeys(clientMethodKey, clientStatusKey),
+		metric.WithAggregation(aggregation.SUM),
 	)
 
 	startedRPCs = metric.NewFloat64Measure(
 		"grpc.io/client/started_rpcs",
 		metric.WithDescription("Count of started RPCs"),
-		metric.WithAggregations(aggregation.Sum(clientMethodKey)),
+		metric.WithKeys(clientMethodKey),
+		metric.WithAggregation(aggregation.SUM),
 	)
 
 	// Extra client metrics
@@ -88,7 +93,7 @@ var (
 		metric.WithUnit(unit.Bytes),
 		metric.WithDescription("Number of messages sent per RPC, equals 1 for unary RPCs"),
 		metric.WithKeys(clientMethodKey),
-		metric.WithAggregations(aggregation.None()),
+		metric.WithAggregation(aggregation.NONE),
 	)
 
 	receivedMessagesPerRPC = metric.NewFloat64Measure(
@@ -96,7 +101,7 @@ var (
 		metric.WithUnit(unit.Bytes),
 		metric.WithDescription("Number of messages received per RPC, equals 1 for unary RPCs"),
 		metric.WithKeys(clientMethodKey),
-		metric.WithAggregations(aggregation.None()),
+		metric.WithAggregation(aggregation.NONE),
 	)
 
 	// ... and so on

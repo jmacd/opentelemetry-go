@@ -25,7 +25,8 @@ type Reader interface {
 }
 
 type Span struct {
-	Events []reader.Event
+	Events     []reader.Event
+	Aggregates map[string]float64
 }
 
 type spanReader struct {
@@ -57,12 +58,9 @@ func (s *spanReader) Read(data reader.Event) {
 		}
 	}
 
-	switch data.Type {
-	// GAUGE_SET
-	// CUMULATIVE_INC
-	// ADDITIVE_ADD
-	// MEASURE_RECORD
-	// @@@
+	if data.Type == observer.UPDATE_METRIC {
+		s.updateMetric(data)
+		return
 	}
 
 	span.Events = append(span.Events, data)
@@ -73,4 +71,8 @@ func (s *spanReader) Read(data reader.Event) {
 		}
 		delete(s.spans, data.SpanContext)
 	}
+}
+
+func (s *spanReader) updateMetric(data reader.Event) {
+	// TODO aggregate
 }
