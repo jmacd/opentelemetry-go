@@ -81,14 +81,19 @@ func WithUnit(unit unit.Unit) Option {
 }
 
 // WithKeys applies recommended dimension keys.  Multiple `WithKeys`
-// options accumulate.
+// options accumulate.  The keys specified in this way are taken as
+// the recommended aggregation keys for Gauge, Cumulative, and
+// Additive metrics.  For Measure metrics, the keys recommended here
+// are taken as the default for aggregations.
 func WithKeys(keys ...core.Key) Option {
 	return func(m *Handle, _ *[]registry.Option) {
 		m.Keys = append(m.Keys, keys...)
 	}
 }
 
-// WithAggregation applies user-recommended aggregations to this metric.
+// WithAggregation applies user-recommended aggregations to this
+// metric.  This is useful to declare the non-default aggregations,
+// particularly for Measure type metrics.
 func WithAggregations(aggrs ...aggregation.Descriptor) Option {
 	return func(m *Handle, _ *[]registry.Option) {
 		m.Aggregations = append(m.Aggregations, aggrs...)

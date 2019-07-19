@@ -19,7 +19,7 @@ import "go.opentelemetry.io/api/core"
 type Operator int
 
 const (
-	None Operator = iota
+	NONE Operator = iota
 	SUM
 	COUNT
 	MIN
@@ -31,6 +31,12 @@ const (
 type Descriptor struct {
 	Operator Operator
 	Keys     []core.Key
+}
+
+func None() Descriptor {
+	return Descriptor{
+		Operator: NONE,
+	}
 }
 
 func Sum(keys ...core.Key) Descriptor {
@@ -70,7 +76,7 @@ func LastValue(keys ...core.Key) Descriptor {
 
 func Distribution(keys ...core.Key) Descriptor {
 	return Descriptor{
-		Operator: SUM,
+		Operator: DISTRIBUTION,
 		Keys:     keys,
 	}
 }
