@@ -42,7 +42,7 @@ func NewReaderObserver(readers ...Reader) observer.Observer {
 
 func (s *spanReader) Read(data reader.Event) {
 	if !data.SpanContext.HasSpanID() {
-		// @@@ This is happening, somehow span context is busted.
+		panic("How is this?")
 		return
 	}
 	var span *Span
@@ -55,6 +55,14 @@ func (s *spanReader) Read(data reader.Event) {
 			// TODO count and report this.
 			return
 		}
+	}
+
+	switch data.Type {
+	// GAUGE_SET
+	// CUMULATIVE_INC
+	// ADDITIVE_ADD
+	// MEASURE_RECORD
+	// @@@
 	}
 
 	span.Events = append(span.Events, data)

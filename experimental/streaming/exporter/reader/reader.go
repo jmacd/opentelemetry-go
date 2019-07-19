@@ -255,10 +255,7 @@ func (ro *readerObserver) orderedObserve(event observer.Event) {
 			read.SpanContext = span.spanContext
 		}
 
-	case observer.GAUGE_SET,
-		observer.CUMULATIVE_INC,
-		observer.ADDITIVE_ADD,
-		observer.MEASURE_RECORD:
+	case observer.UPDATE_METRIC:
 
 		read.Type = event.Type
 

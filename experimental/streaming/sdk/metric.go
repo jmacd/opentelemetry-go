@@ -85,17 +85,17 @@ func record(ctx context.Context, handle metric.Handle, etype observer.EventType,
 }
 
 func (g *float64Gauge) Set(ctx context.Context, value float64, labels ...core.KeyValue) {
-	record(ctx, g.handle.Handle, observer.GAUGE_SET, value, g.scope, labels)
+	record(ctx, g.handle.Handle, observer.UPDATE_METRIC, value, g.scope, labels)
 }
 
 func (c *float64Cumulative) Inc(ctx context.Context, value float64, labels ...core.KeyValue) {
-	record(ctx, c.handle.Handle, observer.CUMULATIVE_INC, value, c.scope, labels)
+	record(ctx, c.handle.Handle, observer.UPDATE_METRIC, value, c.scope, labels)
 }
 
 func (a *float64Additive) Add(ctx context.Context, value float64, labels ...core.KeyValue) {
-	record(ctx, a.handle.Handle, observer.ADDITIVE_ADD, value, a.scope, labels)
+	record(ctx, a.handle.Handle, observer.UPDATE_METRIC, value, a.scope, labels)
 }
 
 func (m *float64Measure) Record(ctx context.Context, value float64, labels ...core.KeyValue) {
-	record(ctx, m.handle.Handle, observer.MEASURE_RECORD, value, m.scope, labels)
+	record(ctx, m.handle.Handle, observer.UPDATE_METRIC, value, m.scope, labels)
 }

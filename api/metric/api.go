@@ -25,6 +25,7 @@ import (
 
 type MetricType int
 
+//go:generate stringer -type=MetricType
 const (
 	Invalid    MetricType = iota
 	Gauge                 // Supports Set()
@@ -97,17 +98,6 @@ func WithKeys(keys ...core.Key) Option {
 func WithAggregations(aggrs ...aggregation.Descriptor) Option {
 	return func(m *Handle, _ *[]registry.Option) {
 		m.Aggregations = append(m.Aggregations, aggrs...)
-	}
-}
-
-func (mtype MetricType) String() string {
-	switch mtype {
-	case Gauge:
-		return "gauge"
-	case Cumulative:
-		return "cumulative"
-	default:
-		return "unknown"
 	}
 }
 

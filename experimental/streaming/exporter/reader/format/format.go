@@ -90,8 +90,8 @@ func AppendEvent(buf *strings.Builder, data reader.Event) {
 	case observer.MODIFY_ATTR:
 		buf.WriteString(data.Type.String())
 
-	case observer.GAUGE_SET, observer.CUMULATIVE_INC, observer.ADDITIVE_ADD, observer.MEASURE_RECORD:
-		buf.WriteString(data.Type.String())
+	case observer.UPDATE_METRIC:
+		buf.WriteString(data.Measurement.Metric.Type.String())
 		buf.WriteString(" ")
 		buf.WriteString(data.Measurement.Metric.Variable.Name)
 		buf.WriteString("=")

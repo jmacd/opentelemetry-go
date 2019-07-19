@@ -75,7 +75,6 @@ type observersMap map[Observer]struct{}
 
 //go:generate stringer -type=EventType
 const (
-	// TODO: rename these NOUN_VERB
 	INVALID EventType = iota
 	START_SPAN
 	FINISH_SPAN
@@ -83,11 +82,7 @@ const (
 	NEW_SCOPE
 	MODIFY_ATTR
 	SET_STATUS
-
-	GAUGE_SET
-	CUMULATIVE_INC
-	ADDITIVE_ADD
-	MEASURE_RECORD
+	UPDATE_METRIC
 )
 
 var (
