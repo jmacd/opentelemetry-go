@@ -31,11 +31,6 @@ func Tracer() trace.Tracer {
 	return globalIndirect
 }
 
-// SetTracer sets provided tracer as a global tracer.
-func SetTracer(t trace.Tracer) {
-	internal.GlobalTracer.Store(t)
-}
-
 // IndirectTracer implements Tracer, allows callers of Tracer() before Init()
 // to forward to the installed SDK.
 type IndirectTracer struct{}

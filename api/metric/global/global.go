@@ -32,11 +32,6 @@ func Meter() metric.Meter {
 	return metric.NoopMeter{}
 }
 
-// SetMeter sets provided meter as a global meter.
-func SetMeter(t metric.Meter) {
-	internal.GlobalMeter.Store(t)
-}
-
 // IndirectMeter implements Meter, allows callers of Meter() before Init()
 // to forward to the installed SDK.
 type IndirectMeter struct{}
