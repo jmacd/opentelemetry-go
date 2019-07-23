@@ -20,16 +20,11 @@ import (
 
 	"go.opentelemetry.io/api/core"
 	"go.opentelemetry.io/api/key"
-	"go.opentelemetry.io/api/metric"
 	"go.opentelemetry.io/api/tag"
 	"go.opentelemetry.io/api/trace"
 	apitrace "go.opentelemetry.io/api/trace"
 	"go.opentelemetry.io/experimental/streaming/exporter/observer"
 )
-
-type SDK struct {
-	resources observer.EventID
-}
 
 var (
 	// TODO These should move somewhere in the api, right?
@@ -42,30 +37,6 @@ var (
 		key.WithDescription("message text: info, error, etc"),
 	)
 )
-
-var _ trace.Tracer = &SDK{}
-var _ metric.Meter = &SDK{}
-
-func New() *SDK {
-	return &SDK{}
-}
-
-// func (t *SDK) WithResources(attributes ...core.KeyValue) apitrace.Tracer {
-// 	s := observer.NewScope(observer.ScopeID{
-// 		EventID: t.resources,
-// 	}, attributes...)
-// 	return &tracer{
-// 		resources: s.EventID,
-// 	}
-// }
-
-// func (t *SDK) WithComponent(name string) apitrace.Tracer {
-// 	return t.WithResources(ComponentKey.String(name))
-// }
-
-// func (t *SDK) WithService(name string) apitrace.Tracer {
-// 	return t.WithResources(ServiceKey.String(name))
-// }
 
 func (t *SDK) WithSpan(ctx context.Context, name string, body func(context.Context) error) error {
 	// TODO: use runtime/trace.WithRegion for execution tracer support

@@ -26,12 +26,10 @@ type tagContent struct {
 	meta  MeasureMetadata
 }
 
-type tagMap map[core.Key]tagContent
+type Map map[core.Key]tagContent
 
-var _ Map = tagMap{}
-
-func (t tagMap) Apply(update MapUpdate) Map {
-	m := make(tagMap, len(t)+len(update.MultiKV)+len(update.MultiMutator))
+func (t Map) Apply(update MapUpdate) Map {
+	m := make(Map, len(t)+len(update.MultiKV)+len(update.MultiMutator))
 	for k, v := range t {
 		m[k] = v
 	}
@@ -54,7 +52,7 @@ func (t tagMap) Apply(update MapUpdate) Map {
 	return m
 }
 
-func (m tagMap) Value(k core.Key) (core.Value, bool) {
+func (m Map) Value(k core.Key) (core.Value, bool) {
 	entry, ok := m[k]
 	if !ok {
 		entry.value.Type = core.INVALID
@@ -62,16 +60,16 @@ func (m tagMap) Value(k core.Key) (core.Value, bool) {
 	return entry.value, ok
 }
 
-func (m tagMap) HasValue(k core.Key) bool {
+func (m Map) HasValue(k core.Key) bool {
 	_, has := m.Value(k)
 	return has
 }
 
-func (m tagMap) Len() int {
+func (m Map) Len() int {
 	return len(m)
 }
 
-func (m tagMap) Foreach(f func(kv core.KeyValue) bool) {
+func (m Map) Foreach(f func(kv core.KeyValue) bool) {
 	for k, v := range m {
 		if !f(core.KeyValue{
 			Key:   k,
@@ -82,7 +80,7 @@ func (m tagMap) Foreach(f func(kv core.KeyValue) bool) {
 	}
 }
 
-func (m tagMap) apply(mutator Mutator) {
+func (m Map) apply(mutator Mutator) {
 	if m == nil {
 		return
 	}
@@ -107,40 +105,10 @@ func (m tagMap) apply(mutator Mutator) {
 	}
 }
 
-func Insert(kv core.KeyValue) Mutator {
-	return Mutator{
-		MutatorOp: INSERT,
-		KeyValue:  kv,
-	}
-}
-
-func Update(kv core.KeyValue) Mutator {
-	return Mutator{
-		MutatorOp: UPDATE,
-		KeyValue:  kv,
-	}
-}
-
-func Upsert(kv core.KeyValue) Mutator {
-	return Mutator{
-		MutatorOp: UPSERT,
-		KeyValue:  kv,
-	}
-}
-
-func Delete(k core.Key) Mutator {
-	return Mutator{
-		MutatorOp: DELETE,
-		KeyValue: core.KeyValue{
-			Key: k,
-		},
-	}
-}
-
 // Note: the golang pprof.Do API forces this memory allocation, we
 // should file an issue about that.  (There's a TODO in the source.)
 func Do(ctx context.Context, f func(ctx context.Context)) {
-	m := FromContext(ctx).(tagMap)
+	m := FromContext(ctx)
 	keyvals := make([]string, 0, 2*len(m))
 	for k, v := range m {
 		keyvals = append(keyvals, k.Variable.Name, v.value.Emit())

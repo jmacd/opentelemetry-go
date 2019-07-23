@@ -45,6 +45,36 @@ type MeasureMetadata struct {
 	TTL int // -1 == infinite, 0 == do not propagate
 }
 
+func Insert(kv core.KeyValue) Mutator {
+	return Mutator{
+		MutatorOp: INSERT,
+		KeyValue:  kv,
+	}
+}
+
+func Update(kv core.KeyValue) Mutator {
+	return Mutator{
+		MutatorOp: UPDATE,
+		KeyValue:  kv,
+	}
+}
+
+func Upsert(kv core.KeyValue) Mutator {
+	return Mutator{
+		MutatorOp: UPSERT,
+		KeyValue:  kv,
+	}
+}
+
+func Delete(k core.Key) Mutator {
+	return Mutator{
+		MutatorOp: DELETE,
+		KeyValue: core.KeyValue{
+			Key: k,
+		},
+	}
+}
+
 func (m Mutator) WithTTL(hops int) Mutator {
 	m.TTL = hops
 	return m
@@ -57,19 +87,8 @@ type MapUpdate struct {
 	MultiMutator  []Mutator
 }
 
-type Map interface {
-	Apply(MapUpdate) Map
-
-	Value(core.Key) (core.Value, bool)
-	HasValue(core.Key) bool
-
-	Len() int
-
-	Foreach(func(kv core.KeyValue) bool)
-}
-
 func NewEmptyMap() Map {
-	return tagMap{}
+	return Map{}
 }
 
 func NewMap(update MapUpdate) Map {
@@ -90,5 +109,5 @@ func FromContext(ctx context.Context) Map {
 	if m, ok := ctx.Value(ctxTagsKey).(Map); ok {
 		return m
 	}
-	return tagMap{}
+	return NewEmptyMap()
 }

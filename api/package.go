@@ -3,6 +3,7 @@ package opentelemetry
 import (
 	"sync"
 
+	"go.opentelemetry.io/api/internal"
 	"go.opentelemetry.io/api/metric"
 	"go.opentelemetry.io/api/trace"
 )
@@ -16,7 +17,7 @@ type SDK interface {
 
 func Init(sdk SDK) {
 	once.Do(func() {
-		// internal.GlobalTracer.Store(sdk.Tracer)
-		// internal.GlobalMeter.Store(sdk.Meter)
+		internal.GlobalTracer.Store(sdk.(trace.Tracer))
+		internal.GlobalMeter.Store(sdk.(metric.Meter))
 	})
 }
