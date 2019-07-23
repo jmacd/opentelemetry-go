@@ -28,12 +28,12 @@ func New(labels ...core.KeyValue) Map {
 }
 
 func Merge(maps ...Map) Map {
-	result := Map{tag.NewEmptyMap()}
+	var all []core.KeyValue
 	for _, m := range maps {
 		m.labels.Foreach(func(kv core.KeyValue) bool {
-			result.labels.Apply(tag.MapUpdate{SingleKV: kv})
+			all = append(all, kv)
 			return true
 		})
 	}
-	return result
+	return Map{tag.NewMap(tag.MapUpdate{MultiKV: all})}
 }
