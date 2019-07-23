@@ -19,6 +19,7 @@ import (
 
 	"go.opentelemetry.io/api/key"
 	"go.opentelemetry.io/api/metric"
+	metricglobal "go.opentelemetry.io/api/metric/global"
 	"go.opentelemetry.io/api/registry"
 	"go.opentelemetry.io/api/stats"
 	"go.opentelemetry.io/api/tag"
@@ -32,7 +33,7 @@ var (
 			key.New("whatevs").String("yesss"),
 		)
 
-	meter = metric.GlobalMeter() // TODO: should share resources ^^^?
+	meter = metricglobal.Meter() // TODO: should share resources ^^^?
 
 	fooKey     = key.New("ex.com/foo", registry.WithDescription("A Foo var"))
 	barKey     = key.New("ex.com/bar", registry.WithDescription("A Bar var"))
