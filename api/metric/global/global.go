@@ -16,48 +16,38 @@ package metric
 
 import (
 	"context"
-	"sync/atomic"
 
 	"go.opentelemetry.io/api/core"
 	"go.opentelemetry.io/api/metric"
+	"go.opentelemetry.io/api/metric/internal"
 )
 
-// The global indirect meter is the default value
-var global = &IndirectMeter{}
-
-// IndirectMeter implements Meter
-type IndirectMeter struct {
-	meter atomic.Value
-}
-
-var _ metric.Meter = &IndirectMeter{}
-
-var noopMeter = &metric.NoopMeter{}
-
-// Meter return meter registered with global registry.
-// If no meter is registered then an instance of noop Meter is returned.
+// Meter returns the global Meter instance.  Before opentelemetry.Init() is
+// called, this returns an "indirect" No-op implementation, that will be updated
+// once the SDK is initialized.
 func Meter() metric.Meter {
-	return global
+	if t := internal.Global.Load(); t != nil {
+		return t.(metric.Meter)
+	}
+	return metric.NoopMeter{}
 }
 
 // SetMeter sets provided meter as a global meter.
 func SetMeter(t metric.Meter) {
-	global.meter.Store(t)
+	internal.Global.Store(t)
 }
 
-// getMeter gets the current global meter or a noop
-func (im *IndirectMeter) getMeter() metric.Meter {
-	if t := im.meter.Load(); t != nil {
-		return t.(metric.Meter)
-	}
-	return noopMeter
-}
+// IndirectMeter implements Meter, allows callers of Meter() before Init()
+// to forward to the installed SDK.
+type IndirectMeter struct{}
 
-// GetFloat64Gauge implements metric.Meter
-func (im *IndirectMeter) GetFloat64Gauge(
+var globalIndirect metric.Meter = &IndirectMeter{}
+
+// GetFloat64Gauge implements Meter
+func (*IndirectMeter) GetFloat64Gauge(
 	ctx context.Context,
 	gauge *metric.Float64GaugeHandle,
 	labels ...core.KeyValue,
 ) metric.Float64Gauge {
-	return im.getMeter().GetFloat64Gauge(ctx, gauge, labels...)
+	return Meter().GetFloat64Gauge(ctx, gauge, labels...)
 }

@@ -21,8 +21,9 @@ import (
 	"go.opentelemetry.io/api/trace/internal"
 )
 
-// Tracer return tracer registered with global registry.
-// If no tracer is registered then an instance of noop Tracer is returned.
+// Tracer returns the global Tracer instance.  Before opentelemetry.Init() is
+// called, this returns an "indirect" No-op implementation, that will be updated
+// once the SDK is initialized.
 func Tracer() trace.Tracer {
 	if t := internal.Global.Load(); t != nil {
 		return t.(trace.Tracer)
@@ -35,21 +36,32 @@ func SetTracer(t trace.Tracer) {
 	internal.Global.Store(t)
 }
 
-// IndirectTracer is used to call the current global tracer after it is initialized.
-// Before the global tracer is initialized, this acts as a no-op.
-type IndirectTracer struct {
-}
+// IndirectTracer implements Tracer, allows callers of Tracer() before Init()
+// to forward to the installed SDK.
+type IndirectTracer struct{}
 
 var globalIndirect trace.Tracer = &IndirectTracer{}
 
-func (it *IndirectTracer) WithSpan(ctx context.Context, name string, body func(context.Context) error) error {
+func (*IndirectTracer) WithSpan(
+	ctx context.Context,
+	name string,
+	body func(context.Context) error,
+) error {
 	return Tracer().WithSpan(ctx, name, body)
 }
 
-func (it *IndirectTracer) Start(ctx context.Context, name string, opts ...trace.SpanOption) (context.Context, trace.Span) {
+func (*IndirectTracer) Start(
+	ctx context.Context,
+	name string,
+	opts ...trace.SpanOption,
+) (context.Context, trace.Span) {
 	return Tracer().Start(ctx, name, opts...)
 }
 
-func (it *IndirectTracer) Inject(ctx context.Context, span trace.Span, injector trace.Injector) {
+func (*IndirectTracer) Inject(
+	ctx context.Context,
+	span trace.Span,
+	injector trace.Injector,
+) {
 	Tracer().Inject(ctx, span, injector)
 }
