@@ -1,9 +1,9 @@
 package sdk
 
 import (
-	"go.opentelemetry.io/api/trace"
+	"go.opentelemetry.io/api/trace/global"
 )
 
 func init() {
-	trace.SetGlobalTracer(New())
+	global.SetTracer(New())
 }

@@ -38,14 +38,6 @@ type Tracer interface {
 		body func(ctx context.Context) error,
 	) error
 
-	// TODO: Do we need WithService and WithComponent?
-	// TODO: Can we make these helpers (based on WithResources)?
-	WithService(name string) Tracer
-	WithComponent(name string) Tracer
-
-	// WithResources attaches resource attributes to the Tracer.
-	WithResources(res ...core.KeyValue) Tracer
-
 	// Note: see https://github.com/opentracing/opentracing-go/issues/127
 	Inject(context.Context, Span, Injector)
 }
@@ -119,7 +111,7 @@ const (
 
 // Start starts a new span using registered global tracer.
 func Start(ctx context.Context, name string, opts ...SpanOption) (context.Context, Span) {
-	return GlobalTracer().Start(ctx, name, opts...)
+	return globalTracer().Start(ctx, name, opts...)
 }
 
 // Inject is convenient function to inject current span context using injector.

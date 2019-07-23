@@ -25,16 +25,17 @@ import (
 	"go.opentelemetry.io/api/key"
 	"go.opentelemetry.io/api/tag"
 	"go.opentelemetry.io/api/trace"
+	traceglobal "go.opentelemetry.io/api/trace/global"
 	"go.opentelemetry.io/plugin/httptrace"
 )
 
 var (
-	tracer = trace.GlobalTracer().
-		WithService("client").
-		WithComponent("main").
-		WithResources(
-			key.New("whatevs").String("yesss"),
-		)
+	tracer = traceglobal.Tracer()
+	// WithService("client").
+	// WithComponent("main").
+	// WithResources(
+	// 	key.New("whatevs").String("yesss"),
+	// )
 )
 
 func main() {

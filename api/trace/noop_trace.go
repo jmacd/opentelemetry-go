@@ -16,40 +16,23 @@ package trace
 
 import (
 	"context"
-
-	"go.opentelemetry.io/api/core"
 )
 
-type noopTracer struct{}
+type NoopTracer struct{}
 
-var _ Tracer = noopTracer{}
-
-// WithResources does nothing and returns noop implementation of Tracer.
-func (t noopTracer) WithResources(attributes ...core.KeyValue) Tracer {
-	return t
-}
-
-// WithComponent does nothing and returns noop implementation of Tracer.
-func (t noopTracer) WithComponent(name string) Tracer {
-	return t
-}
-
-// WithService does nothing and returns noop implementation of Tracer.
-func (t noopTracer) WithService(name string) Tracer {
-	return t
-}
+var _ Tracer = NoopTracer{}
 
 // WithSpan wraps around execution of func with noop span.
-func (t noopTracer) WithSpan(ctx context.Context, name string, body func(context.Context) error) error {
+func (t NoopTracer) WithSpan(ctx context.Context, name string, body func(context.Context) error) error {
 	return body(ctx)
 }
 
 // Start starts a noop span.
-func (noopTracer) Start(ctx context.Context, name string, opts ...SpanOption) (context.Context, Span) {
+func (NoopTracer) Start(ctx context.Context, name string, opts ...SpanOption) (context.Context, Span) {
 	span := noopSpan{}
 	return SetCurrentSpan(ctx, span), span
 }
 
 // Inject does nothing.
-func (noopTracer) Inject(ctx context.Context, span Span, injector Injector) {
+func (NoopTracer) Inject(ctx context.Context, span Span, injector Injector) {
 }

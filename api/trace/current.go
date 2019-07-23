@@ -16,6 +16,8 @@ package trace
 
 import (
 	"context"
+
+	"go.opentelemetry.io/api/trace/internal"
 )
 
 type currentSpanKeyType struct{}
@@ -33,4 +35,11 @@ func CurrentSpan(ctx context.Context) Span {
 		return span
 	}
 	return noopSpan{}
+}
+
+func globalTracer() Tracer {
+	if t := internal.Global.Load(); t != nil {
+		return t.(Tracer)
+	}
+	return NoopTracer{}
 }

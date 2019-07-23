@@ -24,14 +24,16 @@ import (
 	"go.opentelemetry.io/api/stats"
 	"go.opentelemetry.io/api/tag"
 	"go.opentelemetry.io/api/trace"
+	traceglobal "go.opentelemetry.io/api/trace/global"
 )
 
 var (
-	tracer = trace.GlobalTracer().
-		WithComponent("example").
-		WithResources(
-			key.New("whatevs").String("yesss"),
-		)
+	tracer = traceglobal.Tracer()
+	// .
+	// 	WithComponent("example").
+	// 	WithResources(
+	// 		key.New("whatevs").String("yesss"),
+	// 	)
 
 	meter = metricglobal.Meter() // TODO: should share resources ^^^?
 
