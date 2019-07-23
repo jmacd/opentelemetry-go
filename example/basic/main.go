@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 
+	opentelemetry "go.opentelemetry.io/api"
 	"go.opentelemetry.io/api/key"
 	"go.opentelemetry.io/api/metric"
 	metricglobal "go.opentelemetry.io/api/metric/global"
@@ -25,18 +26,11 @@ import (
 	"go.opentelemetry.io/api/tag"
 	"go.opentelemetry.io/api/trace"
 	traceglobal "go.opentelemetry.io/api/trace/global"
+
+	"go.opentelemetry.io/experimental/streaming/sdk"
 )
 
 var (
-	tracer = traceglobal.Tracer()
-	// .
-	// 	WithComponent("example").
-	// 	WithResources(
-	// 		key.New("whatevs").String("yesss"),
-	// 	)
-
-	meter = metricglobal.Meter() // TODO: should share resources ^^^?
-
 	fooKey     = key.New("ex.com/foo", registry.WithDescription("A Foo var"))
 	barKey     = key.New("ex.com/bar", registry.WithDescription("A Bar var"))
 	lemonsKey  = key.New("ex.com/lemons", registry.WithDescription("A Lemons var"))
@@ -51,6 +45,15 @@ var (
 )
 
 func main() {
+	opentelemetry.Init(sdk.New())
+	// // 	WithComponent("example").
+	// // 	WithResources(
+	// // 		key.New("whatevs").String("yesss"),
+	// // 	)
+
+	tracer := traceglobal.Tracer()
+	meter := metricglobal.Meter()
+
 	ctx := context.Background()
 
 	ctx = tag.NewContext(ctx,

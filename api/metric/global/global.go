@@ -18,15 +18,15 @@ import (
 	"context"
 
 	"go.opentelemetry.io/api/core"
+	"go.opentelemetry.io/api/internal"
 	"go.opentelemetry.io/api/metric"
-	"go.opentelemetry.io/api/metric/internal"
 )
 
 // Meter returns the global Meter instance.  Before opentelemetry.Init() is
 // called, this returns an "indirect" No-op implementation, that will be updated
 // once the SDK is initialized.
 func Meter() metric.Meter {
-	if t := internal.Global.Load(); t != nil {
+	if t := internal.GlobalMeter.Load(); t != nil {
 		return t.(metric.Meter)
 	}
 	return metric.NoopMeter{}
@@ -34,7 +34,7 @@ func Meter() metric.Meter {
 
 // SetMeter sets provided meter as a global meter.
 func SetMeter(t metric.Meter) {
-	internal.Global.Store(t)
+	internal.GlobalMeter.Store(t)
 }
 
 // IndirectMeter implements Meter, allows callers of Meter() before Init()

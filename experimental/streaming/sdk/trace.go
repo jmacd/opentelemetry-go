@@ -20,13 +20,14 @@ import (
 
 	"go.opentelemetry.io/api/core"
 	"go.opentelemetry.io/api/key"
+	"go.opentelemetry.io/api/metric"
 	"go.opentelemetry.io/api/tag"
 	"go.opentelemetry.io/api/trace"
 	apitrace "go.opentelemetry.io/api/trace"
 	"go.opentelemetry.io/experimental/streaming/exporter/observer"
 )
 
-type tracer struct {
+type SDK struct {
 	resources observer.EventID
 }
 
@@ -42,28 +43,31 @@ var (
 	)
 )
 
-func New() trace.Tracer {
-	return &tracer{}
+var _ trace.Tracer = &SDK{}
+var _ metric.Meter = &SDK{}
+
+func New() *SDK {
+	return &SDK{}
 }
 
-func (t *tracer) WithResources(attributes ...core.KeyValue) apitrace.Tracer {
-	s := observer.NewScope(observer.ScopeID{
-		EventID: t.resources,
-	}, attributes...)
-	return &tracer{
-		resources: s.EventID,
-	}
-}
+// func (t *SDK) WithResources(attributes ...core.KeyValue) apitrace.Tracer {
+// 	s := observer.NewScope(observer.ScopeID{
+// 		EventID: t.resources,
+// 	}, attributes...)
+// 	return &tracer{
+// 		resources: s.EventID,
+// 	}
+// }
 
-func (t *tracer) WithComponent(name string) apitrace.Tracer {
-	return t.WithResources(ComponentKey.String(name))
-}
+// func (t *SDK) WithComponent(name string) apitrace.Tracer {
+// 	return t.WithResources(ComponentKey.String(name))
+// }
 
-func (t *tracer) WithService(name string) apitrace.Tracer {
-	return t.WithResources(ServiceKey.String(name))
-}
+// func (t *SDK) WithService(name string) apitrace.Tracer {
+// 	return t.WithResources(ServiceKey.String(name))
+// }
 
-func (t *tracer) WithSpan(ctx context.Context, name string, body func(context.Context) error) error {
+func (t *SDK) WithSpan(ctx context.Context, name string, body func(context.Context) error) error {
 	// TODO: use runtime/trace.WithRegion for execution tracer support
 	// TODO: use runtime/pprof.Do for profile tags support
 	ctx, span := t.Start(ctx, name)
@@ -77,7 +81,7 @@ func (t *tracer) WithSpan(ctx context.Context, name string, body func(context.Co
 	return nil
 }
 
-func (t *tracer) Start(ctx context.Context, name string, opts ...apitrace.SpanOption) (context.Context, apitrace.Span) {
+func (t *SDK) Start(ctx context.Context, name string, opts ...apitrace.SpanOption) (context.Context, apitrace.Span) {
 	var child core.SpanContext
 
 	child.SpanID = rand.Uint64()
@@ -128,6 +132,6 @@ func (t *tracer) Start(ctx context.Context, name string, opts ...apitrace.SpanOp
 	return trace.SetCurrentSpan(ctx, span), span
 }
 
-func (t *tracer) Inject(ctx context.Context, span apitrace.Span, injector apitrace.Injector) {
+func (t *SDK) Inject(ctx context.Context, span apitrace.Span, injector apitrace.Injector) {
 	injector.Inject(span.SpanContext(), tag.FromContext(ctx))
 }

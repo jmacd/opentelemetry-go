@@ -27,7 +27,7 @@ import (
 )
 
 type span struct {
-	tracer  *tracer
+	tracer  *SDK
 	initial observer.ScopeID
 }
 

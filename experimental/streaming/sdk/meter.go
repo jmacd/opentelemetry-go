@@ -12,21 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package sdk
 
 import (
-	"go.opentelemetry.io/experimental/streaming/exporter/observer"
-	"go.opentelemetry.io/experimental/streaming/exporter/spanlog"
+	"context"
+
+	"go.opentelemetry.io/api/core"
+	"go.opentelemetry.io/api/metric"
 )
 
-var (
-	spanlogObs = spanlog.New()
-)
-
-func Observer() observer.Observer {
-	return spanlogObs
-}
-
-func main() {
-	_ = Observer()
+// GetFloat64Gauge implements Meter
+func (*SDK) GetFloat64Gauge(
+	ctx context.Context,
+	gauge *metric.Float64GaugeHandle,
+	labels ...core.KeyValue,
+) metric.Float64Gauge {
+	return metric.NoopMeter{}.GetFloat64Gauge(ctx, gauge, labels...)
 }

@@ -12,19 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package install
+package internal
 
 import (
-	"go.opentelemetry.io/experimental/streaming/exporter/observer"
-	"go.opentelemetry.io/experimental/streaming/exporter/stderr"
+	"sync/atomic"
 )
 
-// Use this import:
-//
-//   import _ "go.opentelemetry.io/experimental/streaming/exporter/stderr/install"
-//
-// to include the stderr exporter by default.
-
-func init() {
-	observer.RegisterObserver(stderr.New())
-}
+var GlobalTracer atomic.Value
+var GlobalMeter atomic.Value

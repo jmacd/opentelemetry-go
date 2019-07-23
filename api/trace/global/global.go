@@ -17,15 +17,15 @@ package global
 import (
 	"context"
 
+	"go.opentelemetry.io/api/internal"
 	"go.opentelemetry.io/api/trace"
-	"go.opentelemetry.io/api/trace/internal"
 )
 
 // Tracer returns the global Tracer instance.  Before opentelemetry.Init() is
 // called, this returns an "indirect" No-op implementation, that will be updated
 // once the SDK is initialized.
 func Tracer() trace.Tracer {
-	if t := internal.Global.Load(); t != nil {
+	if t := internal.GlobalTracer.Load(); t != nil {
 		return t.(trace.Tracer)
 	}
 	return globalIndirect
@@ -33,7 +33,7 @@ func Tracer() trace.Tracer {
 
 // SetTracer sets provided tracer as a global tracer.
 func SetTracer(t trace.Tracer) {
-	internal.Global.Store(t)
+	internal.GlobalTracer.Store(t)
 }
 
 // IndirectTracer implements Tracer, allows callers of Tracer() before Init()
