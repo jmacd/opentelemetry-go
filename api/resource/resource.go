@@ -14,10 +14,26 @@
 
 package resource
 
-import "go.opentelemetry.io/api/tag"
+import (
+	"go.opentelemetry.io/api/core"
+	"go.opentelemetry.io/api/tag"
+)
 
-type Map tag.Map
+type Map struct {
+	labels tag.Map
+}
 
-func NewMap() Map {
-	return Map(tag.NewEmptyMap())
+func New(labels ...core.KeyValue) Map {
+	return Map{tag.NewMap(tag.MapUpdate{MultiKV: labels})}
+}
+
+func Merge(maps ...Map) Map {
+	result := Map{tag.NewEmptyMap()}
+	for _, m := range maps {
+		m.labels.Foreach(func(kv core.KeyValue) bool {
+			result.labels.Apply(tag.MapUpdate{SingleKV: kv})
+			return true
+		})
+	}
+	return result
 }
