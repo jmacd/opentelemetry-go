@@ -1,7 +1,9 @@
 package core
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"unsafe"
 
 	"go.opentelemetry.io/api/registry"
@@ -27,7 +29,9 @@ type Value struct {
 	String  string
 	Bytes   []byte
 
-	// TODO Lazy value type?
+	// TODO Lazy value type? @@@
+
+	Object interface{}
 }
 
 const (
@@ -41,6 +45,7 @@ const (
 	FLOAT64
 	STRING
 	BYTES
+	OBJECT
 )
 
 func (k Key) Bool(v bool) KeyValue {
@@ -145,6 +150,16 @@ func (k Key) Uint(v uint) KeyValue {
 		return k.Uint32(uint32(v))
 	}
 	return k.Uint64(uint64(v))
+}
+
+func (k Key) Struct(v interface{}) KeyValue {
+	return k.Encode(func(w io.Writer) error {
+		return json.NewEncoder(w).Encode(v)
+	})
+}
+
+func (k Key) Encode(v func(io.Writer) error) KeyValue {
+	return KeyValue{} // @@@
 }
 
 func (k Key) Defined() bool {
