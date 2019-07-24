@@ -37,12 +37,12 @@ func (t tagMap) Apply(update MapUpdate) Map {
 	}
 	if update.SingleKV.Key.Defined() {
 		m[update.SingleKV.Key] = tagContent{
-			value: update.SingleKV.Value,
+			value: update.SingleKV.Value.Evaluate(),
 		}
 	}
 	for _, kv := range update.MultiKV {
 		m[kv.Key] = tagContent{
-			value: kv.Value,
+			value: kv.Value.Evaluate(),
 		}
 	}
 	if update.SingleMutator.Key.Defined() {
@@ -88,7 +88,7 @@ func (m tagMap) apply(mutator Mutator) {
 	}
 	key := mutator.KeyValue.Key
 	content := tagContent{
-		value: mutator.KeyValue.Value,
+		value: mutator.KeyValue.Value.Evaluate(),
 		meta:  mutator.MeasureMetadata,
 	}
 	switch mutator.MutatorOp {

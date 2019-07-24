@@ -137,6 +137,9 @@ func Record(event Event) EventID {
 	}
 
 	observers, _ := observers.Load().(observersMap)
+	if len(observers) != 0 {
+		event = event.evaluate()
+	}
 	for observer := range observers {
 		observer.Observe(event)
 	}
@@ -160,4 +163,22 @@ func NewScope(parent ScopeID, attributes ...core.KeyValue) ScopeID {
 		EventID:     eventID,
 		SpanContext: parent.SpanContext,
 	}
+}
+
+func (e Event) evaluate() Event {
+	if e.Attribute.Key.Defined() {
+		e.Attribute.Value = e.Attribute.Value.Evaluate()
+	}
+	for i, kv := range e.Attributes {
+		e.Attributes[i].Value = kv.Value.Evaluate()
+	}
+
+	if e.Mutator.KeyValue.Key.Defined() {
+		e.Mutator.KeyValue.Value = e.Mutator.KeyValue.Value.Evaluate()
+	}
+	for i, m := range e.Mutators {
+		e.Mutators[i].KeyValue.Value = m.KeyValue.Value.Evaluate()
+	}
+
+	return e
 }

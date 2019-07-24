@@ -1,7 +1,20 @@
+// Copyright 2019, OpenTelemetry Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package core
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"unsafe"
@@ -20,6 +33,8 @@ type KeyValue struct {
 
 type ValueType int
 
+type Encoder func(io.Writer) error
+
 type Value struct {
 	Type    ValueType
 	Bool    bool
@@ -28,10 +43,8 @@ type Value struct {
 	Float64 float64
 	String  string
 	Bytes   []byte
-
-	// TODO Lazy value type? @@@
-
-	Object interface{}
+	Struct  interface{}
+	Encoder Encoder
 }
 
 const (
@@ -45,7 +58,8 @@ const (
 	FLOAT64
 	STRING
 	BYTES
-	OBJECT
+	STRUCT  // Struct or Bytes, whichever is non-nil.
+	ENCODER // Encoder or Bytes, whichever is non-nil.
 )
 
 func (k Key) Bool(v bool) KeyValue {
@@ -153,20 +167,50 @@ func (k Key) Uint(v uint) KeyValue {
 }
 
 func (k Key) Struct(v interface{}) KeyValue {
-	return k.Encode(func(w io.Writer) error {
-		return json.NewEncoder(w).Encode(v)
-	})
+	return KeyValue{
+		Key: k,
+		Value: Value{
+			Type:   STRUCT,
+			Struct: v,
+		},
+	}
 }
 
 func (k Key) Encode(v func(io.Writer) error) KeyValue {
-	return KeyValue{} // @@@
+	return KeyValue{
+		Key: k,
+		Value: Value{
+			Type:    ENCODER,
+			Encoder: v,
+		},
+	}
 }
 
 func (k Key) Defined() bool {
 	return k.Variable.Defined()
 }
 
-// TODO make this a lazy one-time conversion.
+func (v Value) Evaluate() Value {
+	switch v.Type {
+	case STRUCT:
+		if v.Struct != nil {
+			return Value{
+				Type:  STRUCT,
+				Bytes: encodeStruct(v.Struct),
+			}
+		}
+	case ENCODER:
+		if v.Encoder != nil {
+			return Value{
+				Type:  STRUCT,
+				Bytes: applyEncoder(v.Encoder),
+			}
+		}
+	}
+	return v
+}
+
+// TODO make this a lazy one-time conversion. @@@
 func (v Value) Emit() string {
 	switch v.Type {
 	case BOOL:
