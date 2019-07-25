@@ -16,11 +16,25 @@ package resource
 
 import (
 	"go.opentelemetry.io/api/core"
+	"go.opentelemetry.io/api/key"
 	"go.opentelemetry.io/api/tag"
+)
+
+var (
+	ComponentKey = key.New("component")
+	ServiceKey   = key.New("service")
 )
 
 type Map struct {
 	labels tag.Map
+}
+
+func Service(name string) Map {
+	return Map{tag.NewMap(tag.MapUpdate{SingleKV: ServiceKey.String(name)})}
+}
+
+func Component(name string) Map {
+	return Map{tag.NewMap(tag.MapUpdate{SingleKV: ComponentKey.String(name)})}
 }
 
 func New(labels ...core.KeyValue) Map {

@@ -22,30 +22,13 @@ import (
 )
 
 type SDK struct {
-	resources observer.EventID
+	resources observer.EventID // @@@
+	res       resource.Map
 }
 
 var _ trace.Tracer = &SDK{}
 var _ metric.Meter = &SDK{}
 
-func New(res ...resource.Map) *SDK {
-	// @@@
-	return &SDK{}
+func New(service string, res ...resource.Map) *SDK {
+	return &SDK{res: resource.Merge(append(res, resource.Service(service))...)}
 }
-
-// func (t *SDK) WithResources(attributes ...core.KeyValue) apitrace.Tracer {
-// 	s := observer.NewScope(observer.ScopeID{
-// 		EventID: t.resources,
-// 	}, attributes...)
-// 	return &tracer{
-// 		resources: s.EventID,
-// 	}
-// }
-
-// func (t *SDK) WithComponent(name string) apitrace.Tracer {
-// 	return t.WithResources(ComponentKey.String(name))
-// }
-
-// func (t *SDK) WithService(name string) apitrace.Tracer {
-// 	return t.WithResources(ServiceKey.String(name))
-// }

@@ -210,7 +210,6 @@ func (v Value) Evaluate() Value {
 	return v
 }
 
-// TODO make this a lazy one-time conversion. @@@
 func (v Value) Emit() string {
 	switch v.Type {
 	case BOOL:
@@ -223,8 +222,10 @@ func (v Value) Emit() string {
 		return fmt.Sprint(v.Float64)
 	case STRING:
 		return v.String
-	case BYTES:
-		return string(v.Bytes)
+	case BYTES, STRUCT, ENCODER:
+		// Note: In case of a fully synchronous SDK, this call
+		// could be the first to evaluate a struct/encoder value.
+		return string(v.Evaluate().Bytes)
 	}
-	return "unknown"
+	return "invalid"
 }

@@ -22,12 +22,13 @@ import (
 	"go.opentelemetry.io/api/metric"
 	metricglobal "go.opentelemetry.io/api/metric/global"
 	"go.opentelemetry.io/api/registry"
+	"go.opentelemetry.io/api/resource"
 	"go.opentelemetry.io/api/stats"
 	"go.opentelemetry.io/api/tag"
 	"go.opentelemetry.io/api/trace"
 	traceglobal "go.opentelemetry.io/api/trace/global"
 
-	"go.opentelemetry.io/experimental/streaming/sdk"
+	streaming "go.opentelemetry.io/experimental/streaming/sdk"
 )
 
 var (
@@ -45,11 +46,14 @@ var (
 )
 
 func main() {
-	opentelemetry.Init(sdk.New())
-	// // 	WithComponent("example").
-	// // 	WithResources(
-	// // 		key.New("whatevs").String("yesss"),
-	// // 	)
+	opentelemetry.Init(
+		streaming.New("myservice",
+			resource.Component("example"),
+			resource.New(
+				key.New("whatevs").String("yesss"),
+			),
+		),
+	)
 
 	tracer := traceglobal.Tracer()
 	meter := metricglobal.Meter()
