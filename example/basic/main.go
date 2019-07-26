@@ -29,6 +29,8 @@ import (
 	traceglobal "go.opentelemetry.io/api/trace/global"
 
 	streaming "go.opentelemetry.io/experimental/streaming/sdk"
+	observer "go.opentelemetry.io/experimental/streaming/exporter/observer"
+	exporter "go.opentelemetry.io/experimental/streaming/exporter/spanlog"
 )
 
 var (
@@ -46,6 +48,7 @@ var (
 )
 
 func main() {
+	observer.RegisterObserver(exporter.New())
 	opentelemetry.Init(
 		streaming.New("myservice",
 			resource.Component("example"),

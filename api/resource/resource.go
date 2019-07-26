@@ -41,6 +41,10 @@ func New(labels ...core.KeyValue) Map {
 	return Map{tag.NewMap(tag.MapUpdate{MultiKV: labels})}
 }
 
+func (m Map) Foreach(kv func (core.KeyValue) bool) {
+	m.labels.Foreach(kv)
+}
+
 func Merge(maps ...Map) Map {
 	var all []core.KeyValue
 	for _, m := range maps {

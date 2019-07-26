@@ -15,6 +15,7 @@
 package sdk
 
 import (
+	"go.opentelemetry.io/api/core"
 	"go.opentelemetry.io/api/metric"
 	"go.opentelemetry.io/api/resource"
 	"go.opentelemetry.io/api/trace"
@@ -22,13 +23,21 @@ import (
 )
 
 type SDK struct {
-	resources observer.EventID // @@@
-	res       resource.Map
+	resources observer.EventID
 }
 
 var _ trace.Tracer = &SDK{}
 var _ metric.Meter = &SDK{}
 
-func New(service string, res ...resource.Map) *SDK {
-	return &SDK{res: resource.Merge(append(res, resource.Service(service))...)}
+func New(service string, resources ...resource.Map) *SDK {
+	res := resource.Merge(append(resources, resource.Service(service))...)
+
+	var all []core.KeyValue
+	res.Foreach(func(kv core.KeyValue) bool {
+		all = append(all, kv)
+		return true
+	})
+	return &SDK{
+		resources: observer.NewScope(observer.ScopeID{}, all...).EventID,
+	}
 }

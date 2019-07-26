@@ -28,8 +28,6 @@ import (
 
 var (
 	// TODO These should move somewhere in the api, right?
-	ServiceKey   = key.New("service")
-	ComponentKey = key.New("component")
 	ErrorKey     = key.New("error")
 	SpanIDKey    = key.New("span_id")
 	TraceIDKey   = key.New("trace_id")
