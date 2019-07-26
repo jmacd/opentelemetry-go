@@ -16,6 +16,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 
 	opentelemetry "go.opentelemetry.io/api"
 	"go.opentelemetry.io/api/key"
@@ -28,9 +30,9 @@ import (
 	"go.opentelemetry.io/api/trace"
 	traceglobal "go.opentelemetry.io/api/trace/global"
 
-	streaming "go.opentelemetry.io/experimental/streaming/sdk"
 	observer "go.opentelemetry.io/experimental/streaming/exporter/observer"
 	exporter "go.opentelemetry.io/experimental/streaming/exporter/spanlog"
+	streaming "go.opentelemetry.io/experimental/streaming/sdk"
 )
 
 var (
@@ -54,6 +56,18 @@ func main() {
 			resource.Component("example"),
 			resource.New(
 				key.New("whatevs").String("yesss"),
+				key.New("dns").Struct(struct {
+					Host string `json:"host"`
+					Port int    `json:"port"`
+					Zone string `json:"zone"`
+				}{"8.8.8.8", 8888, "octagon"}),
+				key.New("proxy").Encode(func(w io.Writer) error {
+					return json.NewEncoder(w).Encode(map[string]string{
+						"endpoint": "1.2@3.4",
+						"program":  "endless",
+						"state":    "having fun",
+					})
+				}),
 			),
 		),
 	)

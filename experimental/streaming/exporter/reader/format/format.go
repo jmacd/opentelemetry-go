@@ -37,7 +37,7 @@ func AppendEvent(buf *strings.Builder, data reader.Event) {
 			if skipIf && data.Attributes.HasValue(kv.Key) {
 				return true
 			}
-			buf.WriteString(" " + kv.Key.Variable.Name + "=" + kv.Value.Emit())
+			buf.WriteString(" " + kv.Key.Variable.Name + "=" + strings.TrimSpace(kv.Value.Emit()))
 			return true
 		}
 	}
