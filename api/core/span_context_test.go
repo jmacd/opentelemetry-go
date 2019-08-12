@@ -18,6 +18,43 @@ import (
 	"testing"
 )
 
+func TestIsValid(t *testing.T) {
+	for _, testcase := range []struct {
+		name string
+		tid  TraceID
+		sid  uint64
+		want bool
+	}{
+		{
+			name: "bothTrue",
+			tid:  TraceID{High: uint64(42)},
+			sid:  uint64(42),
+			want: true,
+		}, {
+			name: "bothFalse",
+			tid:  TraceID{High: uint64(0)},
+			sid:  uint64(0),
+			want: false,
+		}, {
+			name: "oneTrue",
+			tid:  TraceID{High: uint64(0)},
+			sid:  uint64(42),
+			want: false,
+		},
+	} {
+		t.Run(testcase.name, func(t *testing.T) {
+			sc := SpanContext{
+				TraceID: testcase.tid,
+				SpanID:  testcase.sid,
+			}
+			have := sc.IsValid()
+			if have != testcase.want {
+				t.Errorf("Want: %v, but have: %v", testcase.want, have)
+			}
+		})
+	}
+}
+
 func TestHasTraceID(t *testing.T) {
 	for _, testcase := range []struct {
 		name string
@@ -88,11 +125,11 @@ func TestSpanIDString(t *testing.T) {
 		{
 			name: "fourtytwo",
 			sc:   SpanContext{SpanID: uint64(42)},
-			want: `000..02a`,
+			want: `000000000000002a`,
 		}, {
 			name: "empty",
 			sc:   SpanContext{},
-			want: `000..000`,
+			want: `0000000000000000`,
 		},
 	} {
 		t.Run(testcase.name, func(t *testing.T) {
@@ -119,11 +156,11 @@ func TestTraceIDString(t *testing.T) {
 					Low:  uint64(42),
 				},
 			},
-			want: `000..02a`,
+			want: `000000000000002a000000000000002a`,
 		}, {
 			name: "empty",
 			sc:   SpanContext{TraceID: TraceID{}},
-			want: `000..000`,
+			want: `00000000000000000000000000000000`,
 		},
 	} {
 		t.Run(testcase.name, func(t *testing.T) {
@@ -131,6 +168,48 @@ func TestTraceIDString(t *testing.T) {
 			have := testcase.sc.TraceIDString()
 			if have != testcase.want {
 				t.Errorf("Want: %s, but have: %s", testcase.want, have)
+			}
+		})
+	}
+}
+
+func TestSpanContextIsSampled(t *testing.T) {
+	for _, testcase := range []struct {
+		name string
+		sc   SpanContext
+		want bool
+	}{
+		{
+			name: "sampled",
+			sc: SpanContext{
+				TraceID: TraceID{
+					High: uint64(42),
+					Low:  uint64(42),
+				},
+				TraceOptions: TraceOptionSampled,
+			},
+			want: true,
+		}, {
+			name: "sampled plus unused",
+			sc: SpanContext{
+				TraceID: TraceID{
+					High: uint64(42),
+					Low:  uint64(42),
+				},
+				TraceOptions: TraceOptionSampled | traceOptionBitMaskUnused,
+			},
+			want: true,
+		}, {
+			name: "not sampled/default",
+			sc:   SpanContext{TraceID: TraceID{}},
+			want: false,
+		},
+	} {
+		t.Run(testcase.name, func(t *testing.T) {
+			//proto: func (sc SpanContext) TraceIDString() string {}
+			have := testcase.sc.IsSampled()
+			if have != testcase.want {
+				t.Errorf("Want: %v, but have: %v", testcase.want, have)
 			}
 		})
 	}
