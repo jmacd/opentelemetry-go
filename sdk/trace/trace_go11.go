@@ -12,25 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build go1.11
+
 package trace
 
-import "sync/atomic"
+import (
+	"context"
+	rt "runtime/trace"
+)
 
-// The process global tracer could have process-wide resource
-// tags applied directly, or we can have a SetGlobal tracer to
-// install a default tracer w/ resources.
-var global atomic.Value
-
-// GlobalTracer return tracer registered with global registry.
-// If no tracer is registered then an instance of noop Tracer is returned.
-func GlobalTracer() Tracer {
-	if t := global.Load(); t != nil {
-		return t.(Tracer)
+func startExecutionTracerTask(ctx context.Context, name string) (context.Context, func()) {
+	if !rt.IsEnabled() {
+		// Avoid additional overhead if
+		// runtime/trace is not enabled.
+		return ctx, func() {}
 	}
-	return noopTracer{}
-}
-
-// SetGlobalTracer sets provided tracer as a global tracer.
-func SetGlobalTracer(t Tracer) {
-	global.Store(t)
+	nctx, task := rt.NewTask(ctx, name)
+	return nctx, task.End
 }

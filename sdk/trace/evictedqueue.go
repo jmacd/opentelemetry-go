@@ -14,23 +14,25 @@
 
 package trace
 
-import "sync/atomic"
-
-// The process global tracer could have process-wide resource
-// tags applied directly, or we can have a SetGlobal tracer to
-// install a default tracer w/ resources.
-var global atomic.Value
-
-// GlobalTracer return tracer registered with global registry.
-// If no tracer is registered then an instance of noop Tracer is returned.
-func GlobalTracer() Tracer {
-	if t := global.Load(); t != nil {
-		return t.(Tracer)
-	}
-	return noopTracer{}
+type evictedQueue struct {
+	queue        []interface{}
+	capacity     int
+	droppedCount int
 }
 
-// SetGlobalTracer sets provided tracer as a global tracer.
-func SetGlobalTracer(t Tracer) {
-	global.Store(t)
+func newEvictedQueue(capacity int) *evictedQueue {
+	eq := &evictedQueue{
+		capacity: capacity,
+		queue:    make([]interface{}, 0),
+	}
+
+	return eq
+}
+
+func (eq *evictedQueue) add(value interface{}) {
+	if len(eq.queue) == eq.capacity {
+		eq.queue = eq.queue[1:]
+		eq.droppedCount++
+	}
+	eq.queue = append(eq.queue, value)
 }

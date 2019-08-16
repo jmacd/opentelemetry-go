@@ -12,25 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trace
+package trace_test
 
-import "sync/atomic"
+import (
+	"context"
+	"fmt"
 
-// The process global tracer could have process-wide resource
-// tags applied directly, or we can have a SetGlobal tracer to
-// install a default tracer w/ resources.
-var global atomic.Value
+	"go.opentelemetry.io/api/trace"
+)
 
-// GlobalTracer return tracer registered with global registry.
-// If no tracer is registered then an instance of noop Tracer is returned.
-func GlobalTracer() Tracer {
-	if t := global.Load(); t != nil {
-		return t.(Tracer)
+// This example shows how to use trace.Start and (*Span).End to capture
+// a function execution in a Span. It assumes that the function
+// has a context.Context argument.
+func ExampleStart() {
+	printEvens := func(ctx context.Context) {
+		_, span := trace.GlobalTracer().Start(ctx, "my/package.Function")
+		defer span.Finish()
+
+		for i := 0; i < 10; i++ {
+			if i%2 == 0 {
+				fmt.Printf("Even!\n")
+			}
+		}
 	}
-	return noopTracer{}
-}
 
-// SetGlobalTracer sets provided tracer as a global tracer.
-func SetGlobalTracer(t Tracer) {
-	global.Store(t)
+	ctx := context.Background()
+	printEvens(ctx)
 }

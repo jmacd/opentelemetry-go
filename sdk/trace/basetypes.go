@@ -14,23 +14,27 @@
 
 package trace
 
-import "sync/atomic"
+import (
+	"time"
 
-// The process global tracer could have process-wide resource
-// tags applied directly, or we can have a SetGlobal tracer to
-// install a default tracer w/ resources.
-var global atomic.Value
+	"go.opentelemetry.io/api/core"
+	apievent "go.opentelemetry.io/api/event"
+)
 
-// GlobalTracer return tracer registered with global registry.
-// If no tracer is registered then an instance of noop Tracer is returned.
-func GlobalTracer() Tracer {
-	if t := global.Load(); t != nil {
-		return t.(Tracer)
-	}
-	return noopTracer{}
+// event is used to describe an event with a message string and set of
+// attributes.
+type event struct {
+	msg        string
+	attributes []core.KeyValue
+	time       time.Time
 }
 
-// SetGlobalTracer sets provided tracer as a global tracer.
-func SetGlobalTracer(t Tracer) {
-	global.Store(t)
+var _ apievent.Event = &event{}
+
+func (me *event) Message() string {
+	return me.msg
+}
+
+func (me *event) Attributes() []core.KeyValue {
+	return me.attributes
 }

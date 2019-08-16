@@ -14,23 +14,24 @@
 
 package trace
 
-import "sync/atomic"
+import (
+	"github.com/hashicorp/golang-lru/simplelru"
+)
 
-// The process global tracer could have process-wide resource
-// tags applied directly, or we can have a SetGlobal tracer to
-// install a default tracer w/ resources.
-var global atomic.Value
-
-// GlobalTracer return tracer registered with global registry.
-// If no tracer is registered then an instance of noop Tracer is returned.
-func GlobalTracer() Tracer {
-	if t := global.Load(); t != nil {
-		return t.(Tracer)
-	}
-	return noopTracer{}
+type lruMap struct {
+	simpleLruMap *simplelru.LRU
+	droppedCount int
 }
 
-// SetGlobalTracer sets provided tracer as a global tracer.
-func SetGlobalTracer(t Tracer) {
-	global.Store(t)
+func newLruMap(size int) *lruMap {
+	lm := &lruMap{}
+	lm.simpleLruMap, _ = simplelru.NewLRU(size, nil)
+	return lm
+}
+
+func (lm *lruMap) add(key, value interface{}) {
+	evicted := lm.simpleLruMap.Add(key, value)
+	if evicted {
+		lm.droppedCount++
+	}
 }

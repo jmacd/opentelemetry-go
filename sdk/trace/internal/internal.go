@@ -12,25 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trace
+// Package internal provides trace internals.
+package internal
 
-import "sync/atomic"
+import "go.opentelemetry.io/api/core"
 
-// The process global tracer could have process-wide resource
-// tags applied directly, or we can have a SetGlobal tracer to
-// install a default tracer w/ resources.
-var global atomic.Value
-
-// GlobalTracer return tracer registered with global registry.
-// If no tracer is registered then an instance of noop Tracer is returned.
-func GlobalTracer() Tracer {
-	if t := global.Load(); t != nil {
-		return t.(Tracer)
-	}
-	return noopTracer{}
-}
-
-// SetGlobalTracer sets provided tracer as a global tracer.
-func SetGlobalTracer(t Tracer) {
-	global.Store(t)
+// IDGenerator allows custom generators for TraceId and SpanId.
+type IDGenerator interface {
+	NewTraceID() core.TraceID
+	NewSpanID() uint64
 }
