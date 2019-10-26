@@ -52,9 +52,10 @@ func (a *Aggregator) Collect(ctx context.Context, rec export.MetricRecord, exp e
 	sort.Sort(&a.saved)
 
 	a.sum = core.Number(0)
+	desc := rec.Descriptor()
 
 	for _, v := range a.saved {
-		a.sum.AddNumber(v)
+		a.sum.AddNumber(desc.NumberKind(), v)
 	}
 
 	exp.Export(ctx, rec, a)
