@@ -43,29 +43,19 @@ func New() *Aggregator {
 	return &Aggregator{}
 }
 
-// SumAsInt64 returns the accumulated sum as an int64.
-func (c *Aggregator) SumAsInt64() int64 {
-	return c.save.sum.AsInt64()
-}
-
-// SumAsFloat64 returns the accumulated sum as an float64.
-func (c *Aggregator) SumAsFloat64() float64 {
-	return c.save.sum.AsFloat64()
+// Sum returns the accumulated sum as an int64.
+func (c *Aggregator) Sum() core.Number {
+	return c.save.sum
 }
 
 // Count returns the accumulated count.
-func (c *Aggregator) Count() uint64 {
-	return c.save.count.AsUint64()
+func (c *Aggregator) Count() core.Number {
+	return c.save.count
 }
 
-// MaxAsInt64 returns the accumulated max as an int64.
-func (c *Aggregator) MaxAsInt64() int64 {
-	return c.save.max.AsInt64()
-}
-
-// MaxAsFloat64 returns the accumulated max as an float64.
-func (c *Aggregator) MaxAsFloat64() float64 {
-	return c.save.max.AsFloat64()
+// Max returns the accumulated max.
+func (c *Aggregator) Max() core.Number {
+	return c.save.max
 }
 
 // Collect saves the current value (atomically) and exports it.
@@ -78,7 +68,7 @@ func (c *Aggregator) Collect(ctx context.Context, rec export.MetricRecord, exp e
 	// knowing that individually the three parts of this aggregation
 	// could be spread across multiple collections in rare cases.
 
-	c.save.count.SetUint64(c.live.count.SwapUint64Atomic(0))
+	c.save.count = c.live.count.SwapNumberAtomic(zero)
 	c.save.sum = c.live.sum.SwapNumberAtomic(zero)
 	c.save.max = c.live.max.SwapNumberAtomic(zero)
 
@@ -107,5 +97,20 @@ func (c *Aggregator) Update(_ context.Context, number core.Number, rec export.Me
 		if c.live.max.CompareAndSwapNumber(current, number) {
 			break
 		}
+	}
+}
+
+func (c *Aggregator) Merge(oa export.MetricAggregator, desc *export.Descriptor) {
+	o, _ := oa.(*Aggregator)
+	if o == nil {
+		// TODO warn
+		return
+	}
+	// Called in a single threaded context, no locks needed.
+	c.save.sum.AddNumber(desc.NumberKind(), o.save.sum)
+	c.save.count.AddNumber(core.Uint64NumberKind, o.save.count)
+
+	if c.save.max.CompareNumber(desc.NumberKind(), o.save.max) < 0 {
+		c.save.max.SetNumber(o.save.max)
 	}
 }

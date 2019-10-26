@@ -127,3 +127,25 @@ func (g *Aggregator) updateMonotonic(number core.Number, desc *export.Descriptor
 		}
 	}
 }
+
+func (g *Aggregator) Merge(oa export.MetricAggregator, desc *export.Descriptor) {
+	o, _ := oa.(*Aggregator)
+	if o == nil {
+		// TODO warn
+		return
+	}
+
+	// Called in a single threaded context, no locks needed.
+	gv := (*gaugeData)(atomic.LoadPointer(&g.save))
+	ov := (*gaugeData)(atomic.LoadPointer(&o.save))
+
+	if desc.Alternate() {
+		if gv.value.CompareNumber(desc.NumberKind(), ov.value) < 0 {
+			atomic.StorePointer(&g.save, unsafe.Pointer(ov))
+		}
+	} else {
+		if gv.timestamp.Before(ov.timestamp) {
+			atomic.StorePointer(&g.save, unsafe.Pointer(ov))
+		}
+	}
+}

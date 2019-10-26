@@ -76,6 +76,16 @@ func (a *Aggregator) Update(_ context.Context, number core.Number, rec export.Me
 	a.lock.Unlock()
 }
 
+func (a *Aggregator) Merge(oa export.MetricAggregator, _ *export.Descriptor) {
+	o, _ := oa.(*Aggregator)
+	if o == nil {
+		// TODO warn
+		return
+	}
+	// Called in a single threaded context, no locks needed.
+	a.points = append(a.points, o.points...)
+}
+
 func (p *Points) Len() int {
 	return len(*p)
 }

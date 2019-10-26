@@ -70,3 +70,12 @@ func (c *Aggregator) Update(_ context.Context, number core.Number, rec export.Me
 
 	c.live.AddNumberAtomic(kind, number)
 }
+
+func (c *Aggregator) Merge(oa export.MetricAggregator, desc *export.Descriptor) {
+	o, _ := oa.(*Aggregator)
+	if o == nil {
+		// TODO warn
+		return
+	}
+	c.save.AddNumber(desc.NumberKind(), o.save)
+}

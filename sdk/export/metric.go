@@ -28,6 +28,9 @@ type MetricAggregator interface {
 	// into the aggregation.
 	Update(context.Context, core.Number, MetricRecord)
 
+	// Merge the argument into this aggregator.
+	Merge(MetricAggregator, *Descriptor)
+
 	// Collect is called during the SDK Collect() to
 	// finish one period of aggregation.  Collect() is
 	// called in a single-threaded context.  Update()

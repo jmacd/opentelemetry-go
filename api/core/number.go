@@ -17,8 +17,9 @@ package core
 //go:generate stringer -type=NumberKind
 
 import (
-	"fmt"
 	"math"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"unsafe"
 )
@@ -457,20 +458,29 @@ func (n Number) IsZero(kind NumberKind) bool {
 
 // - misc
 
-// Emit returns a string representation of the raw value of the
-// Number. A %d is used for integral values, %f for floating point
-// values.
+// Emit constructs a new string of this value, whereas Encode() emits
+// the string into an existing buffer.
 func (n Number) Emit(kind NumberKind) string {
+	var sb strings.Builder
+	var tmp [32]byte
+	_, _ = n.Encode(kind, &sb, tmp[:])
+	return sb.String()
+}
+
+// Encode writes the encoded value to `w`.
+func (n Number) Encode(kind NumberKind, w Encoder, tmp []byte) (int, error) {
+	tmp = tmp[:0]
 	switch kind {
 	case Int64NumberKind:
-		return fmt.Sprintf("%d", n.AsInt64())
+		tmp = strconv.AppendInt(tmp, n.AsInt64(), 10)
 	case Float64NumberKind:
-		return fmt.Sprintf("%f", n.AsFloat64())
+		tmp = strconv.AppendFloat(tmp, n.AsFloat64(), 'g', -1, 64)
 	case Uint64NumberKind:
-		return fmt.Sprintf("%d", n.AsUint64())
+		tmp = strconv.AppendUint(tmp, n.AsUint64(), 10)
 	default:
-		return ""
+		tmp = append(tmp, '0')
 	}
+	return w.Write(tmp)
 }
 
 // - private stuff
