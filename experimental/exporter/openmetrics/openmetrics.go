@@ -2,6 +2,7 @@ package openmetrics
 
 import (
 	"context"
+	"io"
 
 	"go.opentelemetry.io/sdk/export"
 	"go.opentelemetry.io/sdk/metric/aggregator/array"
@@ -33,6 +34,10 @@ func (e *OpenMetricsExporter) AggregatorFor(record export.MetricRecord) export.M
 	}
 }
 
-func (e *OpenMetricsExporter) Export(_ context.Context, rec export.MetricRecord, agg export.MetricAggregator) {
+func (e *OpenMetricsExporter) Export(_ context.Context, record export.MetricRecord, agg export.MetricAggregator) {
 
+}
+
+func (e *OpenMetricsExporter) Write(w io.Writer) (n int, err error) {
+	return 0, nil
 }
