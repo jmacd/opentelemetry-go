@@ -12,61 +12,77 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package counter
+package array
 
 import (
 	"context"
+	"sort"
+	"sync"
 
 	"go.opentelemetry.io/api/core"
 	"go.opentelemetry.io/sdk/export"
 )
 
 type (
-	// Aggregator aggregates counter events.
 	Aggregator struct {
-		// live holds current increments to this counter record
-		live core.Number
-
-		// save is a temporary used during Collect()
-		save core.Number
+		lock   sync.Mutex
+		points Points
+		saved  Points
+		sum    core.Number
 	}
+
+	Points []core.Number
 )
 
 var _ export.MetricAggregator = &Aggregator{}
 
-// New returns a new counter aggregator.  This aggregator computes an
-// atomic sum.
 func New() *Aggregator {
 	return &Aggregator{}
 }
 
-// AsInt64 returns the accumulated count as an int64.
-func (c *Aggregator) AsNumber() core.Number {
-	return c.save.AsNumber()
-}
+func (a *Aggregator) Collect(ctx context.Context, rec export.MetricRecord, exp export.MetricBatcher) {
+	a.lock.Lock()
+	a.saved, a.points = a.points, nil
+	a.lock.Unlock()
 
-// Collect saves the current value (atomically) and exports it.
-func (c *Aggregator) Collect(ctx context.Context, rec export.MetricRecord, exp export.MetricBatcher) {
-	desc := rec.Descriptor()
-	kind := desc.NumberKind()
-	zero := core.Number(0)
-	c.save = c.live.SwapNumberAtomic(zero)
-
-	if c.save.IsZero(kind) {
+	if a.saved == nil {
 		return
 	}
 
-	exp.Export(ctx, rec, c)
+	sort.Sort(&a.saved)
+
+	a.sum = core.Number(0)
+
+	for _, v := range a.saved {
+		a.sum.AddNumber(v)
+	}
+
+	exp.Export(ctx, rec, a)
 }
 
-// Collect updates the current value (atomically) for later export.
-func (c *Aggregator) Update(_ context.Context, number core.Number, rec export.MetricRecord) {
+func (a *Aggregator) Update(_ context.Context, number core.Number, rec export.MetricRecord) {
+
 	desc := rec.Descriptor()
 	kind := desc.NumberKind()
+
 	if !desc.Alternate() && number.IsNegative(kind) {
 		// TODO warn
 		return
 	}
 
-	c.live.AddNumberAtomic(kind, number)
+	a.lock.Lock()
+	a.points = append(a.points, number)
+	a.lock.Unlock()
+}
+
+func (p *Points) Len() int {
+	return len(*p)
+}
+
+func (p *Points) Less(i, j int) bool {
+	return (*p)[i] < (*p)[j]
+}
+
+func (p *Points) Swap(i, j int) {
+	(*p)[i], (*p)[j] = (*p)[j], (*p)[i]
 }
