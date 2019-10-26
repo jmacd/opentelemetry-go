@@ -148,7 +148,8 @@ func (k Key) Defined() bool {
 	return len(k) != 0
 }
 
-// TODO make this a lazy one-time conversion.
+// Emit constructs a new string of this value, whereas Encode() emits
+// the string into an existing buffer.
 func (v Value) Emit() string {
 	switch v.Type {
 	case BOOL:

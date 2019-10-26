@@ -70,7 +70,6 @@ func (c *Aggregator) MaxAsFloat64() float64 {
 
 // Collect saves the current value (atomically) and exports it.
 func (c *Aggregator) Collect(ctx context.Context, rec export.MetricRecord, exp export.MetricBatcher) {
-	desc := rec.Descriptor()
 	zero := core.Number(0)
 
 	// N.B. There is no atomic operation that can update all three

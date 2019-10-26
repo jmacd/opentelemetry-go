@@ -11,7 +11,7 @@ import (
 
 func TestBasicExporter(t *testing.T) {
 	ctx := context.Background()
-	ome := NewOpenMetricsExporter()
+	ome := NewExporter()
 	sdk := sdk.New(ome)
 
 	cnt := sdk.NewInt64Counter("counter.x")
