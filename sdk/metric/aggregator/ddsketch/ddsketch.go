@@ -75,3 +75,7 @@ func (c *Aggregator) Update(_ context.Context, number core.Number, rec export.Me
 	defer c.lock.Unlock()
 	c.live.Add(number.CoerceToFloat64(kind))
 }
+
+func (c *Aggregator) Merge(o export.MetricAggregator, d *export.Descriptor) {
+	// @@@
+}
