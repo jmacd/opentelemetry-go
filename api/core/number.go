@@ -474,6 +474,7 @@ func (n Number) Encode(kind NumberKind, w Encoder, tmp []byte) (int, error) {
 	case Int64NumberKind:
 		tmp = strconv.AppendInt(tmp, n.AsInt64(), 10)
 	case Float64NumberKind:
+		// Note: 'x' format is much faster
 		tmp = strconv.AppendFloat(tmp, n.AsFloat64(), 'g', -1, 64)
 	case Uint64NumberKind:
 		tmp = strconv.AppendUint(tmp, n.AsUint64(), 10)
