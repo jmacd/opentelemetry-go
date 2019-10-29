@@ -403,7 +403,6 @@ func TestEmit(t *testing.T) {
 		},
 	} {
 		t.Run(testcase.name, func(t *testing.T) {
-			//proto: func (v core.Value) Emit() string {
 			have := testcase.v.Emit()
 			if have != testcase.want {
 				t.Errorf("Want: %s, but have: %s", testcase.want, have)

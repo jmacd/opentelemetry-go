@@ -178,7 +178,7 @@ func (v Value) Encode(w Encoder, tmp []byte) (n int, err error) {
 	case INT32, INT64:
 		tmp = strconv.AppendInt(tmp, v.Int64, 10)
 	case UINT32, UINT64:
-		tmp = strconv.AppendUint(tmp, uint64(v.Int64), 10)
+		tmp = strconv.AppendUint(tmp, v.Uint64, 10)
 	case FLOAT32, FLOAT64:
 		// Note: 'x' format is much faster
 		tmp = strconv.AppendFloat(tmp, v.Float64, 'g', -1, 64)
