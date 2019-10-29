@@ -172,9 +172,8 @@ func (v Value) Encode(w Encoder, tmp []byte) (n int, err error) {
 	case BOOL:
 		if v.Bool {
 			return w.WriteString("true")
-		} else {
-			return w.WriteString("false")
 		}
+		return w.WriteString("false")
 	case INT32, INT64:
 		tmp = strconv.AppendInt(tmp, v.Int64, 10)
 	case UINT32, UINT64:

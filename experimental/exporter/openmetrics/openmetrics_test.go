@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"go.opentelemetry.io/api/key"
 	"go.opentelemetry.io/api/metric"
 	sdk "go.opentelemetry.io/sdk/metric"

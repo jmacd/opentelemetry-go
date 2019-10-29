@@ -88,7 +88,7 @@ func (e *Exporter) Export(_ context.Context, record export.MetricRecord, agg exp
 		sb.WriteRune('=')
 
 		sb.WriteRune('"')
-		canon[i].Encode(&sb, e.tmp[:])
+		_, _ = canon[i].Encode(&sb, e.tmp[:])
 		sb.WriteRune('"')
 
 		if i < len(keys)-1 {
@@ -113,13 +113,13 @@ func (e *Exporter) Export(_ context.Context, record export.MetricRecord, agg exp
 func writePrefix(w core.Encoder, name string, labels string) {
 	// E.g., `name{label="0"} `
 
-	w.WriteString(name)
+	_, _ = w.WriteString(name)
 	if labels != "" {
-		w.WriteRune('{')
-		w.WriteString(labels)
-		w.WriteRune('}')
+		_, _ = w.WriteRune('{')
+		_, _ = w.WriteString(labels)
+		_, _ = w.WriteRune('}')
 	}
-	w.WriteRune(' ')
+	_, _ = w.WriteRune(' ')
 }
 
 func addQuantile(labels string, quantile float64) string {
