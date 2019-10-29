@@ -21,16 +21,14 @@ import (
 	"go.opentelemetry.io/sdk/export"
 )
 
-type (
-	// Aggregator aggregates counter events.
-	Aggregator struct {
-		// live holds current increments to this counter record
-		live core.Number
+// Aggregator aggregates counter events.
+type Aggregator struct {
+	// current holds current increments to this counter record
+	current core.Number
 
-		// save is a temporary used during Collect()
-		save core.Number
-	}
-)
+	// checkpoint is a temporary used during Collect()
+	checkpoint core.Number
+}
 
 var _ export.MetricAggregator = &Aggregator{}
 
@@ -40,26 +38,20 @@ func New() *Aggregator {
 	return &Aggregator{}
 }
 
-// AsInt64 returns the accumulated count as an int64.
+// AsNumber returns the accumulated count as an int64.
 func (c *Aggregator) AsNumber() core.Number {
-	return c.save.AsNumber()
+	return c.checkpoint.AsNumber()
 }
 
-// Collect saves the current value (atomically) and exports it.
+// Collect checkpoints the current value (atomically) and exports it.
 func (c *Aggregator) Collect(ctx context.Context, rec export.MetricRecord, exp export.MetricBatcher) {
-	desc := rec.Descriptor()
-	kind := desc.NumberKind()
 	zero := core.Number(0)
-	c.save = c.live.SwapNumberAtomic(zero)
-
-	if c.save.IsZero(kind) {
-		return
-	}
+	c.checkpoint = c.current.SwapNumberAtomic(zero)
 
 	exp.Export(ctx, rec, c)
 }
 
-// Collect updates the current value (atomically) for later export.
+// Update modifies the current value (atomically) for later export.
 func (c *Aggregator) Update(_ context.Context, number core.Number, rec export.MetricRecord) {
 	desc := rec.Descriptor()
 	kind := desc.NumberKind()
@@ -68,7 +60,7 @@ func (c *Aggregator) Update(_ context.Context, number core.Number, rec export.Me
 		return
 	}
 
-	c.live.AddNumberAtomic(kind, number)
+	c.current.AddNumberAtomic(kind, number)
 }
 
 func (c *Aggregator) Merge(oa export.MetricAggregator, desc *export.Descriptor) {
@@ -77,5 +69,5 @@ func (c *Aggregator) Merge(oa export.MetricAggregator, desc *export.Descriptor) 
 		// TODO warn
 		return
 	}
-	c.save.AddNumber(desc.NumberKind(), o.save)
+	c.checkpoint.AddNumber(desc.NumberKind(), o.checkpoint)
 }

@@ -204,10 +204,13 @@ func (f *testFixture) assertTest(numCollect int) {
 	rsize := 0
 	f.expected.Range(func(key, value interface{}) bool {
 		rsize++
+		if _, loaded := f.received.Load(key); !loaded {
+			f.T.Error("Did not receive expected key: ", key)
+		}
 		return true
 	})
 	if rsize != csize {
-		f.T.Error("Rsize != Csize", rsize, csize)
+		f.T.Error("Did not receive the correct set of metrics: Received != Expected", rsize, csize)
 	}
 
 	// Note: It's useful to know the test triggers this condition,
