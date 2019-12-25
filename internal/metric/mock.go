@@ -66,7 +66,7 @@ type (
 var (
 	_ apimetric.InstrumentImpl = &Instrument{}
 	_ apimetric.HandleImpl     = &Handle{}
-	_ apimetric.LabelSet       = &LabelSet{}
+	_ core.LabelSet            = &LabelSet{}
 	_ apimetric.Meter          = &Meter{}
 )
 
@@ -76,7 +76,7 @@ const (
 	KindMeasure
 )
 
-func (i *Instrument) AcquireHandle(labels apimetric.LabelSet) apimetric.HandleImpl {
+func (i *Instrument) AcquireHandle(labels core.LabelSet) apimetric.HandleImpl {
 	if ld, ok := labels.(apimetric.LabelSetDelegate); ok {
 		labels = ld.Delegate()
 	}
@@ -86,7 +86,7 @@ func (i *Instrument) AcquireHandle(labels apimetric.LabelSet) apimetric.HandleIm
 	}
 }
 
-func (i *Instrument) RecordOne(ctx context.Context, number core.Number, labels apimetric.LabelSet) {
+func (i *Instrument) RecordOne(ctx context.Context, number core.Number, labels core.LabelSet) {
 	if ld, ok := labels.(apimetric.LabelSetDelegate); ok {
 		labels = ld.Delegate()
 	}
@@ -133,7 +133,7 @@ func NewMeter() *Meter {
 	return &Meter{}
 }
 
-func (m *Meter) Labels(labels ...core.KeyValue) apimetric.LabelSet {
+func (m *Meter) Labels(labels ...core.KeyValue) core.LabelSet {
 	ul := make(map[core.Key]core.Value)
 	for _, kv := range labels {
 		ul[kv.Key] = kv.Value
@@ -207,7 +207,7 @@ func (m *Meter) newMeasureInstrument(name string, numberKind core.NumberKind, mo
 	}
 }
 
-func (m *Meter) RecordBatch(ctx context.Context, labels apimetric.LabelSet, measurements ...apimetric.Measurement) {
+func (m *Meter) RecordBatch(ctx context.Context, labels core.LabelSet, measurements ...apimetric.Measurement) {
 	ourLabelSet := labels.(*LabelSet)
 	mm := make([]Measurement, len(measurements))
 	for i := 0; i < len(measurements); i++ {

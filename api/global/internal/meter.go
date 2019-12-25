@@ -74,7 +74,7 @@ type labelSet struct {
 
 type instHandle struct {
 	inst   *instImpl
-	labels metric.LabelSet
+	labels core.LabelSet
 
 	initialize sync.Once
 	delegate   unsafe.Pointer // (*metric.HandleImpl)
@@ -82,7 +82,7 @@ type instHandle struct {
 
 var _ metric.Provider = &meterProvider{}
 var _ metric.Meter = &meter{}
-var _ metric.LabelSet = &labelSet{}
+var _ core.LabelSet = &labelSet{}
 var _ metric.LabelSetDelegate = &labelSet{}
 var _ metric.InstrumentImpl = &instImpl{}
 var _ metric.HandleImpl = &instHandle{}
@@ -181,7 +181,7 @@ func (inst *instImpl) setDelegate(d metric.Meter) {
 	atomic.StorePointer(&inst.delegate, unsafe.Pointer(implPtr))
 }
 
-func (inst *instImpl) AcquireHandle(labels metric.LabelSet) metric.HandleImpl {
+func (inst *instImpl) AcquireHandle(labels core.LabelSet) metric.HandleImpl {
 	if implPtr := (*metric.InstrumentImpl)(atomic.LoadPointer(&inst.delegate)); implPtr != nil {
 		return (*implPtr).AcquireHandle(labels)
 	}
@@ -205,13 +205,13 @@ func (bound *instHandle) Release() {
 
 // Metric updates
 
-func (m *meter) RecordBatch(ctx context.Context, labels metric.LabelSet, measurements ...metric.Measurement) {
+func (m *meter) RecordBatch(ctx context.Context, labels core.LabelSet, measurements ...metric.Measurement) {
 	if delegatePtr := (*metric.Meter)(atomic.LoadPointer(&m.delegate)); delegatePtr != nil {
 		(*delegatePtr).RecordBatch(ctx, labels, measurements...)
 	}
 }
 
-func (inst *instImpl) RecordOne(ctx context.Context, number core.Number, labels metric.LabelSet) {
+func (inst *instImpl) RecordOne(ctx context.Context, number core.Number, labels core.LabelSet) {
 	if instPtr := (*metric.InstrumentImpl)(atomic.LoadPointer(&inst.delegate)); instPtr != nil {
 		(*instPtr).RecordOne(ctx, number, labels)
 	}
@@ -239,14 +239,14 @@ func (bound *instHandle) RecordOne(ctx context.Context, number core.Number) {
 
 // LabelSet initialization
 
-func (m *meter) Labels(labels ...core.KeyValue) metric.LabelSet {
+func (m *meter) Labels(labels ...core.KeyValue) core.LabelSet {
 	return &labelSet{
 		meter: m,
 		value: labels,
 	}
 }
 
-func (labels *labelSet) Delegate() metric.LabelSet {
+func (labels *labelSet) Delegate() core.LabelSet {
 	meterPtr := (*metric.Meter)(atomic.LoadPointer(&labels.meter.delegate))
 	if meterPtr == nil {
 		// This is technically impossible, provided the global
@@ -254,14 +254,14 @@ func (labels *labelSet) Delegate() metric.LabelSet {
 		// have been delegated.
 		return labels
 	}
-	var implPtr *metric.LabelSet
+	var implPtr *core.LabelSet
 	labels.initialize.Do(func() {
-		implPtr = new(metric.LabelSet)
+		implPtr = new(core.LabelSet)
 		*implPtr = (*meterPtr).Labels(labels.value...)
 		atomic.StorePointer(&labels.delegate, unsafe.Pointer(implPtr))
 	})
 	if implPtr == nil {
-		implPtr = (*metric.LabelSet)(atomic.LoadPointer(&labels.delegate))
+		implPtr = (*core.LabelSet)(atomic.LoadPointer(&labels.delegate))
 	}
 	return (*implPtr)
 }

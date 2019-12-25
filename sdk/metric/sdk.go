@@ -149,7 +149,7 @@ type (
 
 var (
 	_ api.Meter          = &SDK{}
-	_ api.LabelSet       = &labels{}
+	_ core.LabelSet      = &labels{}
 	_ api.InstrumentImpl = &instrument{}
 	_ api.HandleImpl     = &record{}
 
@@ -205,12 +205,12 @@ func (i *instrument) acquireHandle(ls *labels) *record {
 	return rec
 }
 
-func (i *instrument) AcquireHandle(ls api.LabelSet) api.HandleImpl {
+func (i *instrument) AcquireHandle(ls core.LabelSet) api.HandleImpl {
 	labs := i.meter.labsFor(ls)
 	return i.acquireHandle(labs)
 }
 
-func (i *instrument) RecordOne(ctx context.Context, number core.Number, ls api.LabelSet) {
+func (i *instrument) RecordOne(ctx context.Context, number core.Number, ls core.LabelSet) {
 	ourLs := i.meter.labsFor(ls)
 	h := i.acquireHandle(ourLs)
 	defer h.Release()
@@ -242,7 +242,7 @@ func DefaultErrorHandler(err error) {
 
 // Labels returns a LabelSet corresponding to the arguments.  Passed
 // labels are de-duplicated, with last-value-wins semantics.
-func (m *SDK) Labels(kvs ...core.KeyValue) api.LabelSet {
+func (m *SDK) Labels(kvs ...core.KeyValue) core.LabelSet {
 	// Note: This computes a canonical encoding of the labels to
 	// use as a map key.  It happens to use the encoding used by
 	// statsd for labels, allowing an optimization for statsd
@@ -280,7 +280,7 @@ func (m *SDK) Labels(kvs ...core.KeyValue) api.LabelSet {
 
 // labsFor sanitizes the input LabelSet.  The input will be rejected
 // if it was created by another Meter instance, for example.
-func (m *SDK) labsFor(ls api.LabelSet) *labels {
+func (m *SDK) labsFor(ls core.LabelSet) *labels {
 	if del, ok := ls.(api.LabelSetDelegate); ok {
 		ls = del.Delegate()
 	}
@@ -435,7 +435,7 @@ func (m *SDK) checkpoint(ctx context.Context, r *record) int {
 }
 
 // RecordBatch enters a batch of metric events.
-func (m *SDK) RecordBatch(ctx context.Context, ls api.LabelSet, measurements ...api.Measurement) {
+func (m *SDK) RecordBatch(ctx context.Context, ls core.LabelSet, measurements ...api.Measurement) {
 	for _, meas := range measurements {
 		meas.InstrumentImpl().RecordOne(ctx, meas.Number(), ls)
 	}

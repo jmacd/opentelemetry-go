@@ -16,7 +16,7 @@ var _ Provider = NoopProvider{}
 var _ Meter = NoopMeter{}
 var _ InstrumentImpl = noopInstrument{}
 var _ HandleImpl = noopHandle{}
-var _ LabelSet = noopLabelSet{}
+var _ core.LabelSet = noopLabelSet{}
 
 func (NoopProvider) Meter(name string) Meter {
 	return NoopMeter{}
@@ -28,18 +28,18 @@ func (noopHandle) RecordOne(context.Context, core.Number) {
 func (noopHandle) Release() {
 }
 
-func (noopInstrument) AcquireHandle(LabelSet) HandleImpl {
+func (noopInstrument) AcquireHandle(core.LabelSet) HandleImpl {
 	return noopHandle{}
 }
 
-func (noopInstrument) RecordOne(context.Context, core.Number, LabelSet) {
+func (noopInstrument) RecordOne(context.Context, core.Number, core.LabelSet) {
 }
 
 func (noopInstrument) Meter() Meter {
 	return NoopMeter{}
 }
 
-func (NoopMeter) Labels(...core.KeyValue) LabelSet {
+func (NoopMeter) Labels(...core.KeyValue) core.LabelSet {
 	return noopLabelSet{}
 }
 
@@ -67,5 +67,5 @@ func (NoopMeter) NewFloat64Measure(name string, mos ...MeasureOptionApplier) Flo
 	return WrapFloat64MeasureInstrument(noopInstrument{})
 }
 
-func (NoopMeter) RecordBatch(context.Context, LabelSet, ...Measurement) {
+func (NoopMeter) RecordBatch(context.Context, core.LabelSet, ...Measurement) {
 }

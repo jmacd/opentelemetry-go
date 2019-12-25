@@ -21,12 +21,12 @@ import (
 )
 
 // LabelSetDelegate is a general-purpose delegating implementation of
-// the LabelSet interface.  This is implemented by the default
+// the core.LabelSet interface.  This is implemented by the default
 // Provider returned by api/global.SetMeterProvider(), and should be
-// tested for by implementations before converting a LabelSet to their
+// tested for by implementations before converting a core.LabelSet to their
 // private concrete type.
 type LabelSetDelegate interface {
-	Delegate() LabelSet
+	Delegate() core.LabelSet
 }
 
 // InstrumentImpl is the implementation-level interface Set/Add/Record
@@ -34,10 +34,10 @@ type LabelSetDelegate interface {
 type InstrumentImpl interface {
 	// AcquireHandle creates a Handle to record metrics with
 	// precomputed labels.
-	AcquireHandle(labels LabelSet) HandleImpl
+	AcquireHandle(labels core.LabelSet) HandleImpl
 
 	// RecordOne allows the SDK to observe a single metric event.
-	RecordOne(ctx context.Context, number core.Number, labels LabelSet)
+	RecordOne(ctx context.Context, number core.Number, labels core.LabelSet)
 }
 
 // HandleImpl is the implementation-level interface to Set/Add/Record

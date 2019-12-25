@@ -28,7 +28,7 @@ type commonHandle struct {
 	handle HandleImpl
 }
 
-func (m commonMetric) acquireCommonHandle(labels LabelSet) commonHandle {
+func (m commonMetric) acquireCommonHandle(labels core.LabelSet) commonHandle {
 	return newCommonHandle(m.instrument.AcquireHandle(labels))
 }
 
@@ -40,7 +40,7 @@ func (m commonMetric) int64Measurement(value int64) Measurement {
 	return newMeasurement(m.instrument, core.NewInt64Number(value))
 }
 
-func (m commonMetric) recordOne(ctx context.Context, number core.Number, labels LabelSet) {
+func (m commonMetric) recordOne(ctx context.Context, number core.Number, labels core.LabelSet) {
 	m.instrument.RecordOne(ctx, number, labels)
 }
 

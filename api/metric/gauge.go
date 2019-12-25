@@ -51,7 +51,7 @@ type Int64GaugeHandle struct {
 // If the labels do not contain a value for the key specified in the
 // gauge with the WithKeys option, then the missing value will be
 // treated as unspecified.
-func (g *Float64Gauge) AcquireHandle(labels LabelSet) (h Float64GaugeHandle) {
+func (g *Float64Gauge) AcquireHandle(labels core.LabelSet) (h Float64GaugeHandle) {
 	h.commonHandle = g.acquireCommonHandle(labels)
 	return
 }
@@ -63,7 +63,7 @@ func (g *Float64Gauge) AcquireHandle(labels LabelSet) (h Float64GaugeHandle) {
 // If the labels do not contain a value for the key specified in the
 // gauge with the WithKeys option, then the missing value will be
 // treated as unspecified.
-func (g *Int64Gauge) AcquireHandle(labels LabelSet) (h Int64GaugeHandle) {
+func (g *Int64Gauge) AcquireHandle(labels core.LabelSet) (h Int64GaugeHandle) {
 	h.commonHandle = g.acquireCommonHandle(labels)
 	return
 }
@@ -87,7 +87,7 @@ func (g *Int64Gauge) Measurement(value int64) Measurement {
 // If the labels do not contain a value for the key specified in the
 // gauge with the WithKeys option, then the missing value will be
 // treated as unspecified.
-func (g *Float64Gauge) Set(ctx context.Context, value float64, labels LabelSet) {
+func (g *Float64Gauge) Set(ctx context.Context, value float64, labels core.LabelSet) {
 	g.recordOne(ctx, core.NewFloat64Number(value), labels)
 }
 
@@ -98,7 +98,7 @@ func (g *Float64Gauge) Set(ctx context.Context, value float64, labels LabelSet) 
 // If the labels do not contain a value for the key specified in the
 // gauge with the WithKeys option, then the missing value will be
 // treated as unspecified.
-func (g *Int64Gauge) Set(ctx context.Context, value int64, labels LabelSet) {
+func (g *Int64Gauge) Set(ctx context.Context, value int64, labels core.LabelSet) {
 	g.recordOne(ctx, core.NewInt64Number(value), labels)
 }
 

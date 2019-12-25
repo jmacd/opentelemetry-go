@@ -73,7 +73,7 @@ type (
 	testImpl struct {
 		newInstrument  func(meter api.Meter, name string) withImpl
 		getUpdateValue func() core.Number
-		operate        func(interface{}, context.Context, core.Number, api.LabelSet)
+		operate        func(interface{}, context.Context, core.Number, core.LabelSet)
 		newStore       func() interface{}
 
 		// storeCollect and storeExpect are the same for
@@ -350,7 +350,7 @@ func intCounterTestImpl(nonMonotonic bool) testImpl {
 				}
 			}
 		},
-		operate: func(inst interface{}, ctx context.Context, value core.Number, labels api.LabelSet) {
+		operate: func(inst interface{}, ctx context.Context, value core.Number, labels core.LabelSet) {
 			counter := inst.(api.Int64Counter)
 			counter.Add(ctx, value.AsInt64(), labels)
 		},
@@ -396,7 +396,7 @@ func floatCounterTestImpl(nonMonotonic bool) testImpl {
 				}
 			}
 		},
-		operate: func(inst interface{}, ctx context.Context, value core.Number, labels api.LabelSet) {
+		operate: func(inst interface{}, ctx context.Context, value core.Number, labels core.LabelSet) {
 			counter := inst.(api.Float64Counter)
 			counter.Add(ctx, value.AsFloat64(), labels)
 		},
@@ -442,7 +442,7 @@ func intGaugeTestImpl(monotonic bool) testImpl {
 			}
 			return core.NewInt64Number(int64(time.Since(startTime)))
 		},
-		operate: func(inst interface{}, ctx context.Context, value core.Number, labels api.LabelSet) {
+		operate: func(inst interface{}, ctx context.Context, value core.Number, labels core.LabelSet) {
 			gauge := inst.(api.Int64Gauge)
 			gauge.Set(ctx, value.AsInt64(), labels)
 		},
@@ -493,7 +493,7 @@ func floatGaugeTestImpl(monotonic bool) testImpl {
 			}
 			return core.NewFloat64Number(float64(time.Since(startTime)))
 		},
-		operate: func(inst interface{}, ctx context.Context, value core.Number, labels api.LabelSet) {
+		operate: func(inst interface{}, ctx context.Context, value core.Number, labels core.LabelSet) {
 			gauge := inst.(api.Float64Gauge)
 			gauge.Set(ctx, value.AsFloat64(), labels)
 		},

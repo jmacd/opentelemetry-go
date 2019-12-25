@@ -51,7 +51,7 @@ type Int64CounterHandle struct {
 // If the labels do not contain a value for the key specified in the
 // counter with the WithKeys option, then the missing value will be
 // treated as unspecified.
-func (c *Float64Counter) AcquireHandle(labels LabelSet) (h Float64CounterHandle) {
+func (c *Float64Counter) AcquireHandle(labels core.LabelSet) (h Float64CounterHandle) {
 	h.commonHandle = c.acquireCommonHandle(labels)
 	return
 }
@@ -63,7 +63,7 @@ func (c *Float64Counter) AcquireHandle(labels LabelSet) (h Float64CounterHandle)
 // If the labels do not contain a value for the key specified in the
 // counter with the WithKeys option, then the missing value will be
 // treated as unspecified.
-func (c *Int64Counter) AcquireHandle(labels LabelSet) (h Int64CounterHandle) {
+func (c *Int64Counter) AcquireHandle(labels core.LabelSet) (h Int64CounterHandle) {
 	h.commonHandle = c.acquireCommonHandle(labels)
 	return
 }
@@ -87,7 +87,7 @@ func (c *Int64Counter) Measurement(value int64) Measurement {
 // If the labels do not contain a value for the key specified in the
 // counter with the WithKeys option, then the missing value will be
 // treated as unspecified.
-func (c *Float64Counter) Add(ctx context.Context, value float64, labels LabelSet) {
+func (c *Float64Counter) Add(ctx context.Context, value float64, labels core.LabelSet) {
 	c.recordOne(ctx, core.NewFloat64Number(value), labels)
 }
 
@@ -98,7 +98,7 @@ func (c *Float64Counter) Add(ctx context.Context, value float64, labels LabelSet
 // If the labels do not contain a value for the key specified in the
 // counter with the WithKeys option, then the missing value will be
 // treated as unspecified.
-func (c *Int64Counter) Add(ctx context.Context, value int64, labels LabelSet) {
+func (c *Int64Counter) Add(ctx context.Context, value int64, labels core.LabelSet) {
 	c.recordOne(ctx, core.NewInt64Number(value), labels)
 }
 
