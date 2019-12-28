@@ -32,3 +32,13 @@ func SpanFromContext(ctx context.Context) Span {
 	}
 	return NoopSpan{}
 }
+
+// @@@
+// We seem to want a current
+// and Name(), WithLabel()... ...
+// Tracer(ctx).Span()
+// and Meter(ctx).NewInt64Counter()
+// and Namespaces
+// and Labels(...)
+// and LabelEncoder()
+// and ...

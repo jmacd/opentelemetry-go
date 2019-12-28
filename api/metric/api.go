@@ -21,13 +21,6 @@ import (
 	"go.opentelemetry.io/otel/api/unit"
 )
 
-// Provider supports named Meter instances.
-type Provider interface {
-	// Meter gets a named Meter interface.  If the name is an
-	// empty string, the provider uses a default name.
-	Meter(name string) Meter
-}
-
 // Options contains some options for metrics of any kind.
 type Options struct {
 	// Description is an optional field describing the metric

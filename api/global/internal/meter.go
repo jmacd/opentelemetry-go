@@ -6,8 +6,10 @@ import (
 	"sync/atomic"
 	"unsafe"
 
+	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/metric"
+	"go.opentelemetry.io/otel/api/trace"
 )
 
 // This file contains the forwarding implementation of metric.Provider
@@ -39,23 +41,30 @@ const (
 	measureKind
 )
 
-type meterProvider struct {
-	lock     sync.Mutex
-	meters   []*meter
-	delegate metric.Provider
+type deferred struct {
+	lock        sync.Mutex
+	meter       meter
+	tracer      tracer
+	propagators propagators
+	delegate    unsafe.Pointer // (*scope.Provider)
 }
 
 type meter struct {
-	provider *meterProvider
-	name     string
-
-	lock        sync.Mutex
+	deferred    *deferred
 	instruments []*instImpl
+}
 
-	delegate unsafe.Pointer // (*metric.Meter)
+type tracer struct {
+	deferred *deferred
+}
+
+type propagators struct {
+	deferred *deferred
 }
 
 type instImpl struct {
+	meter *meter
+
 	name  string
 	mkind metricKind
 	nkind core.NumberKind
@@ -65,11 +74,11 @@ type instImpl struct {
 }
 
 type labelSet struct {
-	meter *meter
-	value []core.KeyValue
+	deferred *deferred
+	value    []core.KeyValue
 
 	initialize sync.Once
-	delegate   unsafe.Pointer // (* metric.LabelSet)
+	delegate   unsafe.Pointer // (*metric.LabelSet)
 }
 
 type instHandle struct {
@@ -80,8 +89,8 @@ type instHandle struct {
 	delegate   unsafe.Pointer // (*metric.HandleImpl)
 }
 
-var _ metric.Provider = &meterProvider{}
-var _ metric.Meter = &meter{}
+var _ scope.Provider = &deferred{}
+var _ metric.Meter = &meter{} // TODO It would be nice if this wasn't direct
 var _ core.LabelSet = &labelSet{}
 var _ metric.LabelSetDelegate = &labelSet{}
 var _ metric.InstrumentImpl = &instImpl{}
@@ -89,47 +98,44 @@ var _ metric.HandleImpl = &instHandle{}
 
 // Provider interface and delegation
 
-func (p *meterProvider) setDelegate(provider metric.Provider) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+func (d *deferred) setDelegate(provider scope.Provider) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
 
-	p.delegate = provider
-	for _, m := range p.meters {
-		m.setDelegate(provider)
-	}
-	p.meters = nil
+	ptr := unsafe.Pointer(&provider)
+	atomic.StorePointer(&d.delegate, ptr)
+
+	d.meter.setDelegate()
 }
 
-func (p *meterProvider) Meter(name string) metric.Meter {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	if p.delegate != nil {
-		return p.delegate.Meter(name)
+func (d *deferred) Tracer() trace.Tracer {
+	if implPtr := (*scope.Provider)(atomic.LoadPointer(&d.delegate)); implPtr != nil {
+		return (*implPtr).Tracer()
 	}
-
-	m := &meter{
-		provider: p,
-		name:     name,
-	}
-	p.meters = append(p.meters, m)
-	return m
+	return &d.tracer
 }
 
-// Meter interface and delegation
-
-func (m *meter) setDelegate(provider metric.Provider) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	d := new(metric.Meter)
-	*d = provider.Meter(m.name)
-	m.delegate = unsafe.Pointer(d)
-
-	for _, inst := range m.instruments {
-		inst.setDelegate(*d)
+func (d *deferred) Meter() metric.Meter {
+	if implPtr := (*scope.Provider)(atomic.LoadPointer(&d.delegate)); implPtr != nil {
+		return (*implPtr).Meter()
 	}
-	m.instruments = nil
+	return &d.meter
+}
+
+func (d *deferred) Propagators() metric.Meter {
+	if implPtr := (*scope.Provider)(atomic.LoadPointer(&d.delegate)); implPtr != nil {
+		return (*implPtr).Propagators()
+	}
+	return &d.propagators
+}
+
+// Meter interface
+
+func (m *meter) setDelegate() {
+	for _, i := range d.meter.instruments {
+		i.setDelegate()
+	}
+	p.instruments = nil
 }
 
 func (m *meter) newInst(name string, mkind metricKind, nkind core.NumberKind, opts interface{}) metric.InstrumentImpl {
@@ -173,7 +179,7 @@ func newInstDelegate(m metric.Meter, name string, mkind metricKind, nkind core.N
 
 // Instrument delegation
 
-func (inst *instImpl) setDelegate(d metric.Meter) {
+func (inst *instImpl) setDelegate() {
 	implPtr := new(metric.InstrumentImpl)
 
 	*implPtr = newInstDelegate(d, inst.name, inst.mkind, inst.nkind, inst.opts)

@@ -24,7 +24,7 @@ import (
 	"go.opentelemetry.io/otel/api/key"
 	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/api/trace"
-	dogstatsd "go.opentelemetry.io/otel/exporter/metric/dogstatsd"
+	stdout "go.opentelemetry.io/otel/exporter/metric/stdout"
 	tracestdout "go.opentelemetry.io/otel/exporter/trace/stdout"
 	metricsdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/batcher/defaultkeys"
@@ -58,8 +58,8 @@ func initTracer() {
 
 func initMeter() *push.Controller {
 	selector := simple.NewWithExactMeasure()
-	exporter, err := dogstatsd.New(dogstatsd.Config{
-		URL: "udp://127.0.0.1:8200",
+	exporter, err := stdout.New(stdout.Options{
+		// ...
 	})
 	if err != nil {
 		log.Panicf("failed to initialize metric stdout exporter %v", err)

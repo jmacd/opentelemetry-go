@@ -13,12 +13,3 @@
 // limitations under the License.
 
 package trace
-
-type NoopProvider struct{}
-
-var _ Provider = NoopProvider{}
-
-// Tracer returns noop implementation of Tracer.
-func (p NoopProvider) Tracer(name string) Tracer {
-	return NoopTracer{}
-}
