@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
+	"go.opentelemetry.io/otel/api/context/propagation"
 	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/metric"
@@ -56,10 +57,14 @@ type meter struct {
 
 type tracer struct {
 	deferred *deferred
+
+	trace.NoopTracer
 }
 
 type propagators struct {
 	deferred *deferred
+
+	propagation.Propagators
 }
 
 type instImpl struct {
@@ -74,8 +79,8 @@ type instImpl struct {
 }
 
 type labelSet struct {
-	deferred *deferred
-	value    []core.KeyValue
+	meter *meter
+	value []core.KeyValue
 
 	initialize sync.Once
 	delegate   unsafe.Pointer // (*metric.LabelSet)
@@ -90,13 +95,22 @@ type instHandle struct {
 }
 
 var _ scope.Provider = &deferred{}
-var _ metric.Meter = &meter{} // TODO It would be nice if this wasn't direct
+var _ metric.Meter = &meter{}
 var _ core.LabelSet = &labelSet{}
 var _ metric.LabelSetDelegate = &labelSet{}
 var _ metric.InstrumentImpl = &instImpl{}
 var _ metric.BoundInstrumentImpl = &instHandle{}
 
 // Provider interface and delegation
+
+func newDeferred() *deferred {
+	d := &deferred{}
+	d.meter.deferred = d
+	d.tracer.deferred = d
+	d.propagators.deferred = d
+	d.propagators.Propagators = getDefaultPropagators()
+	return d
+}
 
 func (d *deferred) setDelegate(provider scope.Provider) {
 	d.lock.Lock()
@@ -105,7 +119,7 @@ func (d *deferred) setDelegate(provider scope.Provider) {
 	ptr := unsafe.Pointer(&provider)
 	atomic.StorePointer(&d.delegate, ptr)
 
-	d.meter.setDelegate()
+	d.meter.setDelegate(provider)
 }
 
 func (d *deferred) Tracer() trace.Tracer {
@@ -122,7 +136,7 @@ func (d *deferred) Meter() metric.Meter {
 	return &d.meter
 }
 
-func (d *deferred) Propagators() metric.Meter {
+func (d *deferred) Propagators() propagation.Propagators {
 	if implPtr := (*scope.Provider)(atomic.LoadPointer(&d.delegate)); implPtr != nil {
 		return (*implPtr).Propagators()
 	}
@@ -131,22 +145,23 @@ func (d *deferred) Propagators() metric.Meter {
 
 // Meter interface
 
-func (m *meter) setDelegate() {
-	for _, i := range d.meter.instruments {
-		i.setDelegate()
+func (m *meter) setDelegate(provider scope.Provider) {
+	for _, i := range m.instruments {
+		i.setDelegate(provider)
 	}
-	p.instruments = nil
+	m.instruments = nil
 }
 
 func (m *meter) newInst(name string, mkind metricKind, nkind core.NumberKind, opts interface{}) metric.InstrumentImpl {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+	m.deferred.lock.Lock()
+	defer m.deferred.lock.Unlock()
 
-	if meterPtr := (*metric.Meter)(atomic.LoadPointer(&m.delegate)); meterPtr != nil {
-		return newInstDelegate(*meterPtr, name, mkind, nkind, opts)
+	if implPtr := (*scope.Provider)(atomic.LoadPointer(&m.deferred.delegate)); implPtr != nil {
+		return newInstDelegate((*implPtr).Meter(), name, mkind, nkind, opts)
 	}
 
 	inst := &instImpl{
+		meter: m,
 		name:  name,
 		mkind: mkind,
 		nkind: nkind,
@@ -179,10 +194,10 @@ func newInstDelegate(m metric.Meter, name string, mkind metricKind, nkind core.N
 
 // Instrument delegation
 
-func (inst *instImpl) setDelegate() {
+func (inst *instImpl) setDelegate(provider scope.Provider) {
 	implPtr := new(metric.InstrumentImpl)
 
-	*implPtr = newInstDelegate(d, inst.name, inst.mkind, inst.nkind, inst.opts)
+	*implPtr = newInstDelegate(provider.Meter(), inst.name, inst.mkind, inst.nkind, inst.opts)
 
 	atomic.StorePointer(&inst.delegate, unsafe.Pointer(implPtr))
 }
@@ -212,8 +227,8 @@ func (bound *instHandle) Unbind() {
 // Metric updates
 
 func (m *meter) RecordBatch(ctx context.Context, labels core.LabelSet, measurements ...metric.Measurement) {
-	if delegatePtr := (*metric.Meter)(atomic.LoadPointer(&m.delegate)); delegatePtr != nil {
-		(*delegatePtr).RecordBatch(ctx, labels, measurements...)
+	if delegatePtr := (*scope.Provider)(atomic.LoadPointer(&m.deferred.delegate)); delegatePtr != nil {
+		(*delegatePtr).Meter().RecordBatch(ctx, labels, measurements...)
 	}
 }
 
@@ -252,8 +267,8 @@ func (m *meter) Labels(labels ...core.KeyValue) core.LabelSet {
 }
 
 func (labels *labelSet) Delegate() core.LabelSet {
-	meterPtr := (*metric.Meter)(atomic.LoadPointer(&labels.meter.delegate))
-	if meterPtr == nil {
+	scopePtr := (*scope.Provider)(atomic.LoadPointer(&labels.meter.deferred.delegate))
+	if scopePtr == nil {
 		// This is technically impossible, provided the global
 		// Meter is updated after the meters and instruments
 		// have been delegated.
@@ -262,7 +277,7 @@ func (labels *labelSet) Delegate() core.LabelSet {
 	var implPtr *core.LabelSet
 	labels.initialize.Do(func() {
 		implPtr = new(core.LabelSet)
-		*implPtr = (*meterPtr).Labels(labels.value...)
+		*implPtr = (*scopePtr).Meter().Labels(labels.value...)
 		atomic.StorePointer(&labels.delegate, unsafe.Pointer(implPtr))
 	})
 	if implPtr == nil {

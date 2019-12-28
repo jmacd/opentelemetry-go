@@ -10,7 +10,7 @@ import (
 )
 
 type (
-	scopeHolder struct {
+	scopeProviderHolder struct {
 		sp scope.Provider
 	}
 )
@@ -35,8 +35,8 @@ func SetScopeProvider(sp scope.Provider) {
 			// Panic is acceptable because we are likely still early in the
 			// process lifetime.
 			panic("invalid Provider, the global instance cannot be reinstalled")
-		} else if def, ok := current.(*scopeProvider); ok {
-			def.setDelegate(mp)
+		} else if def, ok := current.(*deferred); ok {
+			def.setDelegate(sp)
 		}
 	})
 	globalScope.Store(scopeProviderHolder{sp: sp})
@@ -44,7 +44,7 @@ func SetScopeProvider(sp scope.Provider) {
 
 func defaultScopeValue() *atomic.Value {
 	v := &atomic.Value{}
-	v.Store(scopeProviderHolder{sp: &scopeDelegator{}})
+	v.Store(scopeProviderHolder{sp: newDeferred()})
 	return v
 }
 
