@@ -21,14 +21,7 @@ import (
 	"go.opentelemetry.io/otel/internal/trace/parent"
 )
 
-type tracer struct {
-	provider *Provider
-	name     string
-}
-
-var _ apitrace.Tracer = &tracer{}
-
-func (tr *tracer) Start(ctx context.Context, name string, o ...apitrace.StartOption) (context.Context, apitrace.Span) {
+func (tr *Tracer) Start(ctx context.Context, name string, o ...apitrace.StartOption) (context.Context, apitrace.Span) {
 	var opts apitrace.StartConfig
 
 	for _, op := range o {
@@ -53,7 +46,7 @@ func (tr *tracer) Start(ctx context.Context, name string, o ...apitrace.StartOpt
 	span.tracer = tr
 
 	if span.IsRecording() {
-		sps, _ := tr.provider.spanProcessors.Load().(spanProcessorMap)
+		sps, _ := tr.spanProcessors.Load().(spanProcessorMap)
 		for sp := range sps {
 			sp.OnStart(span.data)
 		}
@@ -64,7 +57,7 @@ func (tr *tracer) Start(ctx context.Context, name string, o ...apitrace.StartOpt
 	return apitrace.ContextWithSpan(ctx, span), span
 }
 
-func (tr *tracer) WithSpan(ctx context.Context, name string, body func(ctx context.Context) error) error {
+func (tr *Tracer) WithSpan(ctx context.Context, name string, body func(ctx context.Context) error) error {
 	ctx, span := tr.Start(ctx, name)
 	defer span.End()
 
@@ -75,9 +68,10 @@ func (tr *tracer) WithSpan(ctx context.Context, name string, body func(ctx conte
 	return nil
 }
 
-func (tr *tracer) spanNameWithPrefix(name string) string {
-	if tr.name != "" {
-		return tr.name + "/" + name
-	}
+func (tr *Tracer) spanNameWithPrefix(name string) string {
+	// @@@
+	// if tr.name != "" {
+	// 	return tr.name + "/" + name
+	// }
 	return name
 }
