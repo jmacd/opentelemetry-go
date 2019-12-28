@@ -26,7 +26,8 @@ import (
 
 type (
 	Scope struct {
-		name     string
+		name string
+
 		provider Provider
 	}
 
@@ -34,6 +35,7 @@ type (
 		Tracer() trace.Tracer
 		Meter() metric.Meter
 		Propagators() propagation.Propagators
+		Resources() baggage.Map
 	}
 
 	provider struct {
@@ -72,6 +74,10 @@ func (p *provider) Propagators() propagation.Propagators {
 	return p.propagators
 }
 
+func (p *provider) Resources() baggage.Map {
+	return p.resources
+}
+
 func (s *Scope) Tracer() trace.Tracer {
 	return s.provider.Tracer()
 }
@@ -82,4 +88,8 @@ func (s *Scope) Meter() metric.Meter {
 
 func (s *Scope) Propagators() propagation.Propagators {
 	return s.provider.Propagators()
+}
+
+func (s *Scope) Resources() baggage.Map {
+	return s.provider.Resources()
 }

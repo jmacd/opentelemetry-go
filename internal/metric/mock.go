@@ -64,17 +64,10 @@ type (
 )
 
 var (
-<<<<<<< HEAD
-	_ apimetric.InstrumentImpl = &Instrument{}
-	_ apimetric.HandleImpl     = &Handle{}
-	_ core.LabelSet            = &LabelSet{}
-	_ apimetric.Meter          = &Meter{}
-=======
 	_ apimetric.InstrumentImpl      = &Instrument{}
 	_ apimetric.BoundInstrumentImpl = &Handle{}
-	_ apimetric.LabelSet            = &LabelSet{}
+	_ core.LabelSet                 = &LabelSet{}
 	_ apimetric.Meter               = &Meter{}
->>>>>>> jmacd/ctxprop
 )
 
 const (
@@ -83,11 +76,7 @@ const (
 	KindMeasure
 )
 
-<<<<<<< HEAD
-func (i *Instrument) AcquireHandle(labels core.LabelSet) apimetric.HandleImpl {
-=======
-func (i *Instrument) Bind(labels apimetric.LabelSet) apimetric.BoundInstrumentImpl {
->>>>>>> jmacd/ctxprop
+func (i *Instrument) Bind(labels core.LabelSet) apimetric.BoundInstrumentImpl {
 	if ld, ok := labels.(apimetric.LabelSetDelegate); ok {
 		labels = ld.Delegate()
 	}
