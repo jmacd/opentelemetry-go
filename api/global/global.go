@@ -18,11 +18,19 @@ import (
 	"go.opentelemetry.io/otel/api/context/scope"
 )
 
+func SetScope(s scope.Scope) {
+	// internal.SetScope(s)
+}
+
 func Scope() scope.Scope {
 	// return internal.Scope()
 	return scope.Scope{}
 }
 
-func SetScope(s scope.Scope) {
-	// internal.SetScope(s)
-}
+// func Tracer() trace.Tracer {
+// 	return Scope().Tracer()
+// }
+
+// func Meter() metric.Meter {
+// 	return Scope().Meter()
+// }

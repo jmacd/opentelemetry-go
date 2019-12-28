@@ -91,10 +91,6 @@ func (m Measurement) Number() core.Number {
 
 // Meter is an interface to the metrics portion of the OpenTelemetry SDK.
 type Meter interface {
-	// Labels returns a reference to a set of labels that cannot
-	// be read by the application.
-	Labels(...core.KeyValue) core.LabelSet
-
 	// NewInt64Counter creates a new integral counter with a given
 	// name and customized with passed options.
 	NewInt64Counter(name string, cos ...CounterOptionApplier) Int64Counter

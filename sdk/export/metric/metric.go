@@ -200,47 +200,7 @@ type Record struct {
 	aggregator Aggregator
 }
 
-// Labels stores complete information about a computed label set,
-// including the labels in an appropriate order (as defined by the
-// Batcher).  If the batcher does not re-order labels, they are
-// presented in sorted order by the SDK.
-type Labels struct {
-	ordered []core.KeyValue
-	encoded string
-	encoder LabelEncoder
-}
-
-// NewLabels builds a Labels object, consisting of an ordered set of
-// labels, a unique encoded representation, and the encoder that
-// produced it.
-func NewLabels(ordered []core.KeyValue, encoded string, encoder LabelEncoder) Labels {
-	return Labels{
-		ordered: ordered,
-		encoded: encoded,
-		encoder: encoder,
-	}
-}
-
-// Ordered returns the labels in a specified order, according to the
-// Batcher.
-func (l Labels) Ordered() []core.KeyValue {
-	return l.ordered
-}
-
-// Encoded is a pre-encoded form of the ordered labels.
-func (l Labels) Encoded() string {
-	return l.encoded
-}
-
-// Encoder is the encoder that computed the Encoded() representation.
-func (l Labels) Encoder() LabelEncoder {
-	return l.encoder
-}
-
-// Len returns the number of labels.
-func (l Labels) Len() int {
-	return len(l.ordered)
-}
+type Labels = core.LabelSet
 
 // NewRecord allows Batcher implementations to construct export
 // records.  The Descriptor, Labels, and Aggregator represent

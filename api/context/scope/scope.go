@@ -78,18 +78,18 @@ func (p *provider) Resources() baggage.Map {
 	return p.resources
 }
 
-func (s *Scope) Tracer() trace.Tracer {
+func (s Scope) Tracer() trace.Tracer {
 	return s.provider.Tracer()
 }
 
-func (s *Scope) Meter() metric.Meter {
+func (s Scope) Meter() metric.Meter {
 	return s.provider.Meter()
 }
 
-func (s *Scope) Propagators() propagation.Propagators {
+func (s Scope) Propagators() propagation.Propagators {
 	return s.provider.Propagators()
 }
 
-func (s *Scope) Resources() baggage.Map {
+func (s Scope) Resources() baggage.Map {
 	return s.provider.Resources()
 }

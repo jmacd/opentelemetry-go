@@ -25,24 +25,20 @@ import (
 type (
 	Handle struct {
 		Instrument *Instrument
-		LabelSet   *LabelSet
+		LabelSet   core.LabelSet
 	}
 
 	Instrument struct {
+		Meter      *Meter
 		Name       string
 		Kind       Kind
 		NumberKind core.NumberKind
 		Opts       apimetric.Options
 	}
 
-	LabelSet struct {
-		TheMeter *Meter
-		Labels   map[core.Key]core.Value
-	}
-
 	Batch struct {
 		Ctx          context.Context
-		LabelSet     *LabelSet
+		LabelSet     core.LabelSet
 		Measurements []Measurement
 	}
 
@@ -66,7 +62,6 @@ type (
 var (
 	_ apimetric.InstrumentImpl      = &Instrument{}
 	_ apimetric.BoundInstrumentImpl = &Handle{}
-	_ core.LabelSet                 = &LabelSet{}
 	_ apimetric.Meter               = &Meter{}
 )
 
@@ -77,20 +72,14 @@ const (
 )
 
 func (i *Instrument) Bind(labels core.LabelSet) apimetric.BoundInstrumentImpl {
-	if ld, ok := labels.(apimetric.LabelSetDelegate); ok {
-		labels = ld.Delegate()
-	}
 	return &Handle{
 		Instrument: i,
-		LabelSet:   labels.(*LabelSet),
+		LabelSet:   labels,
 	}
 }
 
 func (i *Instrument) RecordOne(ctx context.Context, number core.Number, labels core.LabelSet) {
-	if ld, ok := labels.(apimetric.LabelSetDelegate); ok {
-		labels = ld.Delegate()
-	}
-	doRecordBatch(ctx, labels.(*LabelSet), i, number)
+	doRecordBatch(ctx, labels, i, number)
 }
 
 func (h *Handle) RecordOne(ctx context.Context, number core.Number) {
@@ -100,15 +89,11 @@ func (h *Handle) RecordOne(ctx context.Context, number core.Number) {
 func (h *Handle) Unbind() {
 }
 
-func doRecordBatch(ctx context.Context, labelSet *LabelSet, instrument *Instrument, number core.Number) {
-	labelSet.TheMeter.recordMockBatch(ctx, labelSet, Measurement{
+func doRecordBatch(ctx context.Context, labelSet core.LabelSet, instrument *Instrument, number core.Number) {
+	instrument.Meter.recordMockBatch(ctx, labelSet, Measurement{
 		Instrument: instrument,
 		Number:     number,
 	})
-}
-
-func (s *LabelSet) Meter() apimetric.Meter {
-	return s.TheMeter
 }
 
 func NewProvider() *MeterProvider {
@@ -131,17 +116,6 @@ func (p *MeterProvider) Meter(name string) apimetric.Meter {
 
 func NewMeter() *Meter {
 	return &Meter{}
-}
-
-func (m *Meter) Labels(labels ...core.KeyValue) core.LabelSet {
-	ul := make(map[core.Key]core.Value)
-	for _, kv := range labels {
-		ul[kv.Key] = kv.Value
-	}
-	return &LabelSet{
-		TheMeter: m,
-		Labels:   ul,
-	}
 }
 
 func (m *Meter) NewInt64Counter(name string, cos ...apimetric.CounterOptionApplier) apimetric.Int64Counter {
@@ -200,6 +174,7 @@ func (m *Meter) newMeasureInstrument(name string, numberKind core.NumberKind, mo
 	opts := apimetric.Options{}
 	apimetric.ApplyMeasureOptions(&opts, mos...)
 	return &Instrument{
+		Meter:      m,
 		Name:       name,
 		Kind:       KindMeasure,
 		NumberKind: numberKind,
@@ -208,7 +183,6 @@ func (m *Meter) newMeasureInstrument(name string, numberKind core.NumberKind, mo
 }
 
 func (m *Meter) RecordBatch(ctx context.Context, labels core.LabelSet, measurements ...apimetric.Measurement) {
-	ourLabelSet := labels.(*LabelSet)
 	mm := make([]Measurement, len(measurements))
 	for i := 0; i < len(measurements); i++ {
 		m := measurements[i]
@@ -217,10 +191,10 @@ func (m *Meter) RecordBatch(ctx context.Context, labels core.LabelSet, measureme
 			Number:     m.Number(),
 		}
 	}
-	m.recordMockBatch(ctx, ourLabelSet, mm...)
+	m.recordMockBatch(ctx, labels, mm...)
 }
 
-func (m *Meter) recordMockBatch(ctx context.Context, labelSet *LabelSet, measurements ...Measurement) {
+func (m *Meter) recordMockBatch(ctx context.Context, labelSet core.LabelSet, measurements ...Measurement) {
 	m.MeasurementBatches = append(m.MeasurementBatches, Batch{
 		Ctx:          ctx,
 		LabelSet:     labelSet,

@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -42,10 +41,6 @@ type (
 	SDK struct {
 		// current maps `mapkey` to *record.
 		current sync.Map
-
-		// empty is the (singleton) result of Labels()
-		// w/ zero arguments.
-		empty labels
 
 		// records is the head of both the primary and the
 		// reclaim records lists.
@@ -76,15 +71,6 @@ type (
 	// sortedLabels are used to de-duplicate and canonicalize labels.
 	sortedLabels []core.KeyValue
 
-	// labels implements the OpenTelemetry LabelSet API,
-	// represents an internalized set of labels that may be used
-	// repeatedly.
-	labels struct {
-		meter   *SDK
-		sorted  sortedLabels
-		encoded string
-	}
-
 	// mapkey uniquely describes a metric instrument in terms of
 	// its InstrumentID and the encoded form of its LabelSet.
 	mapkey struct {
@@ -98,7 +84,7 @@ type (
 	// be referenced from the `SDK.current` map.
 	record struct {
 		// labels is the LabelSet passed by the user.
-		labels *labels
+		labels core.LabelSet
 
 		// descriptor describes the metric instrument.
 		descriptor *export.Descriptor
@@ -149,7 +135,6 @@ type (
 
 var (
 	_ api.Meter               = &SDK{}
-	_ core.LabelSet           = &labels{}
 	_ api.InstrumentImpl      = &instrument{}
 	_ api.BoundInstrumentImpl = &record{}
 
@@ -168,11 +153,11 @@ func (m *SDK) SetErrorHandler(f ErrorHandler) {
 	m.errorHandler = f
 }
 
-func (i *instrument) acquireHandle(ls *labels) *record {
+func (i *instrument) bind(ls core.LabelSet) *record {
 	// Create lookup key for sync.Map (one allocation)
 	mk := mapkey{
 		descriptor: i.descriptor,
-		encoded:    ls.encoded,
+		encoded:    ls.Encoded(),
 	}
 
 	if actual, ok := i.meter.current.Load(mk); ok {
@@ -207,12 +192,12 @@ func (i *instrument) acquireHandle(ls *labels) *record {
 
 func (i *instrument) Bind(ls core.LabelSet) api.BoundInstrumentImpl {
 	labs := i.meter.labsFor(ls)
-	return i.acquireHandle(labs)
+	return i.bind(labs)
 }
 
 func (i *instrument) RecordOne(ctx context.Context, number core.Number, ls core.LabelSet) {
 	ourLs := i.meter.labsFor(ls)
-	h := i.acquireHandle(ourLs)
+	h := i.bind(ourLs)
 	defer h.Unbind()
 	h.RecordOne(ctx, number)
 }
@@ -227,55 +212,15 @@ func (i *instrument) RecordOne(ctx context.Context, number core.Number, ls core.
 // current metric values.  A push-based batcher should configure its
 // own periodic collection.
 func New(batcher export.Batcher, labelEncoder export.LabelEncoder) *SDK {
-	m := &SDK{
+	return &SDK{
 		batcher:      batcher,
 		labelEncoder: labelEncoder,
 		errorHandler: DefaultErrorHandler,
 	}
-	m.empty.meter = m
-	return m
 }
 
 func DefaultErrorHandler(err error) {
 	fmt.Fprintln(os.Stderr, "Metrics SDK error:", err)
-}
-
-// Labels returns a LabelSet corresponding to the arguments.  Passed
-// labels are de-duplicated, with last-value-wins semantics.
-func (m *SDK) Labels(kvs ...core.KeyValue) core.LabelSet {
-	// Note: This computes a canonical encoding of the labels to
-	// use as a map key.  It happens to use the encoding used by
-	// statsd for labels, allowing an optimization for statsd
-	// batchers.  This could be made configurable in the
-	// constructor, to support the same optimization for different
-	// batchers.
-
-	// Check for empty set.
-	if len(kvs) == 0 {
-		return &m.empty
-	}
-
-	ls := &labels{
-		meter:  m,
-		sorted: kvs,
-	}
-
-	// Sort and de-duplicate.
-	sort.Stable(&ls.sorted)
-	oi := 1
-	for i := 1; i < len(ls.sorted); i++ {
-		if ls.sorted[i-1].Key == ls.sorted[i].Key {
-			ls.sorted[oi-1] = ls.sorted[i]
-			continue
-		}
-		ls.sorted[oi] = ls.sorted[i]
-		oi++
-	}
-	ls.sorted = ls.sorted[0:oi]
-
-	ls.encoded = m.labelEncoder.Encode(ls.sorted)
-
-	return ls
 }
 
 // labsFor sanitizes the input LabelSet.  The input will be rejected

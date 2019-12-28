@@ -14,7 +14,6 @@ type noopInstrument struct{}
 var _ Meter = NoopMeter{}
 var _ InstrumentImpl = noopInstrument{}
 var _ BoundInstrumentImpl = noopBoundInstrument{}
-var _ core.LabelSet = noopLabelSet{}
 
 func (noopBoundInstrument) RecordOne(context.Context, core.Number) {
 }
@@ -34,7 +33,7 @@ func (noopInstrument) Meter() Meter {
 }
 
 func (NoopMeter) Labels(...core.KeyValue) core.LabelSet {
-	return noopLabelSet{}
+	return core.LabelSet{}
 }
 
 func (NoopMeter) NewInt64Counter(name string, cos ...CounterOptionApplier) Int64Counter {

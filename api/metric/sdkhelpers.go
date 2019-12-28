@@ -20,15 +20,6 @@ import (
 	"go.opentelemetry.io/otel/api/core"
 )
 
-// LabelSetDelegate is a general-purpose delegating implementation of
-// the core.LabelSet interface.  This is implemented by the default
-// Provider returned by api/global.SetMeterProvider(), and should be @@@
-// tested for by implementations before converting a core.LabelSet to their
-// private concrete type.
-type LabelSetDelegate interface {
-	Delegate() core.LabelSet
-}
-
 // InstrumentImpl is the implementation-level interface Set/Add/Record
 // individual metrics without precomputed labels.
 type InstrumentImpl interface {

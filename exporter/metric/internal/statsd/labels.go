@@ -37,7 +37,7 @@ type sameCheck interface {
 	isStatsd()
 }
 
-var _ export.LabelEncoder = &LabelEncoder{}
+var _ core.LabelEncoder = &LabelEncoder{}
 
 // NewLabelEncoder returns a new encoder for dogstatsd-syntax metric
 // labels.
@@ -52,7 +52,7 @@ func NewLabelEncoder() *LabelEncoder {
 }
 
 // Encode emits a string like "|#key1:value1,key2:value2".
-func (e *LabelEncoder) Encode(labels []core.KeyValue) string {
+func (e *LabelEncoder) Encode(labels []core.KeyValue) core.LabelSet {
 	buf := e.pool.Get().(*bytes.Buffer)
 	defer e.pool.Put(buf)
 	buf.Reset()
@@ -66,7 +66,7 @@ func (e *LabelEncoder) Encode(labels []core.KeyValue) string {
 		_, _ = buf.WriteString(kv.Value.Emit())
 		delimiter = ","
 	}
-	return buf.String()
+	return core.NewLabels(labels, buf.String(), e)
 }
 
 func (e *LabelEncoder) isStatsd() {}
@@ -80,5 +80,5 @@ func (e *LabelEncoder) ForceEncode(labels export.Labels) (string, bool) {
 		return labels.Encoded(), false
 	}
 
-	return e.Encode(labels.Ordered()), true
+	return e.Encode(labels.Ordered()).Encoded(), true
 }

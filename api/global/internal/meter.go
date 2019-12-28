@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
+	"go.opentelemetry.io/otel/api/context/baggage"
 	"go.opentelemetry.io/otel/api/context/propagation"
 	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
@@ -47,11 +48,13 @@ type deferred struct {
 	meter       meter
 	tracer      tracer
 	propagators propagators
+	resources   baggage.Map
 	delegate    unsafe.Pointer // (*scope.Provider)
 }
 
 type meter struct {
-	deferred    *deferred
+	deferred *deferred
+
 	instruments []*instImpl
 }
 
@@ -78,13 +81,13 @@ type instImpl struct {
 	delegate unsafe.Pointer // (*metric.InstrumentImpl)
 }
 
-type labelSet struct {
-	meter *meter
-	value []core.KeyValue
+// type labelSet struct {
+// 	meter *meter
+// 	value []core.KeyValue
 
-	initialize sync.Once
-	delegate   unsafe.Pointer // (*metric.LabelSet)
-}
+// 	initialize sync.Once
+// 	delegate   unsafe.Pointer // (*metric.LabelSet)
+// }
 
 type instHandle struct {
 	inst   *instImpl
@@ -96,8 +99,6 @@ type instHandle struct {
 
 var _ scope.Provider = &deferred{}
 var _ metric.Meter = &meter{}
-var _ core.LabelSet = &labelSet{}
-var _ metric.LabelSetDelegate = &labelSet{}
 var _ metric.InstrumentImpl = &instImpl{}
 var _ metric.BoundInstrumentImpl = &instHandle{}
 
@@ -141,6 +142,13 @@ func (d *deferred) Propagators() propagation.Propagators {
 		return (*implPtr).Propagators()
 	}
 	return &d.propagators
+}
+
+func (d *deferred) Resources() baggage.Map {
+	if implPtr := (*scope.Provider)(atomic.LoadPointer(&d.delegate)); implPtr != nil {
+		return (*implPtr).Resources()
+	}
+	return d.resources
 }
 
 // Meter interface
@@ -259,32 +267,32 @@ func (bound *instHandle) RecordOne(ctx context.Context, number core.Number) {
 
 // LabelSet initialization
 
-func (m *meter) Labels(labels ...core.KeyValue) core.LabelSet {
-	return &labelSet{
-		meter: m,
-		value: labels,
-	}
-}
+// func (m *meter) Labels(labels ...core.KeyValue) core.LabelSet {
+// 	return &labelSet{
+// 		meter: m,
+// 		value: labels,
+// 	}
+// }
 
-func (labels *labelSet) Delegate() core.LabelSet {
-	scopePtr := (*scope.Provider)(atomic.LoadPointer(&labels.meter.deferred.delegate))
-	if scopePtr == nil {
-		// This is technically impossible, provided the global
-		// Meter is updated after the meters and instruments
-		// have been delegated.
-		return labels
-	}
-	var implPtr *core.LabelSet
-	labels.initialize.Do(func() {
-		implPtr = new(core.LabelSet)
-		*implPtr = (*scopePtr).Meter().Labels(labels.value...)
-		atomic.StorePointer(&labels.delegate, unsafe.Pointer(implPtr))
-	})
-	if implPtr == nil {
-		implPtr = (*core.LabelSet)(atomic.LoadPointer(&labels.delegate))
-	}
-	return (*implPtr)
-}
+// func (labels *labelSet) Delegate() core.LabelSet {
+// 	scopePtr := (*scope.Provider)(atomic.LoadPointer(&labels.meter.deferred.delegate))
+// 	if scopePtr == nil {
+// 		// This is technically impossible, provided the global
+// 		// Meter is updated after the meters and instruments
+// 		// have been delegated.
+// 		return labels
+// 	}
+// 	var implPtr *core.LabelSet
+// 	labels.initialize.Do(func() {
+// 		implPtr = new(core.LabelSet)
+// 		*implPtr = (*scopePtr).Meter().Labels(labels.value...)
+// 		atomic.StorePointer(&labels.delegate, unsafe.Pointer(implPtr))
+// 	})
+// 	if implPtr == nil {
+// 		implPtr = (*core.LabelSet)(atomic.LoadPointer(&labels.delegate))
+// 	}
+// 	return (*implPtr)
+// }
 
 // Constructors
 

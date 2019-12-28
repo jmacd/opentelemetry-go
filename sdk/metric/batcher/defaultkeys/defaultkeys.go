@@ -104,14 +104,14 @@ func (b *Batcher) Process(_ context.Context, record export.Record) error {
 	}
 
 	// Compute an encoded lookup key.
-	encoded := b.labelEncoder.Encode(outputLabels)
+	labelSet := b.labelEncoder.Encode(outputLabels)
 
 	// Merge this aggregator with all preceding aggregators that
 	// map to the same set of `outputLabels` labels.
 	agg := record.Aggregator()
 	key := batchKey{
 		descriptor: record.Descriptor(),
-		encoded:    encoded,
+		encoded:    labelSet.Encoded(),
 	}
 	rag, ok := b.aggCheckpoint[key]
 	if ok {
@@ -134,7 +134,7 @@ func (b *Batcher) Process(_ context.Context, record export.Record) error {
 	}
 	b.aggCheckpoint[key] = export.NewRecord(
 		desc,
-		export.NewLabels(outputLabels, encoded, b.labelEncoder),
+		labelSet,
 		agg,
 	)
 	return nil
