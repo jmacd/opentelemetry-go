@@ -94,7 +94,7 @@ var _ metric.Meter = &meter{} // TODO It would be nice if this wasn't direct
 var _ core.LabelSet = &labelSet{}
 var _ metric.LabelSetDelegate = &labelSet{}
 var _ metric.InstrumentImpl = &instImpl{}
-var _ metric.HandleImpl = &instHandle{}
+var _ metric.BoundInstrumentImpl = &instHandle{}
 
 // Provider interface and delegation
 
@@ -187,9 +187,9 @@ func (inst *instImpl) setDelegate() {
 	atomic.StorePointer(&inst.delegate, unsafe.Pointer(implPtr))
 }
 
-func (inst *instImpl) AcquireHandle(labels core.LabelSet) metric.HandleImpl {
+func (inst *instImpl) Bind(labels core.LabelSet) metric.BoundInstrumentImpl {
 	if implPtr := (*metric.InstrumentImpl)(atomic.LoadPointer(&inst.delegate)); implPtr != nil {
-		return (*implPtr).AcquireHandle(labels)
+		return (*implPtr).Bind(labels)
 	}
 	return &instHandle{
 		inst:   inst,
@@ -197,16 +197,16 @@ func (inst *instImpl) AcquireHandle(labels core.LabelSet) metric.HandleImpl {
 	}
 }
 
-func (bound *instHandle) Release() {
+func (bound *instHandle) Unbind() {
 	bound.initialize.Do(func() {})
 
-	implPtr := (*metric.HandleImpl)(atomic.LoadPointer(&bound.delegate))
+	implPtr := (*metric.BoundInstrumentImpl)(atomic.LoadPointer(&bound.delegate))
 
 	if implPtr == nil {
 		return
 	}
 
-	(*implPtr).Release()
+	(*implPtr).Unbind()
 }
 
 // Metric updates
@@ -230,15 +230,14 @@ func (bound *instHandle) RecordOne(ctx context.Context, number core.Number) {
 	if instPtr == nil {
 		return
 	}
-	var implPtr *metric.HandleImpl
+	var implPtr *metric.BoundInstrumentImpl
 	bound.initialize.Do(func() {
-
-		implPtr = new(metric.HandleImpl)
-		*implPtr = (*instPtr).AcquireHandle(bound.labels)
+		implPtr = new(metric.BoundInstrumentImpl)
+		*implPtr = (*instPtr).Bind(bound.labels)
 		atomic.StorePointer(&bound.delegate, unsafe.Pointer(implPtr))
 	})
 	if implPtr == nil {
-		implPtr = (*metric.HandleImpl)(atomic.LoadPointer(&bound.delegate))
+		implPtr = (*metric.BoundInstrumentImpl)(atomic.LoadPointer(&bound.delegate))
 	}
 	(*implPtr).RecordOne(ctx, number)
 }

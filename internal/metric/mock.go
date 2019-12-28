@@ -64,10 +64,17 @@ type (
 )
 
 var (
+<<<<<<< HEAD
 	_ apimetric.InstrumentImpl = &Instrument{}
 	_ apimetric.HandleImpl     = &Handle{}
 	_ core.LabelSet            = &LabelSet{}
 	_ apimetric.Meter          = &Meter{}
+=======
+	_ apimetric.InstrumentImpl      = &Instrument{}
+	_ apimetric.BoundInstrumentImpl = &Handle{}
+	_ apimetric.LabelSet            = &LabelSet{}
+	_ apimetric.Meter               = &Meter{}
+>>>>>>> jmacd/ctxprop
 )
 
 const (
@@ -76,7 +83,11 @@ const (
 	KindMeasure
 )
 
+<<<<<<< HEAD
 func (i *Instrument) AcquireHandle(labels core.LabelSet) apimetric.HandleImpl {
+=======
+func (i *Instrument) Bind(labels apimetric.LabelSet) apimetric.BoundInstrumentImpl {
+>>>>>>> jmacd/ctxprop
 	if ld, ok := labels.(apimetric.LabelSetDelegate); ok {
 		labels = ld.Delegate()
 	}
@@ -97,7 +108,7 @@ func (h *Handle) RecordOne(ctx context.Context, number core.Number) {
 	doRecordBatch(ctx, h.LabelSet, h.Instrument, number)
 }
 
-func (h *Handle) Release() {
+func (h *Handle) Unbind() {
 }
 
 func doRecordBatch(ctx context.Context, labelSet *LabelSet, instrument *Instrument, number core.Number) {

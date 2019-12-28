@@ -7,23 +7,23 @@ import (
 )
 
 type NoopMeter struct{}
-type noopHandle struct{}
+type noopBoundInstrument struct{}
 type noopLabelSet struct{}
 type noopInstrument struct{}
 
 var _ Meter = NoopMeter{}
 var _ InstrumentImpl = noopInstrument{}
-var _ HandleImpl = noopHandle{}
+var _ BoundInstrumentImpl = noopBoundInstrument{}
 var _ core.LabelSet = noopLabelSet{}
 
-func (noopHandle) RecordOne(context.Context, core.Number) {
+func (noopBoundInstrument) RecordOne(context.Context, core.Number) {
 }
 
-func (noopHandle) Release() {
+func (noopBoundInstrument) Unbind() {
 }
 
-func (noopInstrument) AcquireHandle(core.LabelSet) HandleImpl {
-	return noopHandle{}
+func (noopInstrument) Bind(core.LabelSet) BoundInstrumentImpl {
+	return noopBoundInstrument{}
 }
 
 func (noopInstrument) RecordOne(context.Context, core.Number, core.LabelSet) {

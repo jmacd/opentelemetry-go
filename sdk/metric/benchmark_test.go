@@ -148,7 +148,7 @@ func BenchmarkAcquireNewHandle(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		cnt.AcquireHandle(labels[i])
+		cnt.Bind(labels[i])
 	}
 }
 
@@ -160,13 +160,13 @@ func BenchmarkAcquireExistingHandle(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		labels[i] = fix.sdk.Labels(labelSets[i]...)
-		cnt.AcquireHandle(labels[i]).Release()
+		cnt.Bind(labels[i]).Unbind()
 	}
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		cnt.AcquireHandle(labels[i])
+		cnt.Bind(labels[i])
 	}
 }
 
@@ -178,13 +178,13 @@ func BenchmarkAcquireReleaseExistingHandle(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		labels[i] = fix.sdk.Labels(labelSets[i]...)
-		cnt.AcquireHandle(labels[i]).Release()
+		cnt.Bind(labels[i]).Unbind()
 	}
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		cnt.AcquireHandle(labels[i]).Release()
+		cnt.Bind(labels[i]).Unbind()
 	}
 }
 
@@ -208,7 +208,7 @@ func BenchmarkInt64CounterHandleAdd(b *testing.B) {
 	fix := newFixture(b)
 	labs := fix.sdk.Labels(makeLabels(1)...)
 	cnt := fix.sdk.NewInt64Counter("int64.counter")
-	handle := cnt.AcquireHandle(labs)
+	handle := cnt.Bind(labs)
 
 	b.ResetTimer()
 
@@ -235,7 +235,7 @@ func BenchmarkFloat64CounterHandleAdd(b *testing.B) {
 	fix := newFixture(b)
 	labs := fix.sdk.Labels(makeLabels(1)...)
 	cnt := fix.sdk.NewFloat64Counter("float64.counter")
-	handle := cnt.AcquireHandle(labs)
+	handle := cnt.Bind(labs)
 
 	b.ResetTimer()
 
@@ -264,7 +264,7 @@ func BenchmarkInt64GaugeHandleAdd(b *testing.B) {
 	fix := newFixture(b)
 	labs := fix.sdk.Labels(makeLabels(1)...)
 	gau := fix.sdk.NewInt64Gauge("int64.gauge")
-	handle := gau.AcquireHandle(labs)
+	handle := gau.Bind(labs)
 
 	b.ResetTimer()
 
@@ -291,7 +291,7 @@ func BenchmarkFloat64GaugeHandleAdd(b *testing.B) {
 	fix := newFixture(b)
 	labs := fix.sdk.Labels(makeLabels(1)...)
 	gau := fix.sdk.NewFloat64Gauge("float64.gauge")
-	handle := gau.AcquireHandle(labs)
+	handle := gau.Bind(labs)
 
 	b.ResetTimer()
 
@@ -320,7 +320,7 @@ func benchmarkInt64MeasureHandleAdd(b *testing.B, name string) {
 	fix := newFixture(b)
 	labs := fix.sdk.Labels(makeLabels(1)...)
 	mea := fix.sdk.NewInt64Measure(name)
-	handle := mea.AcquireHandle(labs)
+	handle := mea.Bind(labs)
 
 	b.ResetTimer()
 
@@ -347,7 +347,7 @@ func benchmarkFloat64MeasureHandleAdd(b *testing.B, name string) {
 	fix := newFixture(b)
 	labs := fix.sdk.Labels(makeLabels(1)...)
 	mea := fix.sdk.NewFloat64Measure(name)
-	handle := mea.AcquireHandle(labs)
+	handle := mea.Bind(labs)
 
 	b.ResetTimer()
 
