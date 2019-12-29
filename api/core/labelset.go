@@ -26,7 +26,7 @@ type LabelEncoder interface {
 	// It should return a unique representation of the labels
 	// suitable for the SDK to use as a map key, an aggregator
 	// grouping key, and/or the export encoding.
-	Encode([]KeyValue) LabelSet
+	Encode([]KeyValue) string
 }
 
 // Labels stores complete information about a computed label set,
@@ -50,7 +50,7 @@ type labelSetImpl struct {
 // NewLabels builds a Labels object, consisting of an ordered set of
 // labels, a unique encoded representation, and the encoder that
 // produced it.
-func NewLabels(ordered []KeyValue, encoded string, encoder LabelEncoder) LabelSet {
+func NewLabels(ordered []KeyValue /*, encoded string, encoder LabelEncoder*/) LabelSet {
 	lsi := &labelSetImpl{
 		ordered: ordered,
 	}
@@ -67,13 +67,9 @@ func (l LabelSet) Ordered() []KeyValue {
 }
 
 // Encoded is a pre-encoded form of the ordered labels.
-func (l LabelSet) Encoded() string {
-	return l.encoded
-}
-
-// Encoder is the encoder that computed the Encoded() representation.
-func (l LabelSet) Encoder() LabelEncoder {
-	return l.encoder
+func (l LabelSet) Encoded(enc LabelEncoder) string {
+	// @@@
+	return l.encoded[0]
 }
 
 // Len returns the number of labels.

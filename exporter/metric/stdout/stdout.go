@@ -23,8 +23,10 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel/api/core"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/export/metric/aggregator"
+	sdk "go.opentelemetry.io/otel/sdk/metric"
 )
 
 type Exporter struct {
@@ -54,6 +56,9 @@ type Options struct {
 	// exporter may wish to configure quantiles on a per-metric
 	// basis.
 	Quantiles []float64
+
+	// LabelEncoder defines how...
+	LabelEncoder core.LabelEncoder
 }
 
 type expoBatch struct {
@@ -92,6 +97,9 @@ func New(options Options) (*Exporter, error) {
 				return nil, aggregator.ErrInvalidQuantile
 			}
 		}
+	}
+	if options.LabelEncoder == nil {
+		options.LabelEncoder = sdk.NewDefaultLabelEncoder()
 	}
 	return &Exporter{
 		options: options,
@@ -200,7 +208,7 @@ func (e *Exporter) Export(_ context.Context, checkpointSet export.CheckpointSet)
 
 		if labels := record.Labels(); labels.Len() > 0 {
 			sb.WriteRune('{')
-			sb.WriteString(labels.Encoded())
+			sb.WriteString(labels.Encoded(e.LabelEncoder))
 			sb.WriteRune('}')
 		}
 

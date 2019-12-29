@@ -43,11 +43,12 @@ type (
 var _ export.Batcher = &Batcher{}
 var _ export.CheckpointSet = batchMap{}
 
-func New(selector export.AggregationSelector, stateful bool) *Batcher {
+func New(selector export.AggregationSelector, labelEncoder export.LabelEncoder, stateful bool) *Batcher {
 	return &Batcher{
-		selector: selector,
-		batchMap: batchMap{},
-		stateful: stateful,
+		selector:     selector,
+		labelEncoder: labelEncoder,
+		batchMap:     batchMap{},
+		stateful:     stateful,
 	}
 }
 
@@ -59,7 +60,7 @@ func (b *Batcher) Process(_ context.Context, record export.Record) error {
 	desc := record.Descriptor()
 	key := batchKey{
 		descriptor: desc,
-		encoded:    record.Labels().Encoded(),
+		encoded:    record.Labels().Encoded(b.labelEncoder),
 	}
 	agg := record.Aggregator()
 	value, ok := b.batchMap[key]

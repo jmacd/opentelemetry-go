@@ -80,5 +80,5 @@ func (e *LabelEncoder) ForceEncode(labels export.Labels) (string, bool) {
 		return labels.Encoded(), false
 	}
 
-	return e.Encode(labels.Ordered()).Encoded(), true
+	return e.Encode(labels.Ordered()).Encoided(), true
 }
