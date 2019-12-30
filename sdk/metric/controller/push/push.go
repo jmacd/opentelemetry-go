@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel/api/metric"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	sdk "go.opentelemetry.io/otel/sdk/metric"
 )
@@ -134,6 +135,10 @@ func (c *Controller) Stop() {
 	c.ticker.Stop()
 
 	c.tick()
+}
+
+func (c *Controller) Meter() metric.Meter {
+	return c.sdk
 }
 
 func (c *Controller) run(ch chan struct{}) {

@@ -5,10 +5,12 @@ import (
 	"strings"
 	"testing"
 
+	"go.opentelemetry.io/otel/api/context/baggage"
+	"go.opentelemetry.io/otel/api/context/scope"
+	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/global/internal"
 	"go.opentelemetry.io/otel/api/key"
-	"go.opentelemetry.io/otel/api/metric"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	sdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/counter"
@@ -23,8 +25,6 @@ type benchFixture struct {
 	sdk *sdk.SDK
 	B   *testing.B
 }
-
-var _ metric.Provider = &benchFixture{}
 
 func newFixture(b *testing.B) *benchFixture {
 	b.ReportAllocs()
@@ -64,15 +64,11 @@ func (*benchFixture) CheckpointSet() export.CheckpointSet {
 func (*benchFixture) FinishedCollection() {
 }
 
-func (fix *benchFixture) Meter(name string) metric.Meter {
-	return fix.sdk
-}
-
 func BenchmarkGlobalInt64CounterAddNoSDK(b *testing.B) {
 	internal.ResetForTest()
 	ctx := context.Background()
-	sdk := global.MeterProvider().Meter("test")
-	labs := sdk.Labels(key.String("A", "B"))
+	sdk := global.Scope("test").Meter()
+	labs := core.NewLabels(key.String("A", "B"))
 	cnt := sdk.NewInt64Counter("int64.counter")
 
 	b.ResetTimer()
@@ -87,11 +83,11 @@ func BenchmarkGlobalInt64CounterAddWithSDK(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
 
-	sdk := global.MeterProvider().Meter("test")
+	sdk := global.Scope("test").Meter()
 
-	global.SetMeterProvider(fix)
+	global.SetScopeProvider(scope.NewProvider(nil, fix.sdk, nil, baggage.NewEmptyMap()))
 
-	labs := sdk.Labels(key.String("A", "B"))
+	labs := core.NewLabels(key.String("A", "B"))
 	cnt := sdk.NewInt64Counter("int64.counter")
 
 	b.ResetTimer()

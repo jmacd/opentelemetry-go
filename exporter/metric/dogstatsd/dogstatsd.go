@@ -35,8 +35,6 @@ type (
 	Exporter struct {
 		*statsd.Exporter
 		*statsd.LabelEncoder
-
-		ReencodedLabelsCount int
 	}
 )
 
@@ -66,10 +64,5 @@ func (*Exporter) AppendName(rec export.Record, buf *bytes.Buffer) {
 
 // AppendTags is part of the stats-internal adapter interface.
 func (e *Exporter) AppendTags(rec export.Record, buf *bytes.Buffer) {
-	encoded, inefficient := e.LabelEncoder.ForceEncode(rec.Labels())
-	_, _ = buf.WriteString(encoded)
-
-	if inefficient {
-		e.ReencodedLabelsCount++
-	}
+	_, _ = buf.WriteString(rec.Labels().Encoded(e.LabelEncoder))
 }

@@ -27,6 +27,8 @@ import (
 
 var _ http.Handler = &Handler{}
 
+var otelScope = global.Scope("go.opentelemetry.io/plugin/othttp")
+
 // Attribute keys that the Handler can add to a span.
 const (
 	HostKey       = core.Key("http.host")        // the http host (http.Request.Host)
@@ -129,9 +131,10 @@ func WithMessageEvents(events ...event) Option {
 // named after the operation and with any provided HandlerOptions.
 func NewHandler(handler http.Handler, operation string, opts ...Option) http.Handler {
 	h := Handler{handler: handler, operation: operation}
+
 	defaultOpts := []Option{
-		WithTracer(global.TraceProvider().Tracer("go.opentelemetry.io/plugin/othttp")),
-		WithPropagators(global.Propagators()),
+		WithTracer(otelScope.Tracer()),
+		WithPropagators(otelScope.Propagators()),
 		WithSpanOptions(trace.WithSpanKind(trace.SpanKindServer)),
 	}
 

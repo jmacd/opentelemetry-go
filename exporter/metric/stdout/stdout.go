@@ -208,7 +208,7 @@ func (e *Exporter) Export(_ context.Context, checkpointSet export.CheckpointSet)
 
 		if labels := record.Labels(); labels.Len() > 0 {
 			sb.WriteRune('{')
-			sb.WriteString(labels.Encoded(e.LabelEncoder))
+			sb.WriteString(labels.Encoded(e.options.LabelEncoder))
 			sb.WriteRune('}')
 		}
 

@@ -17,14 +17,16 @@ package ungrouped // import "go.opentelemetry.io/otel/sdk/metric/batcher/ungroup
 import (
 	"context"
 
+	"go.opentelemetry.io/otel/api/core"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 )
 
 type (
 	Batcher struct {
-		selector export.AggregationSelector
-		batchMap batchMap
-		stateful bool
+		selector     export.AggregationSelector
+		labelEncoder core.LabelEncoder
+		batchMap     batchMap
+		stateful     bool
 	}
 
 	batchKey struct {

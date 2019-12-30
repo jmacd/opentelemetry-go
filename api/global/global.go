@@ -16,21 +16,17 @@ package global
 
 import (
 	"go.opentelemetry.io/otel/api/context/scope"
+	"go.opentelemetry.io/otel/api/global/internal"
 )
 
-func SetScope(s scope.Scope) {
-	// internal.SetScope(s)
+func SetScopeProvider(p scope.Provider) {
+	internal.SetScopeProvider(p)
 }
 
-func Scope() scope.Scope {
-	// return internal.Scope()
-	return scope.Scope{}
+func ScopeProvider() scope.Provider {
+	return internal.ScopeProvider()
 }
 
-// func Tracer() trace.Tracer {
-// 	return Scope().Tracer()
-// }
-
-// func Meter() metric.Meter {
-// 	return Scope().Meter()
-// }
+func Scope(name string) scope.Scope {
+	return scope.New(name, ScopeProvider())
+}

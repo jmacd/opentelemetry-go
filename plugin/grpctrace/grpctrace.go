@@ -27,6 +27,8 @@ import (
 	tpropagation "go.opentelemetry.io/otel/api/trace/propagation"
 )
 
+var otelScope = global.Scope("go.opentelemetry.io/plugin/grpctrace")
+
 type metadataSupplier struct {
 	metadata *metadata.MD
 }
@@ -42,14 +44,14 @@ func (s *metadataSupplier) Set(key string, value string) {
 
 // Inject injects the gRPC call metadata into the Span
 func Inject(ctx context.Context, metadata *metadata.MD) {
-	propagation.InjectHTTP(ctx, global.Scope().Propagators(), &metadataSupplier{
+	propagation.InjectHTTP(ctx, otelScope.Propagators(), &metadataSupplier{
 		metadata: metadata,
 	})
 }
 
 // Extract returns the Context Entries and SpanContext that were encoded by Inject.
 func Extract(ctx context.Context, metadata *metadata.MD) ([]core.KeyValue, core.SpanContext) {
-	ctx = propagation.ExtractHTTP(ctx, global.Scope().Propagators(), &metadataSupplier{
+	ctx = propagation.ExtractHTTP(ctx, otelScope.Propagators(), &metadataSupplier{
 		metadata: metadata,
 	})
 

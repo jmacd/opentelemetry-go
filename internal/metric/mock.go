@@ -16,7 +16,6 @@ package metric
 
 import (
 	"context"
-	"sync"
 
 	"go.opentelemetry.io/otel/api/core"
 	apimetric "go.opentelemetry.io/otel/api/metric"
@@ -40,11 +39,6 @@ type (
 		Ctx          context.Context
 		LabelSet     core.LabelSet
 		Measurements []Measurement
-	}
-
-	MeterProvider struct {
-		lock       sync.Mutex
-		registered map[string]*Meter
 	}
 
 	Meter struct {
@@ -96,24 +90,6 @@ func doRecordBatch(ctx context.Context, labelSet core.LabelSet, instrument *Inst
 	})
 }
 
-func NewProvider() *MeterProvider {
-	return &MeterProvider{
-		registered: map[string]*Meter{},
-	}
-}
-
-func (p *MeterProvider) Meter(name string) apimetric.Meter {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	if lookup, ok := p.registered[name]; ok {
-		return lookup
-	}
-	m := NewMeter()
-	p.registered[name] = m
-	return m
-}
-
 func NewMeter() *Meter {
 	return &Meter{}
 }
@@ -132,6 +108,7 @@ func (m *Meter) newCounterInstrument(name string, numberKind core.NumberKind, co
 	opts := apimetric.Options{}
 	apimetric.ApplyCounterOptions(&opts, cos...)
 	return &Instrument{
+		Meter:      m,
 		Name:       name,
 		Kind:       KindCounter,
 		NumberKind: numberKind,
@@ -153,6 +130,7 @@ func (m *Meter) newGaugeInstrument(name string, numberKind core.NumberKind, gos 
 	opts := apimetric.Options{}
 	apimetric.ApplyGaugeOptions(&opts, gos...)
 	return &Instrument{
+		Meter:      m,
 		Name:       name,
 		Kind:       KindGauge,
 		NumberKind: numberKind,

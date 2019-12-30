@@ -83,6 +83,8 @@ type (
 	// `record` in existence at a time, although at most one can
 	// be referenced from the `SDK.current` map.
 	record struct {
+		meter *SDK
+
 		// labels is the LabelSet passed by the user.
 		labels core.LabelSet
 
@@ -157,7 +159,7 @@ func (i *instrument) bind(ls core.LabelSet) *record {
 	// Create lookup key for sync.Map (one allocation)
 	mk := mapkey{
 		descriptor: i.descriptor,
-		encoded:    ls.Encoded(),
+		encoded:    ls.Encoded(i.meter.labelEncoder),
 	}
 
 	if actual, ok := i.meter.current.Load(mk); ok {
@@ -169,6 +171,7 @@ func (i *instrument) bind(ls core.LabelSet) *record {
 
 	// There's a memory allocation here.
 	rec := &record{
+		meter:          i.meter,
 		labels:         ls,
 		descriptor:     i.descriptor,
 		refcount:       1,
@@ -191,13 +194,11 @@ func (i *instrument) bind(ls core.LabelSet) *record {
 }
 
 func (i *instrument) Bind(ls core.LabelSet) api.BoundInstrumentImpl {
-	labs := i.meter.labsFor(ls)
-	return i.bind(labs)
+	return i.bind(ls)
 }
 
 func (i *instrument) RecordOne(ctx context.Context, number core.Number, ls core.LabelSet) {
-	ourLs := i.meter.labsFor(ls)
-	h := i.bind(ourLs)
+	h := i.bind(ls)
 	defer h.Unbind()
 	h.RecordOne(ctx, number)
 }
@@ -221,18 +222,6 @@ func New(batcher export.Batcher, labelEncoder export.LabelEncoder) *SDK {
 
 func DefaultErrorHandler(err error) {
 	fmt.Fprintln(os.Stderr, "Metrics SDK error:", err)
-}
-
-// labsFor sanitizes the input LabelSet.  The input will be rejected
-// if it was created by another Meter instance, for example.
-func (m *SDK) labsFor(ls core.LabelSet) *labels {
-	if del, ok := ls.(api.LabelSetDelegate); ok {
-		ls = del.Delegate()
-	}
-	if l, _ := ls.(*labels); l != nil && l.meter == m {
-		return l
-	}
-	return &m.empty
 }
 
 func (m *SDK) newInstrument(name string, metricKind export.MetricKind, numberKind core.NumberKind, opts *api.Options) *instrument {
@@ -370,8 +359,7 @@ func (m *SDK) checkpoint(ctx context.Context, r *record) int {
 		return 0
 	}
 	r.recorder.Checkpoint(ctx, r.descriptor)
-	labels := export.NewLabels(r.labels.sorted, r.labels.encoded, m.labelEncoder)
-	err := m.batcher.Process(ctx, export.NewRecord(r.descriptor, labels, r.recorder))
+	err := m.batcher.Process(ctx, export.NewRecord(r.descriptor, r.labels, r.recorder))
 
 	if err != nil {
 		m.errorHandler(err)
@@ -401,11 +389,11 @@ func (r *record) RecordOne(ctx context.Context, number core.Number) {
 		return
 	}
 	if err := aggregator.RangeTest(number, r.descriptor); err != nil {
-		r.labels.meter.errorHandler(err)
+		r.meter.errorHandler(err)
 		return
 	}
 	if err := r.recorder.Update(ctx, number, r.descriptor); err != nil {
-		r.labels.meter.errorHandler(err)
+		r.meter.errorHandler(err)
 		return
 	}
 }
@@ -427,7 +415,7 @@ func (r *record) Unbind() {
 
 		if modified < collected {
 			// This record could have been reclaimed.
-			r.labels.meter.saveFromReclaim(r)
+			r.meter.saveFromReclaim(r)
 		}
 
 		break
@@ -439,6 +427,6 @@ func (r *record) Unbind() {
 func (r *record) mapkey() mapkey {
 	return mapkey{
 		descriptor: r.descriptor,
-		encoded:    r.labels.encoded,
+		encoded:    r.labels.Encoded(r.meter.labelEncoder),
 	}
 }

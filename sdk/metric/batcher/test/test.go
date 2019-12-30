@@ -61,11 +61,11 @@ var (
 	// Counter groups are (labels1+labels2), (labels3)
 
 	// Labels1 has G=H and C=D
-	Labels1 = makeLabels(SdkEncoder, key.String("G", "H"), key.String("C", "D"))
+	Labels1 = core.NewLabels(key.String("G", "H"), key.String("C", "D"))
 	// Labels2 has C=D and E=F
-	Labels2 = makeLabels(SdkEncoder, key.String("C", "D"), key.String("E", "F"))
+	Labels2 = core.NewLabels(key.String("C", "D"), key.String("E", "F"))
 	// Labels3 is the empty set
-	Labels3 = makeLabels(SdkEncoder)
+	Labels3 = core.NewLabels()
 )
 
 // NewAggregationSelector returns a policy that is consistent with the
@@ -84,11 +84,6 @@ func (*testAggregationSelector) AggregatorFor(desc *export.Descriptor) export.Ag
 	default:
 		panic("Invalid descriptor MetricKind for this test")
 	}
-}
-
-func makeLabels(encoder export.LabelEncoder, labels ...core.KeyValue) export.Labels {
-	encoded := encoder.Encode(labels)
-	return export.NewLabels(labels, encoded, encoder)
 }
 
 func (Encoder) Encode(labels []core.KeyValue) string {
@@ -136,7 +131,7 @@ func CounterAgg(desc *export.Descriptor, v int64) export.Aggregator {
 // value to the output map.
 func (o Output) AddTo(rec export.Record) {
 	labels := rec.Labels()
-	key := fmt.Sprint(rec.Descriptor().Name(), "/", labels.Encoded())
+	key := fmt.Sprint(rec.Descriptor().Name(), "/", labels.Encoded(SdkEncoder))
 	var value int64
 	switch t := rec.Aggregator().(type) {
 	case *counter.Aggregator:

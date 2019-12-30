@@ -45,7 +45,7 @@ func NewDefaultLabelEncoder() export.LabelEncoder {
 	}
 }
 
-func (d *defaultLabelEncoder) Encode(labels []core.KeyValue) core.LabelSet {
+func (d *defaultLabelEncoder) Encode(labels []core.KeyValue) string {
 	buf := d.pool.Get().(*bytes.Buffer)
 	defer d.pool.Put(buf)
 	buf.Reset()
@@ -58,8 +58,6 @@ func (d *defaultLabelEncoder) Encode(labels []core.KeyValue) core.LabelSet {
 		_, _ = buf.WriteRune('=')
 		_, _ = buf.WriteString(kv.Value.Emit())
 	}
-	return core.NewLabels(
-		labels,
-		buf.String(),
-		d)
+	return buf.String()
+
 }

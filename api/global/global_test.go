@@ -17,50 +17,46 @@ package global_test
 import (
 	"testing"
 
+	"go.opentelemetry.io/otel/api/context/baggage"
+	"go.opentelemetry.io/otel/api/context/propagation"
+	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/api/trace"
 )
 
 type (
-	testTraceProvider struct{}
-	testMeterProvider struct{}
+	testScopeProvider struct{}
 )
 
 var (
-	_ trace.Provider  = &testTraceProvider{}
-	_ metric.Provider = &testMeterProvider{}
+	_ scope.Provider = &testScopeProvider{}
 )
 
-func (*testTraceProvider) Tracer(_ string) trace.Tracer {
-	return &trace.NoopTracer{}
+func (*testScopeProvider) Tracer() trace.Tracer {
+	return trace.NoopTracer{}
 }
 
-func (*testMeterProvider) Meter(_ string) metric.Meter {
-	return &metric.NoopMeter{}
+func (*testScopeProvider) Meter() metric.Meter {
+	return metric.NoopMeter{}
 }
 
-func TestMulitpleGlobalTracerProvider(t *testing.T) {
-	p1 := testTraceProvider{}
-	p2 := trace.NoopProvider{}
-	global.SetTraceProvider(&p1)
-	global.SetTraceProvider(&p2)
-
-	got := global.TraceProvider()
-	want := &p2
-	if got != want {
-		t.Fatalf("Provider: got %p, want %p\n", got, want)
-	}
+func (*testScopeProvider) Propagators() propagation.Propagators {
+	return propagation.New()
 }
 
-func TestMulitpleGlobalMeterProvider(t *testing.T) {
-	p1 := testMeterProvider{}
-	p2 := metric.NoopProvider{}
-	global.SetMeterProvider(&p1)
-	global.SetMeterProvider(&p2)
+func (*testScopeProvider) Resources() baggage.Map {
+	return baggage.NewEmptyMap()
+}
 
-	got := global.MeterProvider()
-	want := &p2
+func TestMulitpleGlobalScopeProvider(t *testing.T) {
+	p1 := &testScopeProvider{}
+	p2 := &testScopeProvider{}
+	global.SetScopeProvider(p1)
+	global.SetScopeProvider(p2)
+
+	got := global.ScopeProvider()
+	want := p2
 	if got != want {
 		t.Fatalf("Provider: got %p, want %p\n", got, want)
 	}
