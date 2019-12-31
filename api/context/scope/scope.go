@@ -13,16 +13,13 @@
 // limitations under the License.
 
 // SO.. TODO:
-// (1) Let the Tracer() and Meter() stubs returned here set the current scope and call through
 // (2) Place a TODO about support for scope-ful Propagators.
 // (3) Library name/version are in resources
 // (4) Resources are LabelSets
 // (5) Label API moves into api/label
 // (6) Add static Meter.New*() helpers, give (ctx context.Context) param to all Meter.New* APIs.
-// (7) Move current Span/SpanContext into a current Scope method, a new With() scope caller,
 // (8) scope.Provider TODO below on inerface is needed.  global
 //     forwarder and scope forwarder should just implement the 9 methods.
-// (9) add general-purpoase object value, put Span in it
 
 package scope
 

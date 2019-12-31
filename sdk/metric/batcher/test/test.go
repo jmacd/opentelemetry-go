@@ -32,7 +32,10 @@ type (
 	Encoder struct{}
 
 	// Output collects distinct metric/label set outputs.
-	Output map[string]int64
+	Output struct {
+		Values  map[string]int64
+		Encoder core.LabelEncoder
+	}
 
 	// testAggregationSelector returns aggregators consistent with
 	// the test variables below, needed for testing stateful
@@ -73,6 +76,13 @@ var (
 // instruments and gauge.New for gauge instruments.
 func NewAggregationSelector() export.AggregationSelector {
 	return &testAggregationSelector{}
+}
+
+func NewOutput(labelEncoder core.LabelEncoder) *Output {
+	return &Output{
+		Values:  map[string]int64{},
+		Encoder: labelEncoder,
+	}
 }
 
 func (*testAggregationSelector) AggregatorFor(desc *export.Descriptor) export.Aggregator {
@@ -129,9 +139,9 @@ func CounterAgg(desc *export.Descriptor, v int64) export.Aggregator {
 
 // AddTo adds a name/label-encoding entry with the gauge or counter
 // value to the output map.
-func (o Output) AddTo(rec export.Record) {
+func (o *Output) AddTo(rec export.Record) {
 	labels := rec.Labels()
-	key := fmt.Sprint(rec.Descriptor().Name(), "/", labels.Encoded(SdkEncoder))
+	key := fmt.Sprint(rec.Descriptor().Name(), "/", labels.Encoded(o.Encoder))
 	var value int64
 	switch t := rec.Aggregator().(type) {
 	case *counter.Aggregator:
@@ -141,5 +151,5 @@ func (o Output) AddTo(rec export.Record) {
 		lv, _, _ := t.LastValue()
 		value = lv.AsInt64()
 	}
-	o[key] = value
+	o.Values[key] = value
 }

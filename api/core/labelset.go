@@ -64,21 +64,27 @@ func (l LabelSet) String() string {
 
 // Encoded is a pre-encoded form of the ordered labels.
 func (l LabelSet) Encoded(enc LabelEncoder) string {
+	if enc == nil {
+		return ""
+	}
 
 	vptr := reflect.ValueOf(enc)
 	if vptr.Kind() != reflect.Ptr {
-		panic("Impleentations must use pointer receivers")
+		panic("LabelEncoder implementations must use pointer receivers")
 	}
-	search := unsafe.Pointer(vptr.Pointer())
+	myself := unsafe.Pointer(vptr.Pointer())
 
-	for i := 0; i < maxConcurrentEncoders; i++ {
-		ptr := atomic.LoadPointer(&l.encoders[i])
+	idx := 0
+	for idx := 0; idx < maxConcurrentEncoders; idx++ {
+		ptr := atomic.LoadPointer(&l.encoders[idx])
 
-		if ptr == search {
-			return l.encoded[i]
+		if ptr == myself {
+			// fmt.Println("Case A")
+			return l.encoded[idx]
 		}
 
 		if ptr == nil {
+			// fmt.Println("Case B", idx)
 			break
 		}
 	}
@@ -88,14 +94,18 @@ func (l LabelSet) Encoded(enc LabelEncoder) string {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
-	for i := 0; i < maxConcurrentEncoders; i++ {
-		ptr := atomic.LoadPointer(&l.encoders[i])
+	for ; idx < maxConcurrentEncoders; idx++ {
+		ptr := atomic.LoadPointer(&l.encoders[idx])
 
-		if ptr == search {
-			break
+		if ptr != nil {
+			// fmt.Println("Case C")
+			continue
 		}
 
 		if ptr == nil {
+			// fmt.Println("Case D", idx)
+			atomic.StorePointer(&l.encoders[idx], myself)
+			l.encoded[idx] = r
 			break
 		}
 	}
