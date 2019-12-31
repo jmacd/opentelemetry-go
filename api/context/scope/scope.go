@@ -26,6 +26,8 @@
 package scope
 
 import (
+	"context"
+
 	"go.opentelemetry.io/otel/api/context/baggage"
 	"go.opentelemetry.io/otel/api/context/propagation"
 	"go.opentelemetry.io/otel/api/metric"
@@ -34,8 +36,14 @@ import (
 
 type (
 	Scope struct {
+		*scopeImpl
+	}
+
+	scopeImpl struct {
 		resources baggage.Map
 		provider  Provider
+		scopeTracer
+		scopeMeter
 	}
 
 	Provider interface {
@@ -46,13 +54,13 @@ type (
 		Propagators() propagation.Propagators
 	}
 
-	// scopeTracer struct {
-	// 	*provider
-	// }
+	scopeTracer struct {
+		*scopeImpl
+	}
 
-	// scopeMeter struct {
-	// 	*provider
-	// }
+	scopeMeter struct {
+		*scopeImpl
+	}
 
 	provider struct {
 		tracer      trace.Tracer
@@ -60,6 +68,10 @@ type (
 		propagators propagation.Propagators
 	}
 )
+
+var _ trace.Tracer = &scopeTracer{}
+
+//var _ metric.Meter = &scopeMeter{}
 
 func NewProvider(t trace.Tracer, m metric.Meter, p propagation.Propagators) Provider {
 	return &provider{
@@ -70,9 +82,14 @@ func NewProvider(t trace.Tracer, m metric.Meter, p propagation.Propagators) Prov
 }
 
 func New(resources baggage.Map, provider Provider) Scope {
-	return Scope{
+	si := &scopeImpl{
 		resources: resources,
 		provider:  provider,
+	}
+	si.scopeMeter.scopeImpl = si
+	si.scopeTracer.scopeImpl = si
+	return Scope{
+		scopeImpl: si,
 	}
 }
 
@@ -93,13 +110,35 @@ func (s Scope) Resources() baggage.Map {
 }
 
 func (s Scope) Tracer() trace.Tracer {
-	return s.provider.Tracer()
+	return &s.scopeTracer
 }
 
 func (s Scope) Meter() metric.Meter {
+	// return &s.scopeMeter
+	// @@@
 	return s.provider.Meter()
 }
 
 func (s Scope) Propagators() propagation.Propagators {
 	return s.provider.Propagators()
+}
+
+func (s *scopeImpl) enterScope(ctx context.Context) context.Context {
+	return ctx
+}
+
+func (s *scopeTracer) Start(
+	ctx context.Context,
+	spanName string,
+	opts ...trace.StartOption,
+) (context.Context, trace.Span) {
+	return s.provider.Tracer().Start(s.enterScope(ctx), spanName, opts...)
+}
+
+func (s *scopeTracer) WithSpan(
+	ctx context.Context,
+	spanName string,
+	fn func(ctx context.Context) error,
+) error {
+	return s.provider.Tracer().WithSpan(s.enterScope(ctx), spanName, fn)
 }
