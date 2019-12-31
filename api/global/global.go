@@ -15,6 +15,7 @@
 package global
 
 import (
+	"go.opentelemetry.io/otel/api/context/baggage"
 	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/global/internal"
 )
@@ -28,5 +29,5 @@ func ScopeProvider() scope.Provider {
 }
 
 func Scope(name string) scope.Scope {
-	return scope.New(name, ScopeProvider())
+	return scope.New(baggage.NewEmptyMap(), ScopeProvider())
 }

@@ -144,13 +144,6 @@ func (d *deferred) Propagators() propagation.Propagators {
 	return &d.propagators
 }
 
-func (d *deferred) Resources() baggage.Map {
-	if implPtr := (*scope.Provider)(atomic.LoadPointer(&d.delegate)); implPtr != nil {
-		return (*implPtr).Resources()
-	}
-	return d.resources
-}
-
 // Meter interface
 
 func (m *meter) setDelegate(provider scope.Provider) {

@@ -12,8 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This test is too large for the race detector.  This SDK uses no locks
-// that the race detector would help with, anyway.
+// SO.. TODO:
+// (1) Let the Tracer() and Meter() stubs returned here set the current scope and call through
+//   (b) for Propagators()?
+// (2) Put resources into Scope{}
+// (3) Library name/version are in resources
+// (4) Resources are LabelSets
+// (5) Label API moves into api/label
 
 package scope
 
@@ -26,39 +31,35 @@ import (
 
 type (
 	Scope struct {
-		name string
-
-		provider Provider
+		resources baggage.Map
+		provider  Provider
 	}
 
 	Provider interface {
 		Tracer() trace.Tracer
 		Meter() metric.Meter
 		Propagators() propagation.Propagators
-		Resources() baggage.Map
 	}
 
 	provider struct {
 		tracer      trace.Tracer
 		meter       metric.Meter
 		propagators propagation.Propagators
-		resources   baggage.Map
 	}
 )
 
-func NewProvider(t trace.Tracer, m metric.Meter, p propagation.Propagators, r baggage.Map) Provider {
+func NewProvider(t trace.Tracer, m metric.Meter, p propagation.Propagators) Provider {
 	return &provider{
 		tracer:      t,
 		meter:       m,
 		propagators: p,
-		resources:   r,
 	}
 }
 
-func New(name string, provider Provider) Scope {
+func New(resources baggage.Map, provider Provider) Scope {
 	return Scope{
-		name:     name,
-		provider: provider,
+		resources: resources,
+		provider:  provider,
 	}
 }
 
@@ -74,8 +75,8 @@ func (p *provider) Propagators() propagation.Propagators {
 	return p.propagators
 }
 
-func (p *provider) Resources() baggage.Map {
-	return p.resources
+func (s Scope) Resources() baggage.Map {
+	return s.resources
 }
 
 func (s Scope) Tracer() trace.Tracer {
@@ -88,8 +89,4 @@ func (s Scope) Meter() metric.Meter {
 
 func (s Scope) Propagators() propagation.Propagators {
 	return s.provider.Propagators()
-}
-
-func (s Scope) Resources() baggage.Map {
-	return s.provider.Resources()
 }

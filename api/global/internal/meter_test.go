@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.opentelemetry.io/otel/api/context/baggage"
 	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/global"
@@ -53,7 +52,7 @@ func TestDirect(t *testing.T) {
 	second.Record(ctx, 2, labels3)
 
 	mock := &metrictest.Meter{}
-	global.SetScopeProvider(scope.NewProvider(nil, mock, nil, baggage.NewEmptyMap()))
+	global.SetScopeProvider(scope.NewProvider(nil, mock, nil))
 
 	counter.Add(ctx, 1, labels1)
 	gauge.Set(ctx, 3, labels2)
@@ -131,7 +130,7 @@ func TestBound(t *testing.T) {
 	boundM.Record(ctx, 2)
 
 	mock := &metrictest.Meter{}
-	global.SetScopeProvider(scope.NewProvider(nil, mock, nil, baggage.NewEmptyMap()))
+	global.SetScopeProvider(scope.NewProvider(nil, mock, nil))
 
 	boundC.Add(ctx, 1)
 	boundG.Set(ctx, 3)
@@ -227,7 +226,7 @@ func TestDefaultSDK(t *testing.T) {
 		DoNotPrintTime: true,
 	})
 
-	global.SetScopeProvider(scope.NewProvider(nil, sdk.Meter(), nil, baggage.NewEmptyMap()))
+	global.SetScopeProvider(scope.NewProvider(nil, sdk.Meter(), nil))
 
 	counter.Add(ctx, 1, labels1)
 

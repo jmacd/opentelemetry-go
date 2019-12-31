@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"go.opentelemetry.io/otel/api/context/baggage"
 	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/global"
@@ -85,7 +84,7 @@ func BenchmarkGlobalInt64CounterAddWithSDK(b *testing.B) {
 
 	sdk := global.Scope("test").Meter()
 
-	global.SetScopeProvider(scope.NewProvider(nil, fix.sdk, nil, baggage.NewEmptyMap()))
+	global.SetScopeProvider(scope.NewProvider(nil, fix.sdk, nil))
 
 	labs := core.NewLabels(key.String("A", "B"))
 	cnt := sdk.NewInt64Counter("int64.counter")

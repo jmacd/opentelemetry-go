@@ -17,41 +17,13 @@ package global_test
 import (
 	"testing"
 
-	"go.opentelemetry.io/otel/api/context/baggage"
-	"go.opentelemetry.io/otel/api/context/propagation"
 	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/global"
-	"go.opentelemetry.io/otel/api/metric"
-	"go.opentelemetry.io/otel/api/trace"
 )
-
-type (
-	testScopeProvider struct{}
-)
-
-var (
-	_ scope.Provider = &testScopeProvider{}
-)
-
-func (*testScopeProvider) Tracer() trace.Tracer {
-	return trace.NoopTracer{}
-}
-
-func (*testScopeProvider) Meter() metric.Meter {
-	return metric.NoopMeter{}
-}
-
-func (*testScopeProvider) Propagators() propagation.Propagators {
-	return propagation.New()
-}
-
-func (*testScopeProvider) Resources() baggage.Map {
-	return baggage.NewEmptyMap()
-}
 
 func TestMulitpleGlobalScopeProvider(t *testing.T) {
-	p1 := &testScopeProvider{}
-	p2 := &testScopeProvider{}
+	p1 := scope.NewProvider(nil, nil, nil)
+	p2 := scope.NewProvider(nil, nil, nil)
 	global.SetScopeProvider(p1)
 	global.SetScopeProvider(p2)
 
