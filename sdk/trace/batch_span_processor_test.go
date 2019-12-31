@@ -140,13 +140,12 @@ func TestNewBatchSpanProcessorWithOptions(t *testing.T) {
 	}
 	for _, option := range options {
 		te := testBatchExporter{}
-		tp := basicProvider(t)
+		tr := basicTracer(t)
 		ssp := createAndRegisterBatchSP(t, option, &te)
 		if ssp == nil {
 			t.Errorf("%s: Error creating new instance of BatchSpanProcessor\n", option.name)
 		}
-		tp.RegisterSpanProcessor(ssp)
-		tr := tp.Tracer("BatchSpanProcessorWithOptions")
+		tr.RegisterSpanProcessor(ssp)
 
 		generateSpan(t, tr, option)
 
@@ -171,7 +170,7 @@ func TestNewBatchSpanProcessorWithOptions(t *testing.T) {
 		if wantTraceID != gotTraceID {
 			t.Errorf("%s: first exported span: got %+v, want %+v\n", option.name, gotTraceID, wantTraceID)
 		}
-		tp.UnregisterSpanProcessor(ssp)
+		tr.UnregisterSpanProcessor(ssp)
 	}
 }
 

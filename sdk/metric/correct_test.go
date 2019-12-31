@@ -58,7 +58,7 @@ func (cb *correctnessBatcher) Process(_ context.Context, record export.Record) e
 	return nil
 }
 
-func (testLabelEncoder) Encode(labels []core.KeyValue) string {
+func (*testLabelEncoder) Encode(labels []core.KeyValue) string {
 	return fmt.Sprint(labels)
 }
 
@@ -78,7 +78,7 @@ func TestInputRangeTestCounter(t *testing.T) {
 
 	counter := sdk.NewInt64Counter("counter.name", metric.WithMonotonic(true))
 
-	counter.Add(ctx, -1, sdk.Labels())
+	counter.Add(ctx, -1, core.NewLabels())
 	require.Equal(t, aggregator.ErrNegativeInput, sdkErr)
 	sdkErr = nil
 
@@ -87,7 +87,7 @@ func TestInputRangeTestCounter(t *testing.T) {
 	require.Equal(t, int64(0), sum.AsInt64())
 	require.Nil(t, err)
 
-	counter.Add(ctx, 1, sdk.Labels())
+	counter.Add(ctx, 1, core.NewLabels())
 	checkpointed := sdk.Collect(ctx)
 
 	sum, err = cagg.Sum()
@@ -113,7 +113,7 @@ func TestInputRangeTestMeasure(t *testing.T) {
 
 	measure := sdk.NewFloat64Measure("measure.name", metric.WithAbsolute(true))
 
-	measure.Record(ctx, -1, sdk.Labels())
+	measure.Record(ctx, -1, core.NewLabels())
 	require.Equal(t, aggregator.ErrNegativeInput, sdkErr)
 	sdkErr = nil
 
@@ -122,8 +122,8 @@ func TestInputRangeTestMeasure(t *testing.T) {
 	require.Equal(t, int64(0), count)
 	require.Nil(t, err)
 
-	measure.Record(ctx, 1, sdk.Labels())
-	measure.Record(ctx, 2, sdk.Labels())
+	measure.Record(ctx, 1, core.NewLabels())
+	measure.Record(ctx, 2, core.NewLabels())
 	checkpointed := sdk.Collect(ctx)
 
 	count, err = magg.Count()
@@ -142,7 +142,7 @@ func TestDisabledInstrument(t *testing.T) {
 	sdk := sdk.New(batcher, sdk.NewDefaultLabelEncoder())
 	measure := sdk.NewFloat64Measure("measure.name", metric.WithAbsolute(true))
 
-	measure.Record(ctx, -1, sdk.Labels())
+	measure.Record(ctx, -1, core.NewLabels())
 	checkpointed := sdk.Collect(ctx)
 
 	require.Equal(t, 0, checkpointed)
@@ -163,7 +163,7 @@ func TestRecordNaN(t *testing.T) {
 	g := sdk.NewFloat64Gauge("gauge.name")
 
 	require.Nil(t, sdkErr)
-	g.Set(ctx, math.NaN(), sdk.Labels())
+	g.Set(ctx, math.NaN(), core.NewLabels())
 	require.Error(t, sdkErr)
 }
 
@@ -174,17 +174,18 @@ func TestSDKLabelEncoder(t *testing.T) {
 		t:   t,
 		agg: cagg,
 	}
-	sdk := sdk.New(batcher, testLabelEncoder{})
+	enc := &testLabelEncoder{}
+	sdk := sdk.New(batcher, enc)
 
 	measure := sdk.NewFloat64Measure("measure")
-	measure.Record(ctx, 1, sdk.Labels(key.String("A", "B"), key.String("C", "D")))
+	measure.Record(ctx, 1, core.NewLabels(key.String("A", "B"), key.String("C", "D")))
 
 	sdk.Collect(ctx)
 
 	require.Equal(t, 1, len(batcher.records))
 
 	labels := batcher.records[0].Labels()
-	require.Equal(t, `[{A {8 0 B}} {C {8 0 D}}]`, labels.Encoded())
+	require.Equal(t, `[{A {8 0 B}} {C {8 0 D}}]`, labels.Encoded(enc))
 }
 
 func TestDefaultLabelEncoder(t *testing.T) {

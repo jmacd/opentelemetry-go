@@ -161,7 +161,7 @@ func (f *testFixture) startWorker(sdk *sdk.SDK, wg *sync.WaitGroup, i int) {
 	descriptor := sdk.GetDescriptor(instrument.Impl())
 	kvs := f.someLabels()
 	clabs := canonicalizeLabels(kvs)
-	labs := sdk.Labels(kvs...)
+	labs := core.NewLabels(kvs...)
 	dur := getPeriod()
 	key := testKey{
 		labels:     clabs,

@@ -22,6 +22,7 @@ import (
 
 	"go.opentelemetry.io/otel/api/core"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
+	sdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/batcher/test"
 	"go.opentelemetry.io/otel/sdk/metric/batcher/ungrouped"
 )
@@ -30,7 +31,7 @@ import (
 
 func TestUngroupedStateless(t *testing.T) {
 	ctx := context.Background()
-	b := ungrouped.New(test.NewAggregationSelector(), false)
+	b := ungrouped.New(test.NewAggregationSelector(), sdk.NewDefaultLabelEncoder(), false)
 
 	// Set initial gauge values
 	_ = b.Process(ctx, test.NewGaugeRecord(test.GaugeADesc, test.Labels1, 10))
@@ -91,7 +92,7 @@ func TestUngroupedStateless(t *testing.T) {
 
 func TestUngroupedStateful(t *testing.T) {
 	ctx := context.Background()
-	b := ungrouped.New(test.NewAggregationSelector(), true)
+	b := ungrouped.New(test.NewAggregationSelector(), test.GroupEncoder, true)
 
 	counterA := test.NewCounterRecord(test.CounterADesc, test.Labels1, 10)
 	caggA := counterA.Aggregator()

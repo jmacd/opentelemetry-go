@@ -17,6 +17,7 @@ package trace
 import (
 	"context"
 
+	"go.opentelemetry.io/otel/api/context/scope"
 	apitrace "go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/internal/trace/parent"
 )
@@ -30,7 +31,8 @@ func (tr *Tracer) Start(ctx context.Context, name string, o ...apitrace.StartOpt
 
 	ctx, parentSpanContext, remoteParent := parent.GetContext(ctx, opts.Parent)
 
-	if p := apitrace.SpanFromContext(ctx); p != nil {
+	current := scope.Current(ctx)
+	if p := current.Span(); p != nil {
 		if sdkSpan, ok := p.(*span); ok {
 			sdkSpan.addChild()
 		}
@@ -54,7 +56,7 @@ func (tr *Tracer) Start(ctx context.Context, name string, o ...apitrace.StartOpt
 
 	ctx, end := startExecutionTracerTask(ctx, spanName)
 	span.executionTracerTaskEnd = end
-	return apitrace.ContextWithSpan(ctx, span), span
+	return scope.ContextWithScope(ctx, current.WithSpan(span)), span
 }
 
 func (tr *Tracer) WithSpan(ctx context.Context, name string, body func(ctx context.Context) error) error {

@@ -24,7 +24,9 @@ import (
 )
 
 // EmptyLabelSet is the empty label set.
-var EmptyLabelSet LabelSet
+var EmptyLabelSet = LabelSet{
+	&labelSetImpl{},
+}
 
 type LabelEncoder interface {
 	// Encode is called (concurrently) in instrumentation context.
