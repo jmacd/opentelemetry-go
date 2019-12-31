@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/testharness"
 	"go.opentelemetry.io/otel/api/trace"
@@ -156,7 +157,7 @@ func TestTracer(t *testing.T) {
 			var span trace.Span
 
 			err := tracer.WithSpan(context.Background(), name, func(ctx context.Context) error {
-				span = trace.SpanFromContext(ctx)
+				span = scope.Current(ctx).Span()
 
 				return nil
 			})

@@ -59,7 +59,7 @@ func TestDirect(t *testing.T) {
 	measure.Record(ctx, 3, labels1)
 	second.Record(ctx, 3, labels3)
 
-	require.Equal(t, 3, len(mock.MeasurementBatches))
+	require.Equal(t, 4, len(mock.MeasurementBatches))
 
 	require.Equal(t, map[core.Key]core.Value{
 		lvals1.Key: lvals1.Value,
@@ -67,7 +67,7 @@ func TestDirect(t *testing.T) {
 	require.Equal(t, 1, len(mock.MeasurementBatches[0].Measurements))
 	require.Equal(t, core.NewInt64Number(1),
 		mock.MeasurementBatches[0].Measurements[0].Number)
-	require.Equal(t, "test.counter",
+	require.Equal(t, "test1/test.counter",
 		mock.MeasurementBatches[0].Measurements[0].Instrument.Name)
 
 	require.Equal(t, map[core.Key]core.Value{
@@ -76,7 +76,7 @@ func TestDirect(t *testing.T) {
 	require.Equal(t, 1, len(mock.MeasurementBatches[1].Measurements))
 	require.Equal(t, core.NewInt64Number(3),
 		mock.MeasurementBatches[1].Measurements[0].Number)
-	require.Equal(t, "test.gauge",
+	require.Equal(t, "test1/test.gauge",
 		mock.MeasurementBatches[1].Measurements[0].Instrument.Name)
 
 	require.Equal(t, map[core.Key]core.Value{
@@ -85,21 +85,17 @@ func TestDirect(t *testing.T) {
 	require.Equal(t, 1, len(mock.MeasurementBatches[2].Measurements))
 	require.Equal(t, core.NewFloat64Number(3),
 		mock.MeasurementBatches[2].Measurements[0].Number)
-	require.Equal(t, "test.measure",
+	require.Equal(t, "test1/test.measure",
 		mock.MeasurementBatches[2].Measurements[0].Instrument.Name)
-
-	// This tests the second Meter instance
-	// @@@
-	require.Equal(t, 1, len(mock.MeasurementBatches))
 
 	require.Equal(t, map[core.Key]core.Value{
 		lvals3.Key: lvals3.Value,
-	}, mock.MeasurementBatches[0].LabelSet.AsMap())
-	require.Equal(t, 1, len(mock.MeasurementBatches[0].Measurements))
+	}, mock.MeasurementBatches[3].LabelSet.AsMap())
+	require.Equal(t, 1, len(mock.MeasurementBatches[3].Measurements))
 	require.Equal(t, core.NewFloat64Number(3),
-		mock.MeasurementBatches[0].Measurements[0].Number)
-	require.Equal(t, "test.second",
-		mock.MeasurementBatches[0].Measurements[0].Instrument.Name)
+		mock.MeasurementBatches[3].Measurements[0].Number)
+	require.Equal(t, "test2/test.second",
+		mock.MeasurementBatches[3].Measurements[0].Instrument.Name)
 }
 
 func TestBound(t *testing.T) {
@@ -144,7 +140,7 @@ func TestBound(t *testing.T) {
 	require.Equal(t, 1, len(mock.MeasurementBatches[0].Measurements))
 	require.Equal(t, core.NewFloat64Number(1),
 		mock.MeasurementBatches[0].Measurements[0].Number)
-	require.Equal(t, "test.counter",
+	require.Equal(t, "test/test.counter",
 		mock.MeasurementBatches[0].Measurements[0].Instrument.Name)
 
 	require.Equal(t, map[core.Key]core.Value{
@@ -153,7 +149,7 @@ func TestBound(t *testing.T) {
 	require.Equal(t, 1, len(mock.MeasurementBatches[1].Measurements))
 	require.Equal(t, core.NewFloat64Number(3),
 		mock.MeasurementBatches[1].Measurements[0].Number)
-	require.Equal(t, "test.gauge",
+	require.Equal(t, "test/test.gauge",
 		mock.MeasurementBatches[1].Measurements[0].Instrument.Name)
 
 	require.Equal(t, map[core.Key]core.Value{
@@ -162,7 +158,7 @@ func TestBound(t *testing.T) {
 	require.Equal(t, 1, len(mock.MeasurementBatches[2].Measurements))
 	require.Equal(t, core.NewInt64Number(3),
 		mock.MeasurementBatches[2].Measurements[0].Number)
-	require.Equal(t, "test.measure",
+	require.Equal(t, "test/test.measure",
 		mock.MeasurementBatches[2].Measurements[0].Instrument.Name)
 
 	boundC.Unbind()
@@ -239,6 +235,6 @@ func TestDefaultSDK(t *testing.T) {
 	sdk.Stop()
 	out.Close()
 
-	require.Equal(t, `{"updates":[{"name":"test.builtin{A=B}","sum":1}]}
+	require.Equal(t, `{"updates":[{"name":"builtin/test.builtin{A=B}","sum":1}]}
 `, <-ch)
 }

@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/trace"
 
@@ -97,7 +98,7 @@ func (t *Tracer) Start(ctx context.Context, name string, opts ...trace.StartOpti
 
 	t.lock.Unlock()
 
-	return trace.ContextWithSpan(ctx, span), span
+	return scope.ContextWithScope(ctx, scope.Current(ctx).WithSpan(span)), span
 }
 
 func (t *Tracer) WithSpan(ctx context.Context, name string, body func(ctx context.Context) error) error {

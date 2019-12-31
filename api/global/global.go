@@ -18,6 +18,7 @@ import (
 	"go.opentelemetry.io/otel/api/context/baggage"
 	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/global/internal"
+	"go.opentelemetry.io/otel/api/key"
 )
 
 func SetScopeProvider(p scope.Provider) {
@@ -29,5 +30,7 @@ func ScopeProvider() scope.Provider {
 }
 
 func Scope(name string) scope.Scope {
-	return scope.New(baggage.NewEmptyMap(), ScopeProvider())
+	return scope.New(baggage.NewMap(baggage.MapUpdate{
+		SingleKV: key.New("$namespace").String(name),
+	}), ScopeProvider())
 }

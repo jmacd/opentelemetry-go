@@ -22,6 +22,7 @@
 // (7) Move current Span/SpanContext into a current Scope method, a new With() scope caller,
 // (8) scope.Provider TODO below on inerface is needed.  global
 //     forwarder and scope forwarder should just implement the 9 methods.
+// (9) add general-purpoase object value, put Span in it
 
 package scope
 
@@ -30,6 +31,7 @@ import (
 
 	"go.opentelemetry.io/otel/api/context/baggage"
 	"go.opentelemetry.io/otel/api/context/propagation"
+	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/api/trace"
 )
@@ -40,6 +42,7 @@ type (
 	}
 
 	scopeImpl struct {
+		span      trace.Span
 		resources baggage.Map
 		provider  Provider
 		scopeTracer
@@ -69,27 +72,21 @@ type (
 	}
 )
 
-var _ trace.Tracer = &scopeTracer{}
+var (
+	EmptyScope = Scope{&scopeImpl{
+		span: trace.NoopSpan{},
+	}}
 
-//var _ metric.Meter = &scopeMeter{}
+	_ trace.Tracer = &scopeTracer{}
+
+	_ metric.Meter = &scopeMeter{}
+)
 
 func NewProvider(t trace.Tracer, m metric.Meter, p propagation.Propagators) Provider {
 	return &provider{
 		tracer:      t,
 		meter:       m,
 		propagators: p,
-	}
-}
-
-func New(resources baggage.Map, provider Provider) Scope {
-	si := &scopeImpl{
-		resources: resources,
-		provider:  provider,
-	}
-	si.scopeMeter.scopeImpl = si
-	si.scopeTracer.scopeImpl = si
-	return Scope{
-		scopeImpl: si,
 	}
 }
 
@@ -105,6 +102,34 @@ func (p *provider) Propagators() propagation.Propagators {
 	return p.propagators
 }
 
+func New(resources baggage.Map, provider Provider) Scope {
+	si := &scopeImpl{
+		span:      trace.NoopSpan{},
+		resources: resources,
+		provider:  provider,
+	}
+	si.scopeMeter.scopeImpl = si
+	si.scopeTracer.scopeImpl = si
+	return Scope{
+		scopeImpl: si,
+	}
+}
+
+func (s Scope) WithSpan(span trace.Span) Scope {
+	ri := *s.scopeImpl
+	ri.span = span
+	return Scope{
+		scopeImpl: &ri,
+	}
+}
+
+func (s Scope) Span() trace.Span {
+	if s.scopeImpl == nil {
+		return trace.NoopSpan{}
+	}
+	return s.scopeImpl.span
+}
+
 func (s Scope) Resources() baggage.Map {
 	return s.resources
 }
@@ -114,9 +139,7 @@ func (s Scope) Tracer() trace.Tracer {
 }
 
 func (s Scope) Meter() metric.Meter {
-	// return &s.scopeMeter
-	// @@@
-	return s.provider.Meter()
+	return &s.scopeMeter
 }
 
 func (s Scope) Propagators() propagation.Propagators {
@@ -124,7 +147,16 @@ func (s Scope) Propagators() propagation.Propagators {
 }
 
 func (s *scopeImpl) enterScope(ctx context.Context) context.Context {
-	return ctx
+	o := Current(ctx)
+	if o.scopeImpl == s {
+		return ctx
+	}
+	return ContextWithScope(ctx, Scope{s})
+}
+
+func (s *scopeImpl) subname(name string) string {
+	ns, _ := s.resources.Value("$namespace")
+	return ns.AsString() + "/" + name
 }
 
 func (s *scopeTracer) Start(
@@ -141,4 +173,32 @@ func (s *scopeTracer) WithSpan(
 	fn func(ctx context.Context) error,
 ) error {
 	return s.provider.Tracer().WithSpan(s.enterScope(ctx), spanName, fn)
+}
+
+func (m *scopeMeter) NewInt64Counter(name string, cos ...metric.CounterOptionApplier) metric.Int64Counter {
+	return m.provider.Meter().NewInt64Counter(m.subname(name), cos...)
+}
+
+func (m *scopeMeter) NewFloat64Counter(name string, cos ...metric.CounterOptionApplier) metric.Float64Counter {
+	return m.provider.Meter().NewFloat64Counter(m.subname(name), cos...)
+}
+
+func (m *scopeMeter) NewInt64Gauge(name string, gos ...metric.GaugeOptionApplier) metric.Int64Gauge {
+	return m.provider.Meter().NewInt64Gauge(m.subname(name), gos...)
+}
+
+func (m *scopeMeter) NewFloat64Gauge(name string, gos ...metric.GaugeOptionApplier) metric.Float64Gauge {
+	return m.provider.Meter().NewFloat64Gauge(m.subname(name), gos...)
+}
+
+func (m *scopeMeter) NewInt64Measure(name string, mos ...metric.MeasureOptionApplier) metric.Int64Measure {
+	return m.provider.Meter().NewInt64Measure(m.subname(name), mos...)
+}
+
+func (m *scopeMeter) NewFloat64Measure(name string, mos ...metric.MeasureOptionApplier) metric.Float64Measure {
+	return m.provider.Meter().NewFloat64Measure(m.subname(name), mos...)
+}
+
+func (m *scopeMeter) RecordBatch(ctx context.Context, labels core.LabelSet, ms ...metric.Measurement) {
+	m.provider.Meter().RecordBatch(m.enterScope(ctx), labels, ms...)
 }

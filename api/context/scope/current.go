@@ -12,33 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trace
+package scope
 
 import (
 	"context"
 )
 
-type currentSpanKeyType struct{}
+type currentScopeKeyType struct{}
 
-var currentSpanKey = &currentSpanKeyType{}
+var currentScopeKey = &currentScopeKeyType{}
 
-func ContextWithSpan(ctx context.Context, span Span) context.Context {
-	return context.WithValue(ctx, currentSpanKey, span)
+func ContextWithScope(ctx context.Context, sc Scope) context.Context {
+	return context.WithValue(ctx, currentScopeKey, sc)
 }
 
-func SpanFromContext(ctx context.Context) Span {
-	if span, has := ctx.Value(currentSpanKey).(Span); has {
-		return span
+func Current(ctx context.Context) Scope {
+	if sc, has := ctx.Value(currentScopeKey).(Scope); has {
+		return sc
 	}
-	return NoopSpan{}
+	return EmptyScope
 }
-
-// @@@
-// We seem to want a current
-// and Name(), WithLabel()... ...
-// Tracer(ctx).Span()
-// and Meter(ctx).NewInt64Counter()
-// and Namespaces
-// and Labels(...)
-// and LabelEncoder()
-// and ...

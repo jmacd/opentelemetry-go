@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"sync/atomic"
 
+	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	apitrace "go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/internal/trace/parent"
@@ -73,6 +74,5 @@ func (mt *MockTracer) Start(ctx context.Context, name string, o ...apitrace.Star
 		sc:     sc,
 		tracer: mt,
 	}
-
-	return apitrace.ContextWithSpan(ctx, span), span
+	return scope.ContextWithScope(ctx, scope.Current(ctx).WithSpan(span)), span
 }

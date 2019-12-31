@@ -56,12 +56,16 @@ func (l LabelSet) Ordered() []KeyValue {
 	return l.ordered
 }
 
+func (l LabelSet) String() string {
+	return fmt.Sprint(l.Ordered())
+}
+
 // Encoded is a pre-encoded form of the ordered labels.
 func (l LabelSet) Encoded(enc LabelEncoder) string {
 
 	vptr := reflect.ValueOf(enc)
 	if vptr.Kind() != reflect.Ptr {
-		panic(fmt.Sprintf("Bad.. %T %v %v", vptr, vptr, vptr.Kind()))
+		panic("Impleentations must use pointer receivers")
 	}
 	search := unsafe.Pointer(vptr.Pointer())
 
@@ -120,7 +124,11 @@ func (l LabelSet) Equals(o LabelSet) bool {
 }
 
 func (l LabelSet) AsMap() map[Key]Value {
-	return map[Key]Value{}
+	r := map[Key]Value{}
+	for _, kv := range l.ordered {
+		r[kv.Key] = kv.Value
+	}
+	return r
 }
 
 // NewLabels builds a Labels object, consisting of an ordered set of

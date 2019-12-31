@@ -20,8 +20,8 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/otel/api/context/propagation"
+	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
-	"go.opentelemetry.io/otel/api/trace"
 )
 
 const (
@@ -53,7 +53,7 @@ type B3 struct {
 var _ propagation.HTTPPropagator = B3{}
 
 func (b3 B3) Inject(ctx context.Context, supplier propagation.HTTPSupplier) {
-	sc := trace.SpanFromContext(ctx).SpanContext()
+	sc := scope.Current(ctx).Span().SpanContext()
 	if !sc.IsValid() {
 		return
 	}
