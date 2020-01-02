@@ -22,8 +22,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
-	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/key"
 	"go.opentelemetry.io/otel/plugin/httptrace"
 	export "go.opentelemetry.io/otel/sdk/export/trace"
@@ -55,10 +55,11 @@ func TestHTTPRequestWithClientTrace(t *testing.T) {
 	exp := &testExporter{
 		spanMap: make(map[string][]*export.SpanData),
 	}
-	tp, _ := sdktrace.NewProvider(sdktrace.WithSyncer(exp), sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}))
-	global.SetTraceProvider(tp)
+	tri, _ := sdktrace.NewTracer(sdktrace.WithSyncer(exp), sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}))
+	rootScope := scope.NewProvider(tri, nil, nil).New()
+	thisScope := rootScope.Named("httptrace/client")
 
-	tr := tp.Tracer("httptrace/client")
+	tr := thisScope.Tracer()
 
 	// Mock http server
 	ts := httptest.NewServer(
@@ -68,10 +69,14 @@ func TestHTTPRequestWithClientTrace(t *testing.T) {
 	defer ts.Close()
 	address := ts.Listener.Addr()
 
+	ignoreCtx := context.Background()
+
 	client := ts.Client()
-	err := tr.WithSpan(context.Background(), "test",
-		func(ctx context.Context) error {
+	err := tr.WithSpan(ignoreCtx, "test",
+		func(_ context.Context) error {
 			req, _ := http.NewRequest("GET", ts.URL, nil)
+			ctx := scope.ContextWithScope(req.Context(), thisScope)
+			req = req.WithContext(ctx)
 			_, req = httptrace.W3C(ctx, req)
 
 			res, err := client.Do(req)
@@ -152,10 +157,15 @@ func TestConcurrentConnectionStart(t *testing.T) {
 	exp := &testExporter{
 		spanMap: make(map[string][]*export.SpanData),
 	}
-	tp, _ := sdktrace.NewProvider(sdktrace.WithSyncer(exp), sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}))
-	global.SetTraceProvider(tp)
+	tri, _ := sdktrace.NewTracer(sdktrace.WithSyncer(exp), sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}))
 
-	ct := httptrace.NewClientTrace(context.Background())
+	rootScope := scope.NewProvider(tri, nil, nil).New()
+	thisScope := rootScope.Named("httptrace/client")
+
+	// tr := thisScope.Tracer()
+	ctx := scope.ContextWithScope(context.Background(), thisScope)
+
+	ct := httptrace.NewClientTrace(ctx)
 
 	tts := []struct {
 		name string

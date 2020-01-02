@@ -26,8 +26,8 @@ func TestDirect(t *testing.T) {
 	internal.ResetForTest()
 
 	ctx := context.Background()
-	meter1 := global.Scope("test1").Meter()
-	meter2 := global.Scope("test2").Meter()
+	meter1 := global.Scope().Named("test1").Meter()
+	meter2 := global.Scope().Named("test2").Meter()
 	lvals1 := key.String("A", "B")
 	labels1 := core.NewLabels(lvals1)
 	lvals2 := key.String("C", "D")
@@ -52,7 +52,7 @@ func TestDirect(t *testing.T) {
 	second.Record(ctx, 2, labels3)
 
 	mock := &metrictest.Meter{}
-	global.SetScopeProvider(scope.NewProvider(nil, mock, nil))
+	global.SetScope(scope.NewProvider(nil, mock, nil).New())
 
 	counter.Add(ctx, 1, labels1)
 	gauge.Set(ctx, 3, labels2)
@@ -104,7 +104,7 @@ func TestBound(t *testing.T) {
 	// Note: this test uses oppsite Float64/Int64 number kinds
 	// vs. the above, to cover all the instruments.
 	ctx := context.Background()
-	glob := global.Scope("test").Meter()
+	glob := global.Scope().Named("test").Meter()
 	lvals1 := key.String("A", "B")
 	labels1 := core.NewLabels(lvals1)
 	lvals2 := key.String("C", "D")
@@ -126,7 +126,7 @@ func TestBound(t *testing.T) {
 	boundM.Record(ctx, 2)
 
 	mock := &metrictest.Meter{}
-	global.SetScopeProvider(scope.NewProvider(nil, mock, nil))
+	global.SetScope(scope.NewProvider(nil, mock, nil).New())
 
 	boundC.Add(ctx, 1)
 	boundG.Set(ctx, 3)
@@ -170,7 +170,7 @@ func TestUnbind(t *testing.T) {
 	// Tests Unbind with SDK never installed.
 	internal.ResetForTest()
 
-	glob := global.Scope("test").Meter()
+	glob := global.Scope().Named("test").Meter()
 	lvals1 := key.New("A").String("B")
 	labels1 := core.NewLabels(lvals1)
 	lvals2 := key.New("C").String("D")
@@ -194,7 +194,7 @@ func TestDefaultSDK(t *testing.T) {
 	internal.ResetForTest()
 
 	ctx := context.Background()
-	meter1 := global.Scope("builtin").Meter()
+	meter1 := global.Scope().Named("builtin").Meter()
 	lvals1 := key.String("A", "B")
 	labels1 := core.NewLabels(lvals1)
 
@@ -222,7 +222,7 @@ func TestDefaultSDK(t *testing.T) {
 		DoNotPrintTime: true,
 	})
 
-	global.SetScopeProvider(scope.NewProvider(nil, sdk.Meter(), nil))
+	global.SetScope(scope.NewProvider(nil, sdk.Meter(), nil).New())
 
 	counter.Add(ctx, 1, labels1)
 

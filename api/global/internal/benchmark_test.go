@@ -66,7 +66,7 @@ func (*benchFixture) FinishedCollection() {
 func BenchmarkGlobalInt64CounterAddNoSDK(b *testing.B) {
 	internal.ResetForTest()
 	ctx := context.Background()
-	sdk := global.Scope("test").Meter()
+	sdk := global.Scope().Named("test").Meter()
 	labs := core.NewLabels(key.String("A", "B"))
 	cnt := sdk.NewInt64Counter("int64.counter")
 
@@ -82,9 +82,9 @@ func BenchmarkGlobalInt64CounterAddWithSDK(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
 
-	sdk := global.Scope("test").Meter()
+	sdk := global.Scope().Named("test").Meter()
 
-	global.SetScopeProvider(scope.NewProvider(nil, fix.sdk, nil))
+	global.SetScope(scope.NewProvider(nil, fix.sdk, nil).New())
 
 	labs := core.NewLabels(key.String("A", "B"))
 	cnt := sdk.NewInt64Counter("int64.counter")

@@ -27,7 +27,7 @@ import (
 	tpropagation "go.opentelemetry.io/otel/api/trace/propagation"
 )
 
-var otelScope = global.Scope("go.opentelemetry.io/plugin/grpctrace")
+var otelScope = global.Scope().Named("go.opentelemetry.io/plugin/grpctrace")
 
 type metadataSupplier struct {
 	metadata *metadata.MD

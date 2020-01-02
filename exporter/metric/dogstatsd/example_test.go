@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel/api/context/scope"
+	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
 	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/exporter/metric/dogstatsd"
@@ -56,7 +58,7 @@ func ExampleNew() {
 	}
 	// The ungrouped batcher ensures that the export sees the full
 	// set of labels as dogstatsd tags.
-	batcher := ungrouped.New(selector, false)
+	batcher := ungrouped.New(selector, exporter, false)
 
 	// The pusher automatically recognizes that the exporter
 	// implements the LabelEncoder interface, which ensures the
@@ -69,11 +71,11 @@ func ExampleNew() {
 	key := key.New("key")
 
 	// pusher implements the metric.MeterProvider interface:
-	meter := pusher.Meter("example")
+	meter := scope.NewProvider(nil, pusher.Meter(), nil).New().Named("example")
 
 	// Create and update a single counter:
 	counter := meter.NewInt64Counter("a.counter", metric.WithKeys(key))
-	labels := meter.Labels(key.String("value"))
+	labels := core.NewLabels(key.String("value"))
 
 	counter.Add(ctx, 100, labels)
 

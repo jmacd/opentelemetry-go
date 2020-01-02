@@ -15,22 +15,20 @@
 package global
 
 import (
-	"go.opentelemetry.io/otel/api/context/baggage"
 	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/global/internal"
-	"go.opentelemetry.io/otel/api/key"
 )
 
-func SetScopeProvider(p scope.Provider) {
-	internal.SetScopeProvider(p)
+func SetScope(s scope.Scope) {
+	internal.SetScope(s)
 }
 
-func ScopeProvider() scope.Provider {
-	return internal.ScopeProvider()
+func Scope() scope.Scope {
+	return internal.Scope()
 }
 
-func Scope(name string) scope.Scope {
-	return scope.New(baggage.NewMap(baggage.MapUpdate{
-		SingleKV: key.New("$namespace").String(name),
-	}), ScopeProvider())
-}
+// func Scope(name string) scope.Scope {
+// 	return scope.New(baggage.NewMap(baggage.MapUpdate{
+// 		SingleKV: key.New("$namespace").String(name),
+// 	}), ScopeProvider())
+// }

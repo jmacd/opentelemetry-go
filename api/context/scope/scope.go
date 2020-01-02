@@ -13,18 +13,17 @@
 // limitations under the License.
 
 // SO.. TODO:
-// (2) Place a TODO about support for scope-ful Propagators.
+// (2) Place a NOTE about non-scope-ful Propagators.
 // (3) Library name/version are in resources
 // (4) Resources are LabelSets
 // (5) Label API moves into api/label
 // (6) Add static Meter.New*() helpers, give (ctx context.Context) param to all Meter.New* APIs.
-// (8) scope.Provider TODO below on inerface is needed.  global
-//     forwarder and scope forwarder should just implement the 9 methods.
 
 package scope
 
 import (
 	"context"
+	"fmt"
 
 	"go.opentelemetry.io/otel/api/context/baggage"
 	"go.opentelemetry.io/otel/api/context/propagation"
@@ -41,17 +40,9 @@ type (
 	scopeImpl struct {
 		span      trace.Span
 		resources baggage.Map
-		provider  Provider
+		provider  *Provider
 		scopeTracer
 		scopeMeter
-	}
-
-	Provider interface {
-		// TODO is this interface needed?  Only the global uses it, seems not needed.
-
-		Tracer() trace.Tracer
-		Meter() metric.Meter
-		Propagators() propagation.Propagators
 	}
 
 	scopeTracer struct {
@@ -62,11 +53,15 @@ type (
 		*scopeImpl
 	}
 
-	provider struct {
+	Provider struct {
 		tracer      trace.Tracer
 		meter       metric.Meter
 		propagators propagation.Propagators
 	}
+)
+
+const (
+	namespaceKey core.Key = "$namespace"
 )
 
 var (
@@ -79,42 +74,54 @@ var (
 	_ metric.Meter = &scopeMeter{}
 )
 
-func NewProvider(t trace.Tracer, m metric.Meter, p propagation.Propagators) Provider {
-	return &provider{
+func NewProvider(t trace.Tracer, m metric.Meter, p propagation.Propagators) *Provider {
+	return &Provider{
 		tracer:      t,
 		meter:       m,
 		propagators: p,
 	}
 }
 
-func (p *provider) Tracer() trace.Tracer {
+func (p *Provider) Tracer() trace.Tracer {
 	return p.tracer
 }
 
-func (p *provider) Meter() metric.Meter {
+func (p *Provider) Meter() metric.Meter {
 	return p.meter
 }
 
-func (p *provider) Propagators() propagation.Propagators {
+func (p *Provider) Propagators() propagation.Propagators {
 	return p.propagators
 }
 
-func New(resources baggage.Map, provider Provider) Scope {
+func (p *Provider) New() Scope {
 	si := &scopeImpl{
 		span:      trace.NoopSpan{},
-		resources: resources,
-		provider:  provider,
+		resources: baggage.NewEmptyMap(),
+		provider:  p,
 	}
 	si.scopeMeter.scopeImpl = si
 	si.scopeTracer.scopeImpl = si
+	return Scope{si}
+}
+
+func (s Scope) Named(name string) Scope {
+	ri := *s.scopeImpl
+	ri.resources = ri.resources.Apply(baggage.MapUpdate{
+		SingleKV: namespaceKey.String(name),
+	})
+	ri.scopeMeter.scopeImpl = &ri
+	ri.scopeTracer.scopeImpl = &ri
 	return Scope{
-		scopeImpl: si,
+		scopeImpl: &ri,
 	}
 }
 
 func (s Scope) WithSpan(span trace.Span) Scope {
 	ri := *s.scopeImpl
 	ri.span = span
+	ri.scopeMeter.scopeImpl = &ri
+	ri.scopeTracer.scopeImpl = &ri
 	return Scope{
 		scopeImpl: &ri,
 	}
@@ -152,24 +159,30 @@ func (s *scopeImpl) enterScope(ctx context.Context) context.Context {
 }
 
 func (s *scopeImpl) subname(name string) string {
-	ns, _ := s.resources.Value("$namespace")
+	ns, _ := s.resources.Value(namespaceKey)
 	return ns.AsString() + "/" + name
 }
 
 func (s *scopeTracer) Start(
 	ctx context.Context,
-	spanName string,
+	name string,
 	opts ...trace.StartOption,
 ) (context.Context, trace.Span) {
-	return s.provider.Tracer().Start(s.enterScope(ctx), spanName, opts...)
+	if s.scopeImpl == nil {
+		return ctx, trace.NoopSpan{}
+	}
+	return s.provider.Tracer().Start(s.enterScope(ctx), s.subname(name), opts...)
 }
 
 func (s *scopeTracer) WithSpan(
 	ctx context.Context,
-	spanName string,
+	name string,
 	fn func(ctx context.Context) error,
 ) error {
-	return s.provider.Tracer().WithSpan(s.enterScope(ctx), spanName, fn)
+	if s.scopeImpl == nil {
+		return fn(ctx)
+	}
+	return s.provider.Tracer().WithSpan(s.enterScope(ctx), s.subname(name), fn)
 }
 
 func (m *scopeMeter) NewInt64Counter(name string, cos ...metric.CounterOptionApplier) metric.Int64Counter {
@@ -198,4 +211,9 @@ func (m *scopeMeter) NewFloat64Measure(name string, mos ...metric.MeasureOptionA
 
 func (m *scopeMeter) RecordBatch(ctx context.Context, labels core.LabelSet, ms ...metric.Measurement) {
 	m.provider.Meter().RecordBatch(m.enterScope(ctx), labels, ms...)
+}
+
+func (s Scope) String() string {
+	// return fmt.Sprintf("{ b:%v t:%v m:%v p#%v#%v }", s.resources, s.provider.tracer, s.provider.meter, len(s.provider.propagators.HTTPExtractors()), len(s.provider.propagators.HTTPInjectors()))
+	return fmt.Sprintf("{ %v }", s.resources)
 }

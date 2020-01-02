@@ -10,8 +10,8 @@ import (
 )
 
 type (
-	scopeProviderHolder struct {
-		sp scope.Provider
+	scopeHolder struct {
+		sc scope.Scope
 	}
 )
 
@@ -20,31 +20,38 @@ var (
 	delegateOnce sync.Once
 )
 
-// ScopeProvider is the internal implementation for global.ScopeProvider.
-func ScopeProvider() scope.Provider {
-	return globalScope.Load().(scopeProviderHolder).sp
+// Scope is the internal implementation for global.Scope().
+func Scope() scope.Scope {
+	return globalScope.Load().(scopeHolder).sc
 }
 
-// SetScopeProvider is the internal implementation for global.SetScopeProvider.
-func SetScopeProvider(sp scope.Provider) {
+// SetScope is the internal implementation for global.SetScope().
+func SetScope(sc scope.Scope) {
+	first := false
 	delegateOnce.Do(func() {
-		current := ScopeProvider()
-
-		if current == sp {
-			// Setting the provider to the prior default is nonsense, panic.
+		current := Scope()
+		first = true
+		if current == sc {
+			// Setting the global scope to former default is nonsense, panic.
 			// Panic is acceptable because we are likely still early in the
 			// process lifetime.
 			panic("invalid Provider, the global instance cannot be reinstalled")
-		} else if def, ok := current.(*deferred); ok {
-			def.setDelegate(sp)
+		} else if deft, ok := current.Tracer().(*tracer); ok {
+			deft.deferred.setDelegate(sc)
 		}
 	})
-	globalScope.Store(scopeProviderHolder{sp: sp})
+	if !first {
+		panic("global scope has already been initialized")
+	}
+	globalScope.Store(scopeHolder{sc: sc})
 }
 
 func defaultScopeValue() *atomic.Value {
 	v := &atomic.Value{}
-	v.Store(scopeProviderHolder{sp: newDeferred()})
+	d := newDeferred()
+	v.Store(scopeHolder{
+		sc: scope.NewProvider(&d.tracer, &d.meter, &d.propagators).New(),
+	})
 	return v
 }
 

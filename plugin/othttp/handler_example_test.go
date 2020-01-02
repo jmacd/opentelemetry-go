@@ -22,9 +22,9 @@ import (
 	"net/http"
 	"strings"
 
+	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/global"
-	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/exporter/trace/stdout"
 	"go.opentelemetry.io/otel/plugin/othttp"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -51,12 +51,12 @@ func ExampleNewHandler() {
 		log.Fatal(err)
 	}
 
-	tp, err := sdktrace.NewProvider(sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
+	tr, err := sdktrace.NewTracer(sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
 		sdktrace.WithSyncer(exporter))
 	if err != nil {
 		log.Fatal(err)
 	}
-	global.SetTraceProvider(tp)
+	global.SetScope(scope.NewProvider(tr, nil, nil).New())
 
 	figureOutName := func(ctx context.Context, s string) (string, error) {
 		pp := strings.SplitN(s, "/", 2)
@@ -65,7 +65,7 @@ func ExampleNewHandler() {
 		case "":
 			err = fmt.Errorf("expected /hello/:name in %q", s)
 		default:
-			trace.SpanFromContext(ctx).SetAttributes(core.Key("name").String(pp[1]))
+			scope.Current(ctx).Span().SetAttributes(core.Key("name").String(pp[1]))
 		}
 		return pp[1], err
 	}
@@ -77,7 +77,7 @@ func ExampleNewHandler() {
 				ctx := r.Context()
 				var name string
 				// Wrap another function in its own span
-				if err := trace.SpanFromContext(ctx).Tracer().WithSpan(ctx, "figureOutName",
+				if err := scope.Current(ctx).Tracer().WithSpan(ctx, "figureOutName",
 					func(ctx context.Context) error {
 						var err error
 						name, err = figureOutName(ctx, r.URL.Path[1:])

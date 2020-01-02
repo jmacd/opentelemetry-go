@@ -22,12 +22,12 @@ import (
 )
 
 func TestMulitpleGlobalScopeProvider(t *testing.T) {
-	p1 := scope.NewProvider(nil, nil, nil)
-	p2 := scope.NewProvider(nil, nil, nil)
-	global.SetScopeProvider(p1)
-	global.SetScopeProvider(p2)
+	p1 := scope.NewProvider(nil, nil, nil).New()
+	p2 := scope.NewProvider(nil, nil, nil).New()
+	global.SetScope(p1)
+	global.SetScope(p2)
 
-	got := global.ScopeProvider()
+	got := global.Scope()
 	want := p2
 	if got != want {
 		t.Fatalf("Provider: got %p, want %p\n", got, want)

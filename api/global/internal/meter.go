@@ -49,7 +49,7 @@ type deferred struct {
 	tracer      tracer
 	propagators propagators
 	resources   baggage.Map
-	delegate    unsafe.Pointer // (*scope.Provider)
+	delegate    unsafe.Pointer // (*scope.Scope)
 }
 
 type meter struct {
@@ -89,7 +89,6 @@ type instBound struct {
 	delegate   unsafe.Pointer // (*metric.BoundImpl)
 }
 
-var _ scope.Provider = &deferred{}
 var _ metric.Meter = &meter{}
 var _ metric.InstrumentImpl = &instImpl{}
 var _ metric.BoundInstrumentImpl = &instBound{}
@@ -105,14 +104,14 @@ func newDeferred() *deferred {
 	return d
 }
 
-func (d *deferred) setDelegate(provider scope.Provider) {
+func (d *deferred) setDelegate(sc scope.Scope) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
-	ptr := unsafe.Pointer(&provider)
+	ptr := unsafe.Pointer(&sc)
 	atomic.StorePointer(&d.delegate, ptr)
 
-	d.meter.setDelegate(provider)
+	d.meter.setDelegate(sc)
 }
 
 func (d *deferred) Tracer() trace.Tracer {
@@ -138,9 +137,9 @@ func (d *deferred) Propagators() propagation.Propagators {
 
 // Meter interface
 
-func (m *meter) setDelegate(provider scope.Provider) {
+func (m *meter) setDelegate(sc scope.Scope) {
 	for _, i := range m.instruments {
-		i.setDelegate(provider)
+		i.setDelegate(sc)
 	}
 	m.instruments = nil
 }
@@ -187,7 +186,7 @@ func newInstDelegate(m metric.Meter, name string, mkind metricKind, nkind core.N
 
 // Instrument delegation
 
-func (inst *instImpl) setDelegate(provider scope.Provider) {
+func (inst *instImpl) setDelegate(provider scope.Scope) {
 	implPtr := new(metric.InstrumentImpl)
 
 	*implPtr = newInstDelegate(provider.Meter(), inst.name, inst.mkind, inst.nkind, inst.opts)

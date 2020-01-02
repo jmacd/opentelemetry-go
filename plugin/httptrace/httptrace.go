@@ -34,7 +34,7 @@ var (
 	HostKey = key.New("http.host")
 	URLKey  = key.New("http.url")
 
-	otelScope = global.Scope("go.opentelemetry.io/plugin/httptrace")
+	otelScope = global.Scope().Named("go.opentelemetry.io/plugin/httptrace")
 )
 
 // Returns the Attributes, Context Entries, and SpanContext that were encoded by Inject.
