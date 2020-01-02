@@ -38,11 +38,11 @@ type (
 	}
 
 	scopeImpl struct {
-		span      trace.Span
-		resources baggage.Map
-		provider  *Provider
-		scopeTracer
-		scopeMeter
+		span        trace.Span
+		resources   baggage.Map
+		provider    *Provider
+		scopeTracer scopeTracer
+		scopeMeter  scopeMeter
 	}
 
 	scopeTracer struct {

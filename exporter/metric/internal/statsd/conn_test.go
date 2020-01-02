@@ -292,7 +292,8 @@ func TestPacketSplit(t *testing.T) {
 			tcase.setup(func(nkeys int) {
 				labels := makeLabels(offset, nkeys)
 				offset += nkeys
-				expect := fmt.Sprint("counter:100|c", adapter.LabelEncoder.Encode(labels), "\n")
+
+				expect := fmt.Sprint("counter:100|c", core.NewLabels(labels...).Encoded(adapter.LabelEncoder), "\n")
 				expected = append(expected, expect)
 				checkpointSet.AddCounter(desc, 100, labels...)
 			})

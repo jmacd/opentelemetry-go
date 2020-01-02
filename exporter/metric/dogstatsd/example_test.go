@@ -71,10 +71,10 @@ func ExampleNew() {
 	key := key.New("key")
 
 	// pusher implements the metric.MeterProvider interface:
-	meter := scope.NewProvider(nil, pusher.Meter(), nil).New().Named("example")
+	sdk := scope.NewProvider(nil, pusher.Meter(), nil).New().Named("example")
 
 	// Create and update a single counter:
-	counter := meter.NewInt64Counter("a.counter", metric.WithKeys(key))
+	counter := sdk.Meter().NewInt64Counter("a.counter", metric.WithKeys(key))
 	labels := core.NewLabels(key.String("value"))
 
 	counter.Add(ctx, 100, labels)
@@ -85,5 +85,5 @@ func ExampleNew() {
 	wg.Wait()
 
 	// Output:
-	// a.counter:100|c|#key:value
+	// example/a.counter:100|c|#key:value
 }

@@ -26,6 +26,10 @@ func TestMulitpleGlobalScopeProvider(t *testing.T) {
 	p2 := scope.NewProvider(nil, nil, nil).New()
 	global.SetScope(p1)
 	global.SetScope(p2)
+	if err := recover(); err != nil {
+	} else {
+		panic("Should have panicked")
+	}
 
 	got := global.Scope()
 	want := p2
