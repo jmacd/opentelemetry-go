@@ -21,18 +21,28 @@ import (
 	"go.opentelemetry.io/otel/api/global"
 )
 
+func F() {
+}
+
 func TestMulitpleGlobalScopeProvider(t *testing.T) {
 	p1 := scope.NewProvider(nil, nil, nil).New()
 	p2 := scope.NewProvider(nil, nil, nil).New()
+	panicked := false
+	defer func() {
+		if err := recover(); err != nil {
+			panicked = true
+		} else {
+			panic("Should have recovered non-nil")
+		}
+	}()
 	global.SetScope(p1)
 	global.SetScope(p2)
-	if err := recover(); err != nil {
-	} else {
+	if !panicked {
 		panic("Should have panicked")
 	}
 
 	got := global.Scope()
-	want := p2
+	want := p1
 	if got != want {
 		t.Fatalf("Provider: got %p, want %p\n", got, want)
 	}

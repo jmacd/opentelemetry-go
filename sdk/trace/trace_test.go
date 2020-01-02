@@ -26,6 +26,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc/codes"
 
+	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
 	"go.opentelemetry.io/otel/api/testharness"
@@ -253,9 +254,9 @@ func TestStartSpanWithChildOf(t *testing.T) {
 
 func TestSetSpanAttributesOnStart(t *testing.T) {
 	te := &testExporter{}
-	tr, _ := NewTracer(WithSyncer(te))
-	span := startSpan(tr,
-
+	tri, _ := NewTracer(WithSyncer(te))
+	sc := scope.NewProvider(tri, nil, nil).New().Named("StartSpanAttribute")
+	span := startSpan(sc.Tracer(),
 		apitrace.WithAttributes(key.String("key2", "value2")),
 	)
 	got, err := endSpan(te, span)

@@ -115,21 +115,21 @@ func (d *deferred) setDelegate(sc scope.Scope) {
 }
 
 func (d *deferred) Tracer() trace.Tracer {
-	if implPtr := (*scope.Provider)(atomic.LoadPointer(&d.delegate)); implPtr != nil {
+	if implPtr := (*scope.Scope)(atomic.LoadPointer(&d.delegate)); implPtr != nil {
 		return (*implPtr).Tracer()
 	}
 	return &d.tracer
 }
 
 func (d *deferred) Meter() metric.Meter {
-	if implPtr := (*scope.Provider)(atomic.LoadPointer(&d.delegate)); implPtr != nil {
+	if implPtr := (*scope.Scope)(atomic.LoadPointer(&d.delegate)); implPtr != nil {
 		return (*implPtr).Meter()
 	}
 	return &d.meter
 }
 
 func (d *deferred) Propagators() propagation.Propagators {
-	if implPtr := (*scope.Provider)(atomic.LoadPointer(&d.delegate)); implPtr != nil {
+	if implPtr := (*scope.Scope)(atomic.LoadPointer(&d.delegate)); implPtr != nil {
 		return (*implPtr).Propagators()
 	}
 	return &d.propagators
@@ -148,7 +148,7 @@ func (m *meter) newInst(name string, mkind metricKind, nkind core.NumberKind, op
 	m.deferred.lock.Lock()
 	defer m.deferred.lock.Unlock()
 
-	if implPtr := (*scope.Provider)(atomic.LoadPointer(&m.deferred.delegate)); implPtr != nil {
+	if implPtr := (*scope.Scope)(atomic.LoadPointer(&m.deferred.delegate)); implPtr != nil {
 		return newInstDelegate((*implPtr).Meter(), name, mkind, nkind, opts)
 	}
 
@@ -186,10 +186,10 @@ func newInstDelegate(m metric.Meter, name string, mkind metricKind, nkind core.N
 
 // Instrument delegation
 
-func (inst *instImpl) setDelegate(provider scope.Scope) {
+func (inst *instImpl) setDelegate(sc scope.Scope) {
 	implPtr := new(metric.InstrumentImpl)
 
-	*implPtr = newInstDelegate(provider.Meter(), inst.name, inst.mkind, inst.nkind, inst.opts)
+	*implPtr = newInstDelegate(sc.Meter(), inst.name, inst.mkind, inst.nkind, inst.opts)
 
 	atomic.StorePointer(&inst.delegate, unsafe.Pointer(implPtr))
 }
@@ -219,7 +219,7 @@ func (bound *instBound) Unbind() {
 // Metric updates
 
 func (m *meter) RecordBatch(ctx context.Context, labels core.LabelSet, measurements ...metric.Measurement) {
-	if delegatePtr := (*scope.Provider)(atomic.LoadPointer(&m.deferred.delegate)); delegatePtr != nil {
+	if delegatePtr := (*scope.Scope)(atomic.LoadPointer(&m.deferred.delegate)); delegatePtr != nil {
 		(*delegatePtr).Meter().RecordBatch(ctx, labels, measurements...)
 	}
 }
