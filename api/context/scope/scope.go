@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// SO.. TODO:
+// TODO:
 // (2) Place a NOTE about non-scope-ful Propagators.
-// (3) Library name/version are in resources
 // (4) Resources are LabelSets
 // (5) Label API moves into api/label
 // (6) Add static Meter.New*() helpers, give (ctx context.Context) param to all Meter.New* APIs.
@@ -214,6 +213,5 @@ func (m *scopeMeter) RecordBatch(ctx context.Context, labels core.LabelSet, ms .
 }
 
 func (s Scope) String() string {
-	// return fmt.Sprintf("{ b:%v t:%v m:%v p#%v#%v }", s.resources, s.provider.tracer, s.provider.meter, len(s.provider.propagators.HTTPExtractors()), len(s.provider.propagators.HTTPInjectors()))
 	return fmt.Sprintf("{ %v }", s.resources)
 }
