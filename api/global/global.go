@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package global
+package global // import "go.opentelemetry.io/otel/api/global"
 
 import (
 	"go.opentelemetry.io/otel/api/context/scope"
@@ -26,9 +26,3 @@ func SetScope(s scope.Scope) {
 func Scope() scope.Scope {
 	return internal.Scope()
 }
-
-// func Scope(name string) scope.Scope {
-// 	return scope.New(baggage.NewMap(baggage.MapUpdate{
-// 		SingleKV: key.New("$namespace").String(name),
-// 	}), ScopeProvider())
-// }

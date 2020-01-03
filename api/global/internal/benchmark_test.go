@@ -95,3 +95,42 @@ func BenchmarkGlobalInt64CounterAddWithSDK(b *testing.B) {
 		cnt.Add(ctx, 1, labs)
 	}
 }
+
+// func BenchmarkStartEndSpan(b *testing.B) {
+// 	// Comapare with BenchmarkStartEndSpan() in ../../sdk/trace/benchmark_test.go
+// 	traceBenchmark(b, func(b *testing.B) {
+// 		t := global.TraceProvider().Tracer("Benchmark StartEndSpan")
+// 		ctx := context.Background()
+// 		b.ResetTimer()
+// 		for i := 0; i < b.N; i++ {
+// 			_, span := t.Start(ctx, "/foo")
+// 			span.End()
+// 		}
+// 	})
+// }
+
+// func traceBenchmark(b *testing.B, fn func(*testing.B)) {
+// 	internal.ResetForTest()
+// 	b.Run("No SDK", func(b *testing.B) {
+// 		b.ReportAllocs()
+// 		fn(b)
+// 	})
+// 	b.Run("Default SDK (AlwaysSample)", func(b *testing.B) {
+// 		b.ReportAllocs()
+// 		global.SetTraceProvider(traceProvider(b, sdktrace.AlwaysSample()))
+// 		fn(b)
+// 	})
+// 	b.Run("Default SDK (NeverSample)", func(b *testing.B) {
+// 		b.ReportAllocs()
+// 		global.SetTraceProvider(traceProvider(b, sdktrace.NeverSample()))
+// 		fn(b)
+// 	})
+// }
+
+// func traceProvider(b *testing.B, sampler sdktrace.Sampler) trace.Provider {
+// 	tp, err := sdktrace.NewProvider(sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sampler}))
+// 	if err != nil {
+// 		b.Fatalf("Failed to create trace provider with sampler: %v", err)
+// 	}
+// 	return tp
+// }

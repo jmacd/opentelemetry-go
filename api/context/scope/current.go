@@ -30,5 +30,5 @@ func Current(ctx context.Context) Scope {
 	if sc, has := ctx.Value(currentScopeKey).(Scope); has {
 		return sc
 	}
-	return EmptyScope
+	return Scope{}
 }

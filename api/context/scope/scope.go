@@ -66,12 +66,7 @@ const (
 )
 
 var (
-	EmptyScope = Scope{&scopeImpl{
-		span: trace.NoopSpan{},
-	}}
-
 	_ trace.Tracer = &scopeTracer{}
-
 	_ metric.Meter = &scopeMeter{}
 )
 
@@ -106,6 +101,10 @@ func (p *Provider) New() Scope {
 	return Scope{si}
 }
 
+func Empty() Scope {
+	return Scope{}
+}
+
 func (s Scope) Named(name string) Scope {
 	ri := *s.scopeImpl
 	ri.resources = ri.resources.Apply(baggage.MapUpdate{
@@ -121,6 +120,16 @@ func (s Scope) Named(name string) Scope {
 func (s Scope) WithSpan(span trace.Span) Scope {
 	ri := *s.scopeImpl
 	ri.span = span
+	ri.scopeMeter.scopeImpl = &ri
+	ri.scopeTracer.scopeImpl = &ri
+	return Scope{
+		scopeImpl: &ri,
+	}
+}
+
+func (s Scope) WithMeter(meter metric.Meter) Scope {
+	ri := *s.scopeImpl
+	ri.provider = NewProvider(ri.provider.tracer, meter, ri.provider.propagators)
 	ri.scopeMeter.scopeImpl = &ri
 	ri.scopeTracer.scopeImpl = &ri
 	return Scope{

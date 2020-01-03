@@ -27,18 +27,21 @@ import (
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/export/metric/aggregator"
 	sdk "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/batcher/defaultkeys"
+	"go.opentelemetry.io/otel/sdk/metric/controller/push"
+	"go.opentelemetry.io/otel/sdk/metric/selector/simple"
 )
 
 type Exporter struct {
-	options Options
+	config Config
 }
 
 var _ export.Exporter = &Exporter{}
 
-// Options are the options to be used when initializing a stdout export.
-type Options struct {
-	// File is the destination.  If not set, os.Stdout is used.
-	File io.Writer
+// Config is the configuration to be used when initializing a stdout export.
+type Config struct {
+	// Writer is the destination.  If not set, os.Stdout is used.
+	Writer io.Writer
 
 	// PrettyPrint will pretty the json representation of the span,
 	// making it print "pretty". Default is false.
@@ -85,25 +88,58 @@ type expoQuantile struct {
 	V interface{} `json:"v"`
 }
 
-func New(options Options) (*Exporter, error) {
-	if options.File == nil {
-		options.File = os.Stdout
+// NewRawExporter creates a stdout Exporter for use in a pipeline.
+func NewRawExporter(config Config) (*Exporter, error) {
+	if config.Writer == nil {
+		config.Writer = os.Stdout
 	}
-	if options.Quantiles == nil {
-		options.Quantiles = []float64{0.5, 0.9, 0.99}
+	if config.Quantiles == nil {
+		config.Quantiles = []float64{0.5, 0.9, 0.99}
 	} else {
-		for _, q := range options.Quantiles {
+		for _, q := range config.Quantiles {
 			if q < 0 || q > 1 {
 				return nil, aggregator.ErrInvalidQuantile
 			}
 		}
 	}
-	if options.LabelEncoder == nil {
-		options.LabelEncoder = sdk.NewDefaultLabelEncoder()
+	if config.LabelEncoder == nil {
+		config.LabelEncoder = sdk.NewDefaultLabelEncoder()
 	}
 	return &Exporter{
-		options: options,
+		config: config,
 	}, nil
+}
+
+// InstallNewPipeline instantiates a NewExportPipeline and registers it globally.
+// Typically called as:
+// pipeline, err := stdout.InstallNewPipeline(stdout.Config{...})
+// if err != nil {
+// 	...
+// }
+// defer pipeline.Stop()
+// ... Done
+// func StartNewPipeline(config Config) (*push.Controller, error) {
+// 	controller, err := NewExportPipeline(config)
+// 	if err != nil {
+// 		return controller, err
+// 	}
+// 	global.SetMeterProvider(controller)
+// 	return controller, err
+// }
+
+// NewExportPipeline sets up a complete export pipeline with the recommended setup,
+// chaining a NewRawExporter into the recommended selectors and batchers.
+func NewExportPipeline(config Config) (*push.Controller, error) {
+	selector := simple.NewWithExactMeasure()
+	exporter, err := NewRawExporter(config)
+	if err != nil {
+		return nil, err
+	}
+	batcher := defaultkeys.New(selector, sdk.NewDefaultLabelEncoder(), true)
+	pusher := push.New(batcher, exporter, time.Second)
+	pusher.Start()
+
+	return pusher, nil
 }
 
 func (e *Exporter) Export(_ context.Context, checkpointSet export.CheckpointSet) error {
@@ -111,7 +147,7 @@ func (e *Exporter) Export(_ context.Context, checkpointSet export.CheckpointSet)
 	// to be duplicates of the same error.
 	var aggError error
 	var batch expoBatch
-	if !e.options.DoNotPrintTime {
+	if !e.config.DoNotPrintTime {
 		ts := time.Now()
 		batch.Timestamp = &ts
 	}
@@ -165,11 +201,11 @@ func (e *Exporter) Export(_ context.Context, checkpointSet export.CheckpointSet)
 				expose.Min = min.AsInterface(kind)
 			}
 
-			if dist, ok := agg.(aggregator.Distribution); ok && len(e.options.Quantiles) != 0 {
-				summary := make([]expoQuantile, len(e.options.Quantiles))
+			if dist, ok := agg.(aggregator.Distribution); ok && len(e.config.Quantiles) != 0 {
+				summary := make([]expoQuantile, len(e.config.Quantiles))
 				expose.Quantiles = summary
 
-				for i, q := range e.options.Quantiles {
+				for i, q := range e.config.Quantiles {
 					var vstr interface{}
 					if value, err := dist.Quantile(q); err != nil {
 						aggError = err
@@ -196,7 +232,7 @@ func (e *Exporter) Export(_ context.Context, checkpointSet export.CheckpointSet)
 			} else {
 				expose.LastValue = value.AsInterface(kind)
 
-				if !e.options.DoNotPrintTime {
+				if !e.config.DoNotPrintTime {
 					expose.Timestamp = &timestamp
 				}
 			}
@@ -208,7 +244,7 @@ func (e *Exporter) Export(_ context.Context, checkpointSet export.CheckpointSet)
 
 		if labels := record.Labels(); labels.Len() > 0 {
 			sb.WriteRune('{')
-			sb.WriteString(labels.Encoded(e.options.LabelEncoder))
+			sb.WriteString(labels.Encoded(e.config.LabelEncoder))
 			sb.WriteRune('}')
 		}
 
@@ -219,14 +255,14 @@ func (e *Exporter) Export(_ context.Context, checkpointSet export.CheckpointSet)
 
 	var data []byte
 	var err error
-	if e.options.PrettyPrint {
+	if e.config.PrettyPrint {
 		data, err = json.MarshalIndent(batch, "", "\t")
 	} else {
 		data, err = json.Marshal(batch)
 	}
 
 	if err == nil {
-		fmt.Fprintln(e.options.File, string(data))
+		fmt.Fprintln(e.config.Writer, string(data))
 	} else {
 		return err
 	}
