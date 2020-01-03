@@ -120,7 +120,11 @@ func (s Scope) Named(name string) Scope {
 }
 
 func (s Scope) WithSpan(span trace.Span) Scope {
-	ri := *s.scopeImpl
+	var ri scopeImpl
+	ri.provider = nilProvider
+	if s.scopeImpl != nil {
+		ri = *s.scopeImpl
+	}
 	ri.span = span
 	ri.scopeMeter.scopeImpl = &ri
 	ri.scopeTracer.scopeImpl = &ri
@@ -130,7 +134,11 @@ func (s Scope) WithSpan(span trace.Span) Scope {
 }
 
 func (s Scope) WithMeter(meter metric.Meter) Scope {
-	ri := *s.scopeImpl
+	var ri scopeImpl
+	ri.provider = nilProvider
+	if s.scopeImpl != nil {
+		ri = *s.scopeImpl
+	}
 	ri.provider = NewProvider(ri.provider.tracer, meter, ri.provider.propagators)
 	ri.scopeMeter.scopeImpl = &ri
 	ri.scopeTracer.scopeImpl = &ri

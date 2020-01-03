@@ -13,6 +13,7 @@ import (
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/global/internal"
 	"go.opentelemetry.io/otel/api/key"
+	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/exporter/metric/stdout"
 	metrictest "go.opentelemetry.io/otel/internal/metric"
 )
@@ -193,7 +194,9 @@ func TestDefaultSDK(t *testing.T) {
 	lvals1 := key.String("A", "B")
 	labels1 := core.NewLabels(lvals1)
 
-	counter := meter1.NewInt64Counter("test.builtin")
+	counter := meter1.NewInt64Counter("test.builtin",
+		metric.WithKeys(key.New("A")),
+	)
 	counter.Add(ctx, 1, labels1)
 	counter.Add(ctx, 1, labels1)
 
@@ -206,7 +209,7 @@ func TestDefaultSDK(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	global.SetScope(scope.NewProvider(nil, pusher.Meter(), nil).New())
+	global.SetScope(scope.Empty().WithMeter(pusher.Meter()))
 
 	counter.Add(ctx, 1, labels1)
 

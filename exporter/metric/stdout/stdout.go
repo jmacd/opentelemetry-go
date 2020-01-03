@@ -242,6 +242,7 @@ func (e *Exporter) Export(_ context.Context, checkpointSet export.CheckpointSet)
 
 		sb.WriteString(desc.Name())
 
+		fmt.Println("RIGHT HERE", record.Labels())
 		if labels := record.Labels(); labels.Len() > 0 {
 			sb.WriteRune('{')
 			sb.WriteString(labels.Encoded(e.config.LabelEncoder))
