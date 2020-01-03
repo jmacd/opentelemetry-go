@@ -30,14 +30,20 @@ func SetScope(sc scope.Scope) {
 	first := false
 	delegateOnce.Do(func() {
 		current := Scope()
+		currentProvider := current.Provider()
+		newProvider := sc.Provider()
+
 		first = true
-		if current == sc {
+
+		if currentProvider.Meter() == newProvider.Meter() {
 			// Setting the global scope to former default is nonsense, panic.
 			// Panic is acceptable because we are likely still early in the
 			// process lifetime.
 			panic("invalid Provider, the global instance cannot be reinstalled")
-		} else if deft, ok := current.Tracer().(*tracer); ok {
+		} else if deft, ok := currentProvider.Tracer().(*tracer); ok {
 			deft.deferred.setDelegate(sc)
+		} else {
+			panic("impossible error")
 		}
 	})
 	if !first {

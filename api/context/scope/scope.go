@@ -68,6 +68,8 @@ const (
 var (
 	_ trace.Tracer = &scopeTracer{}
 	_ metric.Meter = &scopeMeter{}
+
+	nilProvider = &Provider{}
 )
 
 func NewProvider(t trace.Tracer, m metric.Meter, p propagation.Propagators) *Provider {
@@ -137,6 +139,13 @@ func (s Scope) WithMeter(meter metric.Meter) Scope {
 	}
 }
 
+func (s Scope) Provider() *Provider {
+	if s.scopeImpl == nil {
+		return nilProvider
+	}
+	return s.provider
+}
+
 func (s Scope) Span() trace.Span {
 	if s.scopeImpl == nil {
 		return trace.NoopSpan{}
@@ -170,7 +179,11 @@ func (s *scopeImpl) enterScope(ctx context.Context) context.Context {
 
 func (s *scopeImpl) subname(name string) string {
 	ns, _ := s.resources.Value(namespaceKey)
-	return ns.AsString() + "/" + name
+	str := ns.AsString()
+	if str == "" {
+		return name
+	}
+	return str + "/" + name
 }
 
 func (s *scopeTracer) Start(
