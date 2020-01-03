@@ -13,10 +13,12 @@
 // limitations under the License.
 
 // TODO:
+// (0) Why is meter_test.go not passing?
 // (2) Place a NOTE about non-scope-ful Propagators.
 // (4) Resources are LabelSets
 // (5) Label API moves into api/label
 // (6) Add static Meter.New*() helpers, give (ctx context.Context) param to all Meter.New* APIs.
+// (9) Get first-class about Namespaces
 
 package scope
 
