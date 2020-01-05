@@ -94,7 +94,7 @@ func (p *Provider) Propagators() propagation.Propagators {
 
 func (p *Provider) New() Scope {
 	si := &scopeImpl{
-		resources: baggage.NewEmptyMap(),
+		resources: baggage.Empty(),
 		provider:  p,
 	}
 	si.scopeMeter.scopeImpl = si
@@ -165,7 +165,7 @@ func (s Scope) Provider() *Provider {
 
 func (s Scope) Resources() baggage.Map {
 	if s.scopeImpl == nil {
-		return baggage.NewEmptyMap()
+		return baggage.Empty()
 	}
 	return s.resources
 }

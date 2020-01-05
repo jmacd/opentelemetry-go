@@ -80,7 +80,7 @@ func TestExtractValidDistributedContextFromHTTPReq(t *testing.T) {
 			ctx := context.Background()
 			ctx = propagation.ExtractHTTP(ctx, props, req.Header)
 			gotCorCtx := bpropagation.FromContext(ctx)
-			wantCorCtx := baggage.NewMap(baggage.MapUpdate{MultiKV: tt.wantKVs})
+			wantCorCtx := baggage.New(baggage.MapUpdate{MultiKV: tt.wantKVs})
 			if gotCorCtx.Len() != wantCorCtx.Len() {
 				t.Errorf(
 					"Got and Want CorCtx are not the same size %d != %d",
@@ -184,7 +184,7 @@ func TestInjectCorrelationContextToHTTPReq(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req, _ := http.NewRequest("GET", "http://example.com", nil)
-			ctx := bpropagation.WithMap(context.Background(), baggage.NewMap(baggage.MapUpdate{MultiKV: tt.kvs}))
+			ctx := bpropagation.WithMap(context.Background(), baggage.New(baggage.MapUpdate{MultiKV: tt.kvs}))
 			propagation.InjectHTTP(ctx, props, req.Header)
 
 			gotHeader := req.Header.Get("Correlation-Context")

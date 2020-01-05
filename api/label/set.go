@@ -57,11 +57,32 @@ type setImpl struct {
 // Ordered returns the labels in a specified order, according to the
 // Batcher.
 func (l Set) Ordered() []core.KeyValue {
+	if l.setImpl == nil {
+		return nil
+	}
 	return l.ordered
 }
 
 func (l Set) String() string {
 	return fmt.Sprint(l.Ordered())
+}
+
+func (l Set) Value(k core.Key) (core.Value, bool) {
+	if l.setImpl == nil {
+		return core.Value{}, false
+	}
+	idx := sort.Search(len(l.ordered), func(i int) bool {
+		return l.ordered[i].Key >= k
+	})
+	if idx < len(l.ordered) && k == l.ordered[idx].Key {
+		return l.ordered[idx].Value, true
+	}
+	return core.Value{}, false
+}
+
+func (l Set) HasValue(k core.Key) bool {
+	_, ok := l.Value(k)
+	return ok
 }
 
 // Encoded is a pre-encoded form of the ordered labels.

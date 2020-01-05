@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
 )
@@ -64,9 +65,9 @@ func TestMap(t *testing.T) {
 		},
 		{
 			name:    "NewMap with empty MapUpdate",
-			value:   MapUpdate{MultiKV: []core.KeyValue{}},
+			value:   MapUpdate{},
 			init:    []int{},
-			wantKVs: []core.KeyValue{},
+			wantKVs: nil,
 		},
 		{
 			name: "Map with MultiKV",
@@ -118,7 +119,7 @@ func TestMap(t *testing.T) {
 		if len(testcase.init) > 0 {
 			got = makeTestMap(testcase.init).Apply(testcase.value)
 		} else {
-			got = NewMap(testcase.value)
+			got = New(testcase.value)
 		}
 		for _, s := range testcase.wantKVs {
 			if ok := got.HasValue(s.Key); !ok {
@@ -138,18 +139,14 @@ func TestMap(t *testing.T) {
 			t.Errorf("Expected kv %v, but not found", kv)
 			return true
 		})
-		if l, exp := got.Len(), len(testcase.wantKVs); l != exp {
-			t.Errorf("+got: %d, -want: %d", l, exp)
-		}
+		require.EqualValues(t, got.Ordered(), testcase.wantKVs)
 	}
 }
 
 func makeTestMap(ints []int) Map {
-	r := make(rawMap, len(ints))
+	var r []core.KeyValue
 	for _, v := range ints {
-		r[core.Key(fmt.Sprintf("key%d", v))] = entry{
-			value: core.Int(v),
-		}
+		r = append(r, core.Key(fmt.Sprintf("key%d", v)).Int(v))
 	}
-	return newMap(r)
+	return New(MapUpdate{MultiKV: r})
 }

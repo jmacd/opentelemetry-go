@@ -42,7 +42,7 @@ func FromContext(ctx context.Context) baggage.Map {
 	if m, ok := ctx.Value(correlationsKey).(baggage.Map); ok {
 		return m
 	}
-	return baggage.NewEmptyMap()
+	return baggage.Empty()
 }
 
 // Inject implements HTTPInjector.
@@ -70,7 +70,7 @@ func (CorrelationContext) Inject(ctx context.Context, supplier propagation.HTTPS
 func (CorrelationContext) Extract(ctx context.Context, supplier propagation.HTTPSupplier) context.Context {
 	correlationContext := supplier.Get(CorrelationContextHeader)
 	if correlationContext == "" {
-		return WithMap(ctx, baggage.NewEmptyMap())
+		return WithMap(ctx, baggage.Empty())
 	}
 
 	contextValues := strings.Split(correlationContext, ",")
@@ -106,7 +106,7 @@ func (CorrelationContext) Extract(ctx context.Context, supplier propagation.HTTP
 
 		keyValues = append(keyValues, key.New(trimmedName).String(trimmedValueWithProps.String()))
 	}
-	return WithMap(ctx, baggage.NewMap(baggage.MapUpdate{
+	return WithMap(ctx, baggage.New(baggage.MapUpdate{
 		MultiKV: keyValues,
 	}))
 }
