@@ -18,8 +18,8 @@ import (
 	"context"
 	"fmt"
 
-	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
+	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/exporter/metric/stdout"
 )
@@ -40,7 +40,7 @@ func ExampleNew() {
 	meter := pusher.Meter()
 
 	counter := meter.NewInt64Counter("a.counter", metric.WithKeys(key))
-	labels := core.NewLabels(key.String("value"))
+	labels := label.NewSet(key.String("value"))
 
 	counter.Add(ctx, 100, labels)
 

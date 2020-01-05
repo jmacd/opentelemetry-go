@@ -23,6 +23,7 @@ import (
 	"unsafe"
 
 	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/metric"
 	api "go.opentelemetry.io/otel/api/metric"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
@@ -54,7 +55,7 @@ type (
 		batcher export.Batcher
 
 		// lencoder determines how labels are uniquely encoded.
-		labelEncoder export.LabelEncoder
+		labelEncoder label.Encoder
 
 		// collectLock prevents simultaneous calls to Collect().
 		collectLock sync.Mutex
@@ -86,7 +87,7 @@ type (
 		meter *SDK
 
 		// labels is the LabelSet passed by the user.
-		labels core.LabelSet
+		labels label.Set
 
 		// descriptor describes the metric instrument.
 		descriptor *export.Descriptor
@@ -155,7 +156,7 @@ func (m *SDK) SetErrorHandler(f ErrorHandler) {
 	m.errorHandler = f
 }
 
-func (i *instrument) bind(ls core.LabelSet) *record {
+func (i *instrument) bind(ls label.Set) *record {
 	// Create lookup key for sync.Map (one allocation)
 	mk := mapkey{
 		descriptor: i.descriptor,
@@ -193,11 +194,11 @@ func (i *instrument) bind(ls core.LabelSet) *record {
 	return rec
 }
 
-func (i *instrument) Bind(ls core.LabelSet) api.BoundInstrumentImpl {
+func (i *instrument) Bind(ls label.Set) api.BoundInstrumentImpl {
 	return i.bind(ls)
 }
 
-func (i *instrument) RecordOne(ctx context.Context, number core.Number, ls core.LabelSet) {
+func (i *instrument) RecordOne(ctx context.Context, number core.Number, ls label.Set) {
 	h := i.bind(ls)
 	defer h.Unbind()
 	h.RecordOne(ctx, number)
@@ -212,7 +213,7 @@ func (i *instrument) RecordOne(ctx context.Context, number core.Number, ls core.
 // batcher will call Collect() when it receives a request to scrape
 // current metric values.  A push-based batcher should configure its
 // own periodic collection.
-func New(batcher export.Batcher, labelEncoder export.LabelEncoder) *SDK {
+func New(batcher export.Batcher, labelEncoder label.Encoder) *SDK {
 	return &SDK{
 		batcher:      batcher,
 		labelEncoder: labelEncoder,
@@ -368,7 +369,7 @@ func (m *SDK) checkpoint(ctx context.Context, r *record) int {
 }
 
 // RecordBatch enters a batch of metric events.
-func (m *SDK) RecordBatch(ctx context.Context, ls core.LabelSet, measurements ...api.Measurement) {
+func (m *SDK) RecordBatch(ctx context.Context, ls label.Set, measurements ...api.Measurement) {
 	for _, meas := range measurements {
 		meas.InstrumentImpl().RecordOne(ctx, meas.Number(), ls)
 	}

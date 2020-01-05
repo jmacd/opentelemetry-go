@@ -26,11 +26,11 @@ import (
 
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
+	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/unit"
 	"go.opentelemetry.io/otel/exporter/metric/internal/statsd"
 	"go.opentelemetry.io/otel/exporter/metric/test"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
-	sdk "go.opentelemetry.io/otel/sdk/metric"
 )
 
 // withTagsAdapter tests a dogstatsd-style statsd exporter.
@@ -121,7 +121,7 @@ timer.B.D:%s|ms
 						t.Fatal("New error: ", err)
 					}
 
-					checkpointSet := test.NewCheckpointSet(sdk.NewDefaultLabelEncoder())
+					checkpointSet := test.NewCheckpointSet(label.NewDefaultEncoder())
 					cdesc := export.NewDescriptor(
 						"counter", export.CounterKind, nil, "", "", nkind, false)
 					gdesc := export.NewDescriptor(
@@ -293,7 +293,7 @@ func TestPacketSplit(t *testing.T) {
 				labels := makeLabels(offset, nkeys)
 				offset += nkeys
 
-				expect := fmt.Sprint("counter:100|c", core.NewLabels(labels...).Encoded(adapter.LabelEncoder), "\n")
+				expect := fmt.Sprint("counter:100|c", label.NewSet(labels...).Encoded(adapter.LabelEncoder), "\n")
 				expected = append(expected, expect)
 				checkpointSet.AddCounter(desc, 100, labels...)
 			})

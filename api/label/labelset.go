@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package core
+package label
 
 import (
 	"fmt"
@@ -21,31 +21,33 @@ import (
 	"sync"
 	"sync/atomic"
 	"unsafe"
+
+	"go.opentelemetry.io/otel/api/core"
 )
 
-// EmptyLabelSet is the empty label set.
-var EmptyLabelSet = LabelSet{
-	&labelSetImpl{},
+// EmptySet is the empty label set.
+var EmptySet = Set{
+	&setImpl{},
 }
 
-type LabelEncoder interface {
+type Encoder interface {
 	// Encode is called (concurrently) in instrumentation context.
 	// It should return a unique representation of the labels
 	// suitable for the SDK to use as a map key, an aggregator
 	// grouping key, and/or the export encoding.
-	Encode([]KeyValue) string
+	Encode([]core.KeyValue) string
 }
 
-type LabelSet struct {
-	*labelSetImpl
+type Set struct {
+	*setImpl
 }
 
 const maxConcurrentEncoders = 3
 
-type sortedLabels []KeyValue
+type sorted []core.KeyValue
 
-type labelSetImpl struct {
-	ordered sortedLabels
+type setImpl struct {
+	ordered sorted
 
 	lock     sync.Mutex
 	encoders [maxConcurrentEncoders]unsafe.Pointer
@@ -54,23 +56,23 @@ type labelSetImpl struct {
 
 // Ordered returns the labels in a specified order, according to the
 // Batcher.
-func (l LabelSet) Ordered() []KeyValue {
+func (l Set) Ordered() []core.KeyValue {
 	return l.ordered
 }
 
-func (l LabelSet) String() string {
+func (l Set) String() string {
 	return fmt.Sprint(l.Ordered())
 }
 
 // Encoded is a pre-encoded form of the ordered labels.
-func (l LabelSet) Encoded(enc LabelEncoder) string {
+func (l Set) Encoded(enc Encoder) string {
 	if enc == nil {
 		return ""
 	}
 
 	vptr := reflect.ValueOf(enc)
 	if vptr.Kind() != reflect.Ptr {
-		panic("LabelEncoder implementations must use pointer receivers")
+		panic("Encoder implementations must use pointer receivers")
 	}
 	myself := unsafe.Pointer(vptr.Pointer())
 
@@ -116,14 +118,14 @@ func (l LabelSet) Encoded(enc LabelEncoder) string {
 }
 
 // Len returns the number of labels.
-func (l LabelSet) Len() int {
-	if l.labelSetImpl == nil {
+func (l Set) Len() int {
+	if l.setImpl == nil {
 		return 0
 	}
 	return len(l.ordered)
 }
 
-func (l LabelSet) Equals(o LabelSet) bool {
+func (l Set) Equals(o Set) bool {
 	if l.Len() != o.Len() {
 		return false
 	}
@@ -135,23 +137,23 @@ func (l LabelSet) Equals(o LabelSet) bool {
 	return true
 }
 
-func (l LabelSet) AsMap() map[Key]Value {
-	r := map[Key]Value{}
+func (l Set) AsMap() map[core.Key]core.Value {
+	r := map[core.Key]core.Value{}
 	for _, kv := range l.ordered {
 		r[kv.Key] = kv.Value
 	}
 	return r
 }
 
-// NewLabels builds a Labels object, consisting of an ordered set of
+// NewSet builds a Labels object, consisting of an ordered set of
 // labels, de-duplicated with last-value-wins semantics.
-func NewLabels(kvs ...KeyValue) LabelSet {
+func NewSet(kvs ...core.KeyValue) Set {
 	// Check for empty set.
 	if len(kvs) == 0 {
-		return EmptyLabelSet
+		return EmptySet
 	}
 
-	ls := &labelSetImpl{
+	ls := &setImpl{
 		ordered: kvs,
 	}
 
@@ -168,17 +170,17 @@ func NewLabels(kvs ...KeyValue) LabelSet {
 	}
 	ls.ordered = ls.ordered[0:oi]
 
-	return LabelSet{ls}
+	return Set{ls}
 }
 
-func (l *sortedLabels) Len() int {
+func (l *sorted) Len() int {
 	return len(*l)
 }
 
-func (l *sortedLabels) Swap(i, j int) {
+func (l *sorted) Swap(i, j int) {
 	(*l)[i], (*l)[j] = (*l)[j], (*l)[i]
 }
 
-func (l *sortedLabels) Less(i, j int) bool {
+func (l *sorted) Less(i, j int) bool {
 	return (*l)[i].Key < (*l)[j].Key
 }

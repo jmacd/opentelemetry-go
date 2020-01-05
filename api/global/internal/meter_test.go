@@ -13,6 +13,7 @@ import (
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/global/internal"
 	"go.opentelemetry.io/otel/api/key"
+	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/exporter/metric/stdout"
 	metrictest "go.opentelemetry.io/otel/internal/metric"
@@ -25,11 +26,11 @@ func TestDirect(t *testing.T) {
 	meter1 := global.Scope().Named("test1").Meter()
 	meter2 := global.Scope().Named("test2").Meter()
 	lvals1 := key.String("A", "B")
-	labels1 := core.NewLabels(lvals1)
+	labels1 := label.NewSet(lvals1)
 	lvals2 := key.String("C", "D")
-	labels2 := core.NewLabels(lvals2)
+	labels2 := label.NewSet(lvals2)
 	lvals3 := key.String("E", "F")
-	labels3 := core.NewLabels(lvals3)
+	labels3 := label.NewSet(lvals3)
 
 	counter := meter1.NewInt64Counter("test.counter")
 	counter.Add(ctx, 1, labels1)
@@ -102,9 +103,9 @@ func TestBound(t *testing.T) {
 	ctx := context.Background()
 	glob := global.Scope().Named("test").Meter()
 	lvals1 := key.String("A", "B")
-	labels1 := core.NewLabels(lvals1)
+	labels1 := label.NewSet(lvals1)
 	lvals2 := key.String("C", "D")
-	labels2 := core.NewLabels(lvals2)
+	labels2 := label.NewSet(lvals2)
 
 	counter := glob.NewFloat64Counter("test.counter")
 	boundC := counter.Bind(labels1)
@@ -168,9 +169,9 @@ func TestUnbind(t *testing.T) {
 
 	glob := global.Scope().Named("test").Meter()
 	lvals1 := key.New("A").String("B")
-	labels1 := core.NewLabels(lvals1)
+	labels1 := label.NewSet(lvals1)
 	lvals2 := key.New("C").String("D")
-	labels2 := core.NewLabels(lvals2)
+	labels2 := label.NewSet(lvals2)
 
 	counter := glob.NewFloat64Counter("test.counter")
 	boundC := counter.Bind(labels1)
@@ -192,7 +193,7 @@ func TestDefaultSDK(t *testing.T) {
 	ctx := context.Background()
 	meter1 := global.Scope().Named("builtin").Meter()
 	lvals1 := key.String("A", "B")
-	labels1 := core.NewLabels(lvals1)
+	labels1 := label.NewSet(lvals1)
 
 	counter := meter1.NewInt64Counter("test.builtin",
 		metric.WithKeys(key.New("A")),

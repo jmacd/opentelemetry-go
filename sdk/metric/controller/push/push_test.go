@@ -25,11 +25,10 @@ import (
 	"github.com/benbjohnson/clock"
 	"github.com/stretchr/testify/require"
 
-	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/exporter/metric/test"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/export/metric/aggregator"
-	sdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/counter"
 	"go.opentelemetry.io/otel/sdk/metric/controller/push"
 )
@@ -68,7 +67,7 @@ var _ push.Clock = mockClock{}
 var _ push.Ticker = mockTicker{}
 
 func newFixture(t *testing.T) testFixture {
-	checkpointSet := test.NewCheckpointSet(sdk.NewDefaultLabelEncoder())
+	checkpointSet := test.NewCheckpointSet(label.NewDefaultEncoder())
 
 	batcher := &testBatcher{
 		t:             t,
@@ -183,7 +182,7 @@ func TestPushTicker(t *testing.T) {
 
 	p.Start()
 
-	counter.Add(ctx, 3, core.NewLabels())
+	counter.Add(ctx, 3, label.NewSet())
 
 	records, exports := fix.exporter.resetRecords()
 	checkpoints, finishes := fix.batcher.getCounts()
@@ -209,7 +208,7 @@ func TestPushTicker(t *testing.T) {
 
 	fix.checkpointSet.Reset()
 
-	counter.Add(ctx, 7, core.NewLabels())
+	counter.Add(ctx, 7, label.NewSet())
 
 	mock.Add(time.Second)
 	runtime.Gosched()

@@ -23,6 +23,7 @@ import (
 
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
+	"go.opentelemetry.io/otel/api/label"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	sdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/counter"
@@ -41,7 +42,7 @@ func newFixture(b *testing.B) *benchFixture {
 	bf := &benchFixture{
 		B: b,
 	}
-	bf.sdk = sdk.New(bf, sdk.NewDefaultLabelEncoder())
+	bf.sdk = sdk.New(bf, label.NewDefaultEncoder())
 	return bf
 }
 
@@ -107,7 +108,7 @@ func benchmarkLabels(b *testing.B, n int) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		core.NewLabels(labs...)
+		label.NewSet(labs...)
 	}
 }
 
@@ -138,10 +139,10 @@ func BenchmarkAcquireNewHandle(b *testing.B) {
 	fix := newFixture(b)
 	labelSets := makeLabelSets(b.N)
 	cnt := fix.sdk.NewInt64Counter("int64.counter")
-	labels := make([]core.LabelSet, b.N)
+	labels := make([]label.Set, b.N)
 
 	for i := 0; i < b.N; i++ {
-		labels[i] = core.NewLabels(labelSets[i]...)
+		labels[i] = label.NewSet(labelSets[i]...)
 	}
 
 	b.ResetTimer()
@@ -155,10 +156,10 @@ func BenchmarkAcquireExistingHandle(b *testing.B) {
 	fix := newFixture(b)
 	labelSets := makeLabelSets(b.N)
 	cnt := fix.sdk.NewInt64Counter("int64.counter")
-	labels := make([]core.LabelSet, b.N)
+	labels := make([]label.Set, b.N)
 
 	for i := 0; i < b.N; i++ {
-		labels[i] = core.NewLabels(labelSets[i]...)
+		labels[i] = label.NewSet(labelSets[i]...)
 		cnt.Bind(labels[i]).Unbind()
 	}
 
@@ -173,10 +174,10 @@ func BenchmarkAcquireReleaseExistingHandle(b *testing.B) {
 	fix := newFixture(b)
 	labelSets := makeLabelSets(b.N)
 	cnt := fix.sdk.NewInt64Counter("int64.counter")
-	labels := make([]core.LabelSet, b.N)
+	labels := make([]label.Set, b.N)
 
 	for i := 0; i < b.N; i++ {
-		labels[i] = core.NewLabels(labelSets[i]...)
+		labels[i] = label.NewSet(labelSets[i]...)
 		cnt.Bind(labels[i]).Unbind()
 	}
 
@@ -192,7 +193,7 @@ func BenchmarkAcquireReleaseExistingHandle(b *testing.B) {
 func BenchmarkInt64CounterAdd(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
-	labs := core.NewLabels(makeLabels(1)...)
+	labs := label.NewSet(makeLabels(1)...)
 	cnt := fix.sdk.NewInt64Counter("int64.counter")
 
 	b.ResetTimer()
@@ -205,7 +206,7 @@ func BenchmarkInt64CounterAdd(b *testing.B) {
 func BenchmarkInt64CounterHandleAdd(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
-	labs := core.NewLabels(makeLabels(1)...)
+	labs := label.NewSet(makeLabels(1)...)
 	cnt := fix.sdk.NewInt64Counter("int64.counter")
 	handle := cnt.Bind(labs)
 
@@ -219,7 +220,7 @@ func BenchmarkInt64CounterHandleAdd(b *testing.B) {
 func BenchmarkFloat64CounterAdd(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
-	labs := core.NewLabels(makeLabels(1)...)
+	labs := label.NewSet(makeLabels(1)...)
 	cnt := fix.sdk.NewFloat64Counter("float64.counter")
 
 	b.ResetTimer()
@@ -232,7 +233,7 @@ func BenchmarkFloat64CounterAdd(b *testing.B) {
 func BenchmarkFloat64CounterHandleAdd(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
-	labs := core.NewLabels(makeLabels(1)...)
+	labs := label.NewSet(makeLabels(1)...)
 	cnt := fix.sdk.NewFloat64Counter("float64.counter")
 	handle := cnt.Bind(labs)
 
@@ -248,7 +249,7 @@ func BenchmarkFloat64CounterHandleAdd(b *testing.B) {
 func BenchmarkInt64GaugeAdd(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
-	labs := core.NewLabels(makeLabels(1)...)
+	labs := label.NewSet(makeLabels(1)...)
 	gau := fix.sdk.NewInt64Gauge("int64.gauge")
 
 	b.ResetTimer()
@@ -261,7 +262,7 @@ func BenchmarkInt64GaugeAdd(b *testing.B) {
 func BenchmarkInt64GaugeHandleAdd(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
-	labs := core.NewLabels(makeLabels(1)...)
+	labs := label.NewSet(makeLabels(1)...)
 	gau := fix.sdk.NewInt64Gauge("int64.gauge")
 	handle := gau.Bind(labs)
 
@@ -275,7 +276,7 @@ func BenchmarkInt64GaugeHandleAdd(b *testing.B) {
 func BenchmarkFloat64GaugeAdd(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
-	labs := core.NewLabels(makeLabels(1)...)
+	labs := label.NewSet(makeLabels(1)...)
 	gau := fix.sdk.NewFloat64Gauge("float64.gauge")
 
 	b.ResetTimer()
@@ -288,7 +289,7 @@ func BenchmarkFloat64GaugeAdd(b *testing.B) {
 func BenchmarkFloat64GaugeHandleAdd(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
-	labs := core.NewLabels(makeLabels(1)...)
+	labs := label.NewSet(makeLabels(1)...)
 	gau := fix.sdk.NewFloat64Gauge("float64.gauge")
 	handle := gau.Bind(labs)
 
@@ -304,7 +305,7 @@ func BenchmarkFloat64GaugeHandleAdd(b *testing.B) {
 func benchmarkInt64MeasureAdd(b *testing.B, name string) {
 	ctx := context.Background()
 	fix := newFixture(b)
-	labs := core.NewLabels(makeLabels(1)...)
+	labs := label.NewSet(makeLabels(1)...)
 	mea := fix.sdk.NewInt64Measure(name)
 
 	b.ResetTimer()
@@ -317,7 +318,7 @@ func benchmarkInt64MeasureAdd(b *testing.B, name string) {
 func benchmarkInt64MeasureHandleAdd(b *testing.B, name string) {
 	ctx := context.Background()
 	fix := newFixture(b)
-	labs := core.NewLabels(makeLabels(1)...)
+	labs := label.NewSet(makeLabels(1)...)
 	mea := fix.sdk.NewInt64Measure(name)
 	handle := mea.Bind(labs)
 
@@ -331,7 +332,7 @@ func benchmarkInt64MeasureHandleAdd(b *testing.B, name string) {
 func benchmarkFloat64MeasureAdd(b *testing.B, name string) {
 	ctx := context.Background()
 	fix := newFixture(b)
-	labs := core.NewLabels(makeLabels(1)...)
+	labs := label.NewSet(makeLabels(1)...)
 	mea := fix.sdk.NewFloat64Measure(name)
 
 	b.ResetTimer()
@@ -344,7 +345,7 @@ func benchmarkFloat64MeasureAdd(b *testing.B, name string) {
 func benchmarkFloat64MeasureHandleAdd(b *testing.B, name string) {
 	ctx := context.Background()
 	fix := newFixture(b)
-	labs := core.NewLabels(makeLabels(1)...)
+	labs := label.NewSet(makeLabels(1)...)
 	mea := fix.sdk.NewFloat64Measure(name)
 	handle := mea.Bind(labs)
 

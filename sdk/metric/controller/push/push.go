@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/metric"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	sdk "go.opentelemetry.io/otel/sdk/metric"
@@ -67,15 +68,15 @@ var _ Ticker = realTicker{}
 // configure an SDK with periodic collection.  The batcher itself is
 // configured with the aggregation selector policy.
 //
-// If the Exporter implements the export.LabelEncoder interface, the
+// If the Exporter implements the label.Encoder interface, the
 // exporter will be used as the label encoder for the SDK itself,
 // otherwise the SDK will be configured with the default label
 // encoder.
 func New(batcher export.Batcher, exporter export.Exporter, period time.Duration) *Controller {
-	lencoder, _ := exporter.(export.LabelEncoder)
+	lencoder, _ := exporter.(label.Encoder)
 
 	if lencoder == nil {
-		lencoder = sdk.NewDefaultLabelEncoder()
+		lencoder = label.NewDefaultEncoder()
 	}
 
 	return &Controller{

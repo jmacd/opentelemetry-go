@@ -23,10 +23,9 @@ import (
 	"strings"
 	"time"
 
-	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/label"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/export/metric/aggregator"
-	sdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/batcher/defaultkeys"
 	"go.opentelemetry.io/otel/sdk/metric/controller/push"
 	"go.opentelemetry.io/otel/sdk/metric/selector/simple"
@@ -61,7 +60,7 @@ type Config struct {
 	Quantiles []float64
 
 	// LabelEncoder defines how...
-	LabelEncoder core.LabelEncoder
+	LabelEncoder label.Encoder
 }
 
 type expoBatch struct {
@@ -103,7 +102,7 @@ func NewRawExporter(config Config) (*Exporter, error) {
 		}
 	}
 	if config.LabelEncoder == nil {
-		config.LabelEncoder = sdk.NewDefaultLabelEncoder()
+		config.LabelEncoder = label.NewDefaultEncoder()
 	}
 	return &Exporter{
 		config: config,
@@ -135,7 +134,7 @@ func NewExportPipeline(config Config) (*push.Controller, error) {
 	if err != nil {
 		return nil, err
 	}
-	batcher := defaultkeys.New(selector, sdk.NewDefaultLabelEncoder(), true)
+	batcher := defaultkeys.New(selector, label.NewDefaultEncoder(), true)
 	pusher := push.New(batcher, exporter, time.Second)
 	pusher.Start()
 

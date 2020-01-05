@@ -21,15 +21,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/label"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
-	sdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/batcher/defaultkeys"
 	"go.opentelemetry.io/otel/sdk/metric/batcher/test"
 )
 
 func TestGroupingStateless(t *testing.T) {
 	ctx := context.Background()
-	enc := sdk.NewDefaultLabelEncoder()
+	enc := label.NewDefaultEncoder()
 	b := defaultkeys.New(test.NewAggregationSelector(), enc, false)
 
 	_ = b.Process(ctx, test.NewGaugeRecord(test.GaugeADesc, test.Labels1, 10))
@@ -91,7 +91,7 @@ func TestGroupingStateful(t *testing.T) {
 	checkpointSet := b.CheckpointSet()
 	b.FinishedCollection()
 
-	outEnc := sdk.NewDefaultLabelEncoder()
+	outEnc := label.NewDefaultEncoder()
 	output1 := test.NewOutput(outEnc)
 	checkpointSet.ForEach(output1.AddTo)
 

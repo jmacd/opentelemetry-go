@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"time"
 
+	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/exporter/metric/internal/statsd"
 
 	export "go.opentelemetry.io/otel/sdk/export/metric"
@@ -44,8 +45,8 @@ type (
 )
 
 var (
-	_ export.Exporter     = &Exporter{}
-	_ export.LabelEncoder = &Exporter{}
+	_ export.Exporter = &Exporter{}
+	_ label.Encoder   = &Exporter{}
 )
 
 // NewRawExporter returns a new Dogstatsd-syntax exporter for use in a pipeline.

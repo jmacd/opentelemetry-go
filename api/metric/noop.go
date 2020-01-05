@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/label"
 )
 
 type NoopMeter struct{}
@@ -21,19 +22,19 @@ func (noopBoundInstrument) RecordOne(context.Context, core.Number) {
 func (noopBoundInstrument) Unbind() {
 }
 
-func (noopInstrument) Bind(core.LabelSet) BoundInstrumentImpl {
+func (noopInstrument) Bind(label.Set) BoundInstrumentImpl {
 	return noopBoundInstrument{}
 }
 
-func (noopInstrument) RecordOne(context.Context, core.Number, core.LabelSet) {
+func (noopInstrument) RecordOne(context.Context, core.Number, label.Set) {
 }
 
 func (noopInstrument) Meter() Meter {
 	return NoopMeter{}
 }
 
-func (NoopMeter) Labels(...core.KeyValue) core.LabelSet {
-	return core.LabelSet{}
+func (NoopMeter) Labels(...core.KeyValue) label.Set {
+	return label.Set{}
 }
 
 func (NoopMeter) NewInt64Counter(name string, cos ...CounterOptionApplier) Int64Counter {
@@ -60,5 +61,5 @@ func (NoopMeter) NewFloat64Measure(name string, mos ...MeasureOptionApplier) Flo
 	return WrapFloat64MeasureInstrument(noopInstrument{})
 }
 
-func (NoopMeter) RecordBatch(context.Context, core.LabelSet, ...Measurement) {
+func (NoopMeter) RecordBatch(context.Context, label.Set, ...Measurement) {
 }

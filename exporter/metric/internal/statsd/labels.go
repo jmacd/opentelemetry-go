@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/label"
 )
 
 // LabelEncoder encodes metric labels in the dogstatsd syntax.
@@ -31,7 +32,7 @@ type LabelEncoder struct {
 	pool sync.Pool
 }
 
-var _ core.LabelEncoder = &LabelEncoder{}
+var _ label.Encoder = &LabelEncoder{}
 
 // NewLabelEncoder returns a new encoder for dogstatsd-syntax metric
 // labels.

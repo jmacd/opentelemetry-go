@@ -29,6 +29,7 @@ import (
 	"go.opentelemetry.io/otel/api/context/baggage"
 	"go.opentelemetry.io/otel/api/context/propagation"
 	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/api/trace"
 )
@@ -259,7 +260,7 @@ func (m *scopeMeter) NewFloat64Measure(name string, mos ...metric.MeasureOptionA
 	return m.provider.Meter().NewFloat64Measure(m.subname(name), mos...)
 }
 
-func (m *scopeMeter) RecordBatch(ctx context.Context, labels core.LabelSet, ms ...metric.Measurement) {
+func (m *scopeMeter) RecordBatch(ctx context.Context, labels label.Set, ms ...metric.Measurement) {
 	m.provider.Meter().RecordBatch(m.enterScope(ctx), labels, ms...)
 }
 

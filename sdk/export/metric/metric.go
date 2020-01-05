@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/unit"
 )
 
@@ -171,16 +172,6 @@ type Exporter interface {
 	Export(context.Context, CheckpointSet) error
 }
 
-// LabelEncoder enables an optimization for export pipelines that use
-// text to encode their label sets.
-//
-// This interface allows configuring the encoder used in the SDK
-// and/or the Batcher so that by the time the exporter is called, the
-// same encoding may be used.
-//
-// If none is provided, a default will be used.
-type LabelEncoder = core.LabelEncoder
-
 // CheckpointSet allows a controller to access a complete checkpoint of
 // aggregated metrics from the Batcher.  This is passed to the
 // Exporter which may then use ForEach to iterate over the collection
@@ -196,16 +187,14 @@ type CheckpointSet interface {
 // and label set.
 type Record struct {
 	descriptor *Descriptor
-	labels     Labels
+	labels     label.Set
 	aggregator Aggregator
 }
-
-type Labels = core.LabelSet
 
 // NewRecord allows Batcher implementations to construct export
 // records.  The Descriptor, Labels, and Aggregator represent
 // aggregate metric events received over a single collection period.
-func NewRecord(descriptor *Descriptor, labels Labels, aggregator Aggregator) Record {
+func NewRecord(descriptor *Descriptor, labels label.Set, aggregator Aggregator) Record {
 	return Record{
 		descriptor: descriptor,
 		labels:     labels,
@@ -226,7 +215,7 @@ func (r Record) Descriptor() *Descriptor {
 
 // Labels describes the labels associated with the instrument and the
 // aggregated data.
-func (r Record) Labels() Labels {
+func (r Record) Labels() label.Set {
 	return r.labels
 }
 

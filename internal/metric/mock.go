@@ -18,13 +18,14 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/label"
 	apimetric "go.opentelemetry.io/otel/api/metric"
 )
 
 type (
 	Handle struct {
 		Instrument *Instrument
-		LabelSet   core.LabelSet
+		LabelSet   label.Set
 	}
 
 	Instrument struct {
@@ -37,7 +38,7 @@ type (
 
 	Batch struct {
 		Ctx          context.Context
-		LabelSet     core.LabelSet
+		LabelSet     label.Set
 		Measurements []Measurement
 	}
 
@@ -65,14 +66,14 @@ const (
 	KindMeasure
 )
 
-func (i *Instrument) Bind(labels core.LabelSet) apimetric.BoundInstrumentImpl {
+func (i *Instrument) Bind(labels label.Set) apimetric.BoundInstrumentImpl {
 	return &Handle{
 		Instrument: i,
 		LabelSet:   labels,
 	}
 }
 
-func (i *Instrument) RecordOne(ctx context.Context, number core.Number, labels core.LabelSet) {
+func (i *Instrument) RecordOne(ctx context.Context, number core.Number, labels label.Set) {
 	doRecordBatch(ctx, labels, i, number)
 }
 
@@ -83,7 +84,7 @@ func (h *Handle) RecordOne(ctx context.Context, number core.Number) {
 func (h *Handle) Unbind() {
 }
 
-func doRecordBatch(ctx context.Context, labelSet core.LabelSet, instrument *Instrument, number core.Number) {
+func doRecordBatch(ctx context.Context, labelSet label.Set, instrument *Instrument, number core.Number) {
 	instrument.Meter.recordMockBatch(ctx, labelSet, Measurement{
 		Instrument: instrument,
 		Number:     number,
@@ -160,7 +161,7 @@ func (m *Meter) newMeasureInstrument(name string, numberKind core.NumberKind, mo
 	}
 }
 
-func (m *Meter) RecordBatch(ctx context.Context, labels core.LabelSet, measurements ...apimetric.Measurement) {
+func (m *Meter) RecordBatch(ctx context.Context, labels label.Set, measurements ...apimetric.Measurement) {
 	mm := make([]Measurement, len(measurements))
 	for i := 0; i < len(measurements); i++ {
 		m := measurements[i]
@@ -172,7 +173,7 @@ func (m *Meter) RecordBatch(ctx context.Context, labels core.LabelSet, measureme
 	m.recordMockBatch(ctx, labels, mm...)
 }
 
-func (m *Meter) recordMockBatch(ctx context.Context, labelSet core.LabelSet, measurements ...Measurement) {
+func (m *Meter) recordMockBatch(ctx context.Context, labelSet label.Set, measurements ...Measurement) {
 	m.MeasurementBatches = append(m.MeasurementBatches, Batch{
 		Ctx:          ctx,
 		LabelSet:     labelSet,

@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel/api/context/propagation"
 	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/api/trace"
 )
@@ -83,7 +84,7 @@ type instImpl struct {
 
 type instBound struct {
 	inst   *instImpl
-	labels core.LabelSet
+	labels label.Set
 
 	initialize sync.Once
 	delegate   unsafe.Pointer // (*metric.BoundImpl)
@@ -194,7 +195,7 @@ func (inst *instImpl) setDelegate(sc scope.Scope) {
 	atomic.StorePointer(&inst.delegate, unsafe.Pointer(implPtr))
 }
 
-func (inst *instImpl) Bind(labels core.LabelSet) metric.BoundInstrumentImpl {
+func (inst *instImpl) Bind(labels label.Set) metric.BoundInstrumentImpl {
 	if implPtr := (*metric.InstrumentImpl)(atomic.LoadPointer(&inst.delegate)); implPtr != nil {
 		return (*implPtr).Bind(labels)
 	}
@@ -218,13 +219,13 @@ func (bound *instBound) Unbind() {
 
 // Metric updates
 
-func (m *meter) RecordBatch(ctx context.Context, labels core.LabelSet, measurements ...metric.Measurement) {
+func (m *meter) RecordBatch(ctx context.Context, labels label.Set, measurements ...metric.Measurement) {
 	if delegatePtr := (*scope.Scope)(atomic.LoadPointer(&m.deferred.delegate)); delegatePtr != nil {
 		(*delegatePtr).Meter().RecordBatch(ctx, labels, measurements...)
 	}
 }
 
-func (inst *instImpl) RecordOne(ctx context.Context, number core.Number, labels core.LabelSet) {
+func (inst *instImpl) RecordOne(ctx context.Context, number core.Number, labels label.Set) {
 	if instPtr := (*metric.InstrumentImpl)(atomic.LoadPointer(&inst.delegate)); instPtr != nil {
 		(*instPtr).RecordOne(ctx, number, labels)
 	}

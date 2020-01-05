@@ -21,8 +21,8 @@ import (
 
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
+	"go.opentelemetry.io/otel/api/label"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
-	sdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/counter"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/gauge"
 )
@@ -34,7 +34,7 @@ type (
 	// Output collects distinct metric/label set outputs.
 	Output struct {
 		Values  map[string]int64
-		Encoder core.LabelEncoder
+		Encoder label.Encoder
 	}
 
 	// testAggregationSelector returns aggregators consistent with
@@ -58,17 +58,17 @@ var (
 	// SdkEncoder uses a non-standard encoder like K1~V1&K2~V2
 	SdkEncoder = &Encoder{}
 	// GroupEncoder uses the SDK default encoder
-	GroupEncoder = sdk.NewDefaultLabelEncoder()
+	GroupEncoder = label.NewDefaultEncoder()
 
 	// Gauge groups are (labels1), (labels2+labels3)
 	// Counter groups are (labels1+labels2), (labels3)
 
 	// Labels1 has G=H and C=D
-	Labels1 = core.NewLabels(key.String("G", "H"), key.String("C", "D"))
+	Labels1 = label.NewSet(key.String("G", "H"), key.String("C", "D"))
 	// Labels2 has C=D and E=F
-	Labels2 = core.NewLabels(key.String("C", "D"), key.String("E", "F"))
+	Labels2 = label.NewSet(key.String("C", "D"), key.String("E", "F"))
 	// Labels3 is the empty set
-	Labels3 = core.NewLabels()
+	Labels3 = label.NewSet()
 )
 
 // NewAggregationSelector returns a policy that is consistent with the
@@ -78,7 +78,7 @@ func NewAggregationSelector() export.AggregationSelector {
 	return &testAggregationSelector{}
 }
 
-func NewOutput(labelEncoder core.LabelEncoder) *Output {
+func NewOutput(labelEncoder label.Encoder) *Output {
 	return &Output{
 		Values:  map[string]int64{},
 		Encoder: labelEncoder,
@@ -119,12 +119,12 @@ func GaugeAgg(desc *export.Descriptor, v int64) export.Aggregator {
 }
 
 // Convenience method for building a test exported gauge record.
-func NewGaugeRecord(desc *export.Descriptor, labels export.Labels, value int64) export.Record {
+func NewGaugeRecord(desc *export.Descriptor, labels label.Set, value int64) export.Record {
 	return export.NewRecord(desc, labels, GaugeAgg(desc, value))
 }
 
 // Convenience method for building a test exported counter record.
-func NewCounterRecord(desc *export.Descriptor, labels export.Labels, value int64) export.Record {
+func NewCounterRecord(desc *export.Descriptor, labels label.Set, value int64) export.Record {
 	return export.NewRecord(desc, labels, CounterAgg(desc, value))
 }
 

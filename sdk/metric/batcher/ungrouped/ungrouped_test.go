@@ -21,8 +21,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/label"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
-	sdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/batcher/test"
 	"go.opentelemetry.io/otel/sdk/metric/batcher/ungrouped"
 )
@@ -31,7 +31,7 @@ import (
 
 func TestUngroupedStateless(t *testing.T) {
 	ctx := context.Background()
-	b := ungrouped.New(test.NewAggregationSelector(), sdk.NewDefaultLabelEncoder(), false)
+	b := ungrouped.New(test.NewAggregationSelector(), label.NewDefaultEncoder(), false)
 
 	// Set initial gauge values
 	_ = b.Process(ctx, test.NewGaugeRecord(test.GaugeADesc, test.Labels1, 10))
@@ -92,7 +92,7 @@ func TestUngroupedStateless(t *testing.T) {
 
 func TestUngroupedStateful(t *testing.T) {
 	ctx := context.Background()
-	b := ungrouped.New(test.NewAggregationSelector(), sdk.NewDefaultLabelEncoder(), true)
+	b := ungrouped.New(test.NewAggregationSelector(), label.NewDefaultEncoder(), true)
 
 	counterA := test.NewCounterRecord(test.CounterADesc, test.Labels1, 10)
 	caggA := counterA.Aggregator()

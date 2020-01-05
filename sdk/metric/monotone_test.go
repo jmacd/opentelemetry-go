@@ -23,6 +23,7 @@ import (
 
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
+	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/metric"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/export/metric/aggregator"
@@ -70,13 +71,13 @@ func TestMonotoneGauge(t *testing.T) {
 	batcher := &monotoneBatcher{
 		t: t,
 	}
-	sdk := sdk.New(batcher, sdk.NewDefaultLabelEncoder())
+	sdk := sdk.New(batcher, label.NewDefaultEncoder())
 
 	sdk.SetErrorHandler(func(error) { t.Fatal("Unexpected") })
 
 	gauge := sdk.NewInt64Gauge("my.gauge.name", metric.WithMonotonic(true))
 
-	handle := gauge.Bind(core.NewLabels(key.String("a", "b")))
+	handle := gauge.Bind(label.NewSet(key.String("a", "b")))
 
 	require.Nil(t, batcher.currentTime)
 	require.Nil(t, batcher.currentValue)

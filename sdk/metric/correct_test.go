@@ -24,6 +24,7 @@ import (
 
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
+	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/metric"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/export/metric/aggregator"
@@ -69,7 +70,7 @@ func TestInputRangeTestCounter(t *testing.T) {
 		t:   t,
 		agg: cagg,
 	}
-	sdk := sdk.New(batcher, sdk.NewDefaultLabelEncoder())
+	sdk := sdk.New(batcher, label.NewDefaultEncoder())
 
 	var sdkErr error
 	sdk.SetErrorHandler(func(handleErr error) {
@@ -78,7 +79,7 @@ func TestInputRangeTestCounter(t *testing.T) {
 
 	counter := sdk.NewInt64Counter("counter.name", metric.WithMonotonic(true))
 
-	counter.Add(ctx, -1, core.NewLabels())
+	counter.Add(ctx, -1, label.NewSet())
 	require.Equal(t, aggregator.ErrNegativeInput, sdkErr)
 	sdkErr = nil
 
@@ -87,7 +88,7 @@ func TestInputRangeTestCounter(t *testing.T) {
 	require.Equal(t, int64(0), sum.AsInt64())
 	require.Nil(t, err)
 
-	counter.Add(ctx, 1, core.NewLabels())
+	counter.Add(ctx, 1, label.NewSet())
 	checkpointed := sdk.Collect(ctx)
 
 	sum, err = cagg.Sum()
@@ -104,7 +105,7 @@ func TestInputRangeTestMeasure(t *testing.T) {
 		t:   t,
 		agg: magg,
 	}
-	sdk := sdk.New(batcher, sdk.NewDefaultLabelEncoder())
+	sdk := sdk.New(batcher, label.NewDefaultEncoder())
 
 	var sdkErr error
 	sdk.SetErrorHandler(func(handleErr error) {
@@ -113,7 +114,7 @@ func TestInputRangeTestMeasure(t *testing.T) {
 
 	measure := sdk.NewFloat64Measure("measure.name", metric.WithAbsolute(true))
 
-	measure.Record(ctx, -1, core.NewLabels())
+	measure.Record(ctx, -1, label.NewSet())
 	require.Equal(t, aggregator.ErrNegativeInput, sdkErr)
 	sdkErr = nil
 
@@ -122,8 +123,8 @@ func TestInputRangeTestMeasure(t *testing.T) {
 	require.Equal(t, int64(0), count)
 	require.Nil(t, err)
 
-	measure.Record(ctx, 1, core.NewLabels())
-	measure.Record(ctx, 2, core.NewLabels())
+	measure.Record(ctx, 1, label.NewSet())
+	measure.Record(ctx, 2, label.NewSet())
 	checkpointed := sdk.Collect(ctx)
 
 	count, err = magg.Count()
@@ -139,10 +140,10 @@ func TestDisabledInstrument(t *testing.T) {
 		t:   t,
 		agg: nil,
 	}
-	sdk := sdk.New(batcher, sdk.NewDefaultLabelEncoder())
+	sdk := sdk.New(batcher, label.NewDefaultEncoder())
 	measure := sdk.NewFloat64Measure("measure.name", metric.WithAbsolute(true))
 
-	measure.Record(ctx, -1, core.NewLabels())
+	measure.Record(ctx, -1, label.NewSet())
 	checkpointed := sdk.Collect(ctx)
 
 	require.Equal(t, 0, checkpointed)
@@ -154,7 +155,7 @@ func TestRecordNaN(t *testing.T) {
 		t:   t,
 		agg: gauge.New(),
 	}
-	sdk := sdk.New(batcher, sdk.NewDefaultLabelEncoder())
+	sdk := sdk.New(batcher, label.NewDefaultEncoder())
 
 	var sdkErr error
 	sdk.SetErrorHandler(func(handleErr error) {
@@ -163,7 +164,7 @@ func TestRecordNaN(t *testing.T) {
 	g := sdk.NewFloat64Gauge("gauge.name")
 
 	require.Nil(t, sdkErr)
-	g.Set(ctx, math.NaN(), core.NewLabels())
+	g.Set(ctx, math.NaN(), label.NewSet())
 	require.Error(t, sdkErr)
 }
 
@@ -178,7 +179,7 @@ func TestSDKLabelEncoder(t *testing.T) {
 	sdk := sdk.New(batcher, enc)
 
 	measure := sdk.NewFloat64Measure("measure")
-	measure.Record(ctx, 1, core.NewLabels(key.String("A", "B"), key.String("C", "D")))
+	measure.Record(ctx, 1, label.NewSet(key.String("A", "B"), key.String("C", "D")))
 
 	sdk.Collect(ctx)
 
@@ -189,7 +190,7 @@ func TestSDKLabelEncoder(t *testing.T) {
 }
 
 func TestDefaultLabelEncoder(t *testing.T) {
-	encoder := sdk.NewDefaultLabelEncoder()
+	encoder := label.NewDefaultEncoder()
 	encoded := encoder.Encode([]core.KeyValue{key.String("A", "B"), key.String("C", "D")})
 	require.Equal(t, `A=B,C=D`, encoded)
 }

@@ -18,13 +18,14 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/label"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 )
 
 type (
 	Batcher struct {
 		selector      export.AggregationSelector
-		labelEncoder  export.LabelEncoder
+		labelEncoder  label.Encoder
 		stateful      bool
 		descKeyIndex  descKeyIndexMap
 		aggCheckpoint aggCheckpointMap
@@ -47,14 +48,14 @@ type (
 
 	checkpointSet struct {
 		aggCheckpointMap aggCheckpointMap
-		labelEncoder     export.LabelEncoder
+		labelEncoder     label.Encoder
 	}
 )
 
 var _ export.Batcher = &Batcher{}
 var _ export.CheckpointSet = &checkpointSet{}
 
-func New(selector export.AggregationSelector, labelEncoder export.LabelEncoder, stateful bool) *Batcher {
+func New(selector export.AggregationSelector, labelEncoder label.Encoder, stateful bool) *Batcher {
 	return &Batcher{
 		selector:      selector,
 		labelEncoder:  labelEncoder,
@@ -104,7 +105,7 @@ func (b *Batcher) Process(_ context.Context, record export.Record) error {
 	}
 
 	// Compute an encoded lookup key.
-	labelSet := core.NewLabels(outputLabels...)
+	labelSet := label.NewSet(outputLabels...)
 
 	// Merge this aggregator with all preceding aggregators that
 	// map to the same set of `outputLabels` labels.

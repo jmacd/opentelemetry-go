@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/label"
 )
 
 // Float64Gauge is a metric that stores the last float64 value.
@@ -51,7 +52,7 @@ type BoundInt64Gauge struct {
 // If the labels do not contain a value for the key specified in the
 // gauge with the WithKeys option, then the missing value will be
 // treated as unspecified.
-func (g *Float64Gauge) Bind(labels core.LabelSet) (h BoundFloat64Gauge) {
+func (g *Float64Gauge) Bind(labels label.Set) (h BoundFloat64Gauge) {
 	h.commonBoundInstrument = g.bind(labels)
 	return
 }
@@ -63,7 +64,7 @@ func (g *Float64Gauge) Bind(labels core.LabelSet) (h BoundFloat64Gauge) {
 // If the labels do not contain a value for the key specified in the
 // gauge with the WithKeys option, then the missing value will be
 // treated as unspecified.
-func (g *Int64Gauge) Bind(labels core.LabelSet) (h BoundInt64Gauge) {
+func (g *Int64Gauge) Bind(labels label.Set) (h BoundInt64Gauge) {
 	h.commonBoundInstrument = g.bind(labels)
 	return
 }
@@ -87,7 +88,7 @@ func (g *Int64Gauge) Measurement(value int64) Measurement {
 // If the labels do not contain a value for the key specified in the
 // gauge with the WithKeys option, then the missing value will be
 // treated as unspecified.
-func (g *Float64Gauge) Set(ctx context.Context, value float64, labels core.LabelSet) {
+func (g *Float64Gauge) Set(ctx context.Context, value float64, labels label.Set) {
 	g.directRecord(ctx, core.NewFloat64Number(value), labels)
 }
 
@@ -98,7 +99,7 @@ func (g *Float64Gauge) Set(ctx context.Context, value float64, labels core.Label
 // If the labels do not contain a value for the key specified in the
 // gauge with the WithKeys option, then the missing value will be
 // treated as unspecified.
-func (g *Int64Gauge) Set(ctx context.Context, value int64, labels core.LabelSet) {
+func (g *Int64Gauge) Set(ctx context.Context, value int64, labels label.Set) {
 	g.directRecord(ctx, core.NewInt64Number(value), labels)
 }
 
