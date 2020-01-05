@@ -37,7 +37,7 @@ func ExampleNewExportPipeline() {
 	// {
 	// 	"updates": [
 	// 		{
-	// 			"name": "a.counter{key=value}",
+	// 			"name": "example/a.counter{key=value}",
 	// 			"sum": 100
 	// 		}
 	// 	]
