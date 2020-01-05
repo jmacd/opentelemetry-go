@@ -19,7 +19,6 @@ import (
 	"net/http"
 
 	"go.opentelemetry.io/otel/api/context/propagation"
-	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/trace"
@@ -226,7 +225,7 @@ func setAfterServeAttributes(span trace.Span, read, wrote, statusCode int64, rer
 // RouteKey Tag.
 func WithRouteTag(route string, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		span := scope.Current(r.Context()).Span()
+		span := trace.SpanFromContext(r.Context())
 		span.SetAttributes(RouteKey.String(route))
 		h.ServeHTTP(w, r)
 	})

@@ -3,14 +3,13 @@ package parent
 import (
 	"context"
 
-	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/api/trace/propagation"
 )
 
 func getEffective(ctx context.Context) (core.SpanContext, bool) {
-	scc := scope.Current(ctx)
-	scp := scc.Span()
+	scp := trace.SpanFromContext(ctx)
 	if sctx := scp.SpanContext(); sctx.IsValid() {
 		return sctx, false
 	}

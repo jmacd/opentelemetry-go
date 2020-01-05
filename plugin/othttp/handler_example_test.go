@@ -25,6 +25,7 @@ import (
 	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/exporter/trace/stdout"
 	"go.opentelemetry.io/otel/plugin/othttp"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -65,7 +66,7 @@ func ExampleNewHandler() {
 		case "":
 			err = fmt.Errorf("expected /hello/:name in %q", s)
 		default:
-			scope.Current(ctx).Span().SetAttributes(core.Key("name").String(pp[1]))
+			trace.SpanFromContext(ctx).SetAttributes(core.Key("name").String(pp[1]))
 		}
 		return pp[1], err
 	}

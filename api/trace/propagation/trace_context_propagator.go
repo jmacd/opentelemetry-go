@@ -22,8 +22,8 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/otel/api/context/propagation"
-	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/trace"
 )
 
 const (
@@ -40,7 +40,7 @@ var _ propagation.HTTPPropagator = TraceContext{}
 var traceCtxRegExp = regexp.MustCompile("^[0-9a-f]{2}-[a-f0-9]{32}-[a-f0-9]{16}-[a-f0-9]{2}-?")
 
 func (TraceContext) Inject(ctx context.Context, supplier propagation.HTTPSupplier) {
-	sc := scope.Current(ctx).Span().SpanContext()
+	sc := trace.SpanFromContext(ctx).SpanContext()
 	if !sc.IsValid() {
 		return
 	}

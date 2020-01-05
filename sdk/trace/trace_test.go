@@ -699,7 +699,8 @@ func TestEndSpanTwice(t *testing.T) {
 
 func TestStartSpanAfterEnd(t *testing.T) {
 	spans := make(fakeExporter)
-	tr, _ := NewTracer(WithConfig(Config{DefaultSampler: AlwaysSample()}), WithSyncer(spans))
+	tri, _ := NewTracer(WithConfig(Config{DefaultSampler: AlwaysSample()}), WithSyncer(spans))
+	tr := scope.Empty().WithTracer(tri).Named("SpanAfterEnd").Tracer()
 	ctx := context.Background()
 
 	ctx, span0 := tr.Start(ctx, "parent", apitrace.WithParent(propagation.WithRemoteContext(ctx, remoteSpanContext())))
@@ -713,6 +714,7 @@ func TestStartSpanAfterEnd(t *testing.T) {
 	if got, want := len(spans), 3; got != want {
 		t.Fatalf("len(%#v) = %d; want %d", spans, got, want)
 	}
+
 	if got, want := spans["SpanAfterEnd/span-1"].SpanContext.TraceID, spans["SpanAfterEnd/parent"].SpanContext.TraceID; got != want {
 		t.Errorf("span-1.TraceID=%q; want %q", got, want)
 	}

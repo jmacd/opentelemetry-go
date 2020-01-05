@@ -23,7 +23,6 @@ import (
 
 	"google.golang.org/grpc/codes"
 
-	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/internal/matchers"
@@ -80,7 +79,7 @@ func (h *Harness) TestTracer(subjectFactory func() trace.Tracer) {
 
 			e.Expect(span).NotToBeNil()
 			e.Expect(span.SpanContext()).NotToEqual(core.EmptySpanContext())
-			e.Expect(scope.Current(ctx).Span()).ToEqual(span)
+			e.Expect(trace.SpanFromContext(ctx)).ToEqual(span)
 		})
 
 		t.Run("starts spans with unique trace and span IDs", func(t *testing.T) {
@@ -204,7 +203,7 @@ func (h *Harness) TestTracer(subjectFactory func() trace.Tracer) {
 			var span trace.Span
 
 			err := subject.WithSpan(context.Background(), "test", func(ctx context.Context) error {
-				span = scope.Current(ctx).Span()
+				span = trace.SpanFromContext(ctx)
 
 				return nil
 			})
@@ -227,7 +226,7 @@ func (h *Harness) TestTracer(subjectFactory func() trace.Tracer) {
 			var span2 trace.Span
 
 			err := subject.WithSpan(context.Background(), "span1", func(ctx context.Context) error {
-				span1 = scope.Current(ctx).Span()
+				span1 = trace.SpanFromContext(ctx)
 
 				return nil
 			})
@@ -235,7 +234,7 @@ func (h *Harness) TestTracer(subjectFactory func() trace.Tracer) {
 			e.Expect(err).ToBeNil()
 
 			err = subject.WithSpan(context.Background(), "span2", func(ctx context.Context) error {
-				span2 = scope.Current(ctx).Span()
+				span2 = trace.SpanFromContext(ctx)
 
 				return nil
 			})
@@ -260,7 +259,7 @@ func (h *Harness) TestTracer(subjectFactory func() trace.Tracer) {
 			var child trace.Span
 
 			err := subject.WithSpan(ctx, "child", func(ctx context.Context) error {
-				child = scope.Current(ctx).Span()
+				child = trace.SpanFromContext(ctx)
 
 				return nil
 			})
@@ -317,7 +316,7 @@ func (h *Harness) testSpan(tracerFactory func() trace.Tracer) {
 				return nil
 			})
 
-			return scope.Current(actualCtx).Span()
+			return trace.SpanFromContext(actualCtx)
 		},
 	}
 

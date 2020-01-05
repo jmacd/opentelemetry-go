@@ -61,6 +61,7 @@ func defaultScopeValue() *atomic.Value {
 	return v
 }
 
+// TODO move me into propagation package
 // getDefaultPropagators returns a default Propagators, configured
 // with W3C trace context propagation.
 func getDefaultPropagators() propagation.Propagators {

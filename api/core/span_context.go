@@ -172,16 +172,24 @@ func (sc SpanContext) HasSpanID() bool {
 // SpanIDString returns a hex string representation of the span ID in
 // the span context.
 func (sc SpanContext) SpanIDString() string {
-	return hex.EncodeToString(sc.SpanID[:])
+	return sc.SpanID.String()
 }
 
 // TraceIDString returns a hex string representation of the trace ID
 // in the span context.
 func (sc SpanContext) TraceIDString() string {
-	return hex.EncodeToString(sc.TraceID[:])
+	return sc.TraceID.String()
 }
 
 // IsSampled check if the sampling bit in trace flags is set.
 func (sc SpanContext) IsSampled() bool {
 	return sc.TraceFlags&traceFlagsBitMaskSampled == traceFlagsBitMaskSampled
+}
+
+func (sid SpanID) String() string {
+	return hex.EncodeToString(sid[:])
+}
+
+func (tid TraceID) String() string {
+	return hex.EncodeToString(tid[:])
 }

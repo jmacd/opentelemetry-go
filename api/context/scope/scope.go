@@ -39,7 +39,6 @@ type (
 	}
 
 	scopeImpl struct {
-		span        trace.Span
 		resources   baggage.Map
 		provider    *Provider
 		scopeTracer scopeTracer
@@ -94,7 +93,6 @@ func (p *Provider) Propagators() propagation.Propagators {
 
 func (p *Provider) New() Scope {
 	si := &scopeImpl{
-		span:      trace.NoopSpan{},
 		resources: baggage.NewEmptyMap(),
 		provider:  p,
 	}
@@ -107,11 +105,23 @@ func Empty() Scope {
 	return Scope{}
 }
 
-func (s Scope) Named(name string) Scope {
-	ri := *s.scopeImpl
-	ri.resources = ri.resources.Apply(baggage.MapUpdate{
-		SingleKV: namespaceKey.String(name),
-	})
+// func (si *scopeImpl) copy(s Scope) {
+// 	si.provider = nilProvider
+// 	if s.scopeImpl != nil {
+// 		si = *s.scopeImpl
+// 	}
+// 	si.scopeMeter.scopeImpl = &si
+// 	si.scopeTracer.scopeImpl = &si
+// }
+
+func (s Scope) clone() Scope {
+	var ri scopeImpl
+	if s.scopeImpl != nil {
+		ri.provider = s.provider
+		ri.resources = s.resources
+	} else {
+		ri.provider = nilProvider
+	}
 	ri.scopeMeter.scopeImpl = &ri
 	ri.scopeTracer.scopeImpl = &ri
 	return Scope{
@@ -119,32 +129,30 @@ func (s Scope) Named(name string) Scope {
 	}
 }
 
-func (s Scope) WithSpan(span trace.Span) Scope {
-	var ri scopeImpl
-	ri.provider = nilProvider
-	if s.scopeImpl != nil {
-		ri = *s.scopeImpl
-	}
-	ri.span = span
-	ri.scopeMeter.scopeImpl = &ri
-	ri.scopeTracer.scopeImpl = &ri
-	return Scope{
-		scopeImpl: &ri,
-	}
+func (s Scope) Named(name string) Scope {
+	r := s.clone()
+	r.resources = s.resources.Apply(baggage.MapUpdate{
+		SingleKV: namespaceKey.String(name),
+	})
+	return r
 }
 
 func (s Scope) WithMeter(meter metric.Meter) Scope {
-	var ri scopeImpl
-	ri.provider = nilProvider
-	if s.scopeImpl != nil {
-		ri = *s.scopeImpl
-	}
-	ri.provider = NewProvider(ri.provider.tracer, meter, ri.provider.propagators)
-	ri.scopeMeter.scopeImpl = &ri
-	ri.scopeTracer.scopeImpl = &ri
-	return Scope{
-		scopeImpl: &ri,
-	}
+	r := s.clone()
+	r.provider = NewProvider(r.provider.tracer, meter, r.provider.propagators)
+	return r
+}
+
+func (s Scope) WithTracer(tracer trace.Tracer) Scope {
+	r := s.clone()
+	r.provider = NewProvider(tracer, r.provider.meter, r.provider.propagators)
+	return r
+}
+
+func (s Scope) WithPropagators(propagators propagation.Propagators) Scope {
+	r := s.clone()
+	r.provider = NewProvider(r.provider.tracer, r.provider.meter, propagators)
+	return r
 }
 
 func (s Scope) Provider() *Provider {
@@ -154,26 +162,31 @@ func (s Scope) Provider() *Provider {
 	return s.provider
 }
 
-func (s Scope) Span() trace.Span {
-	if s.scopeImpl == nil {
-		return trace.NoopSpan{}
-	}
-	return s.scopeImpl.span
-}
-
 func (s Scope) Resources() baggage.Map {
+	if s.scopeImpl == nil {
+		return baggage.NewEmptyMap()
+	}
 	return s.resources
 }
 
 func (s Scope) Tracer() trace.Tracer {
+	if s.scopeImpl == nil {
+		return trace.NoopTracer{}
+	}
 	return &s.scopeTracer
 }
 
 func (s Scope) Meter() metric.Meter {
+	if s.scopeImpl == nil {
+		return metric.NoopMeter{}
+	}
 	return &s.scopeMeter
 }
 
 func (s Scope) Propagators() propagation.Propagators {
+	if s.scopeImpl == nil {
+		// return propagation.Default
+	}
 	return s.provider.Propagators()
 }
 
@@ -182,6 +195,7 @@ func (s *scopeImpl) enterScope(ctx context.Context) context.Context {
 	if o.scopeImpl == s {
 		return ctx
 	}
+	// @@@ OK OK OK
 	return ContextWithScope(ctx, Scope{s})
 }
 
@@ -245,5 +259,8 @@ func (m *scopeMeter) RecordBatch(ctx context.Context, labels core.LabelSet, ms .
 }
 
 func (s Scope) String() string {
-	return fmt.Sprintf("{ %v }", s.resources)
+	if s.scopeImpl == nil {
+		return "{ empty }"
+	}
+	return fmt.Sprintf("{ res=%v }", s.resources)
 }
