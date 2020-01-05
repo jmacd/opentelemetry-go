@@ -169,6 +169,11 @@ func (s Scope) Resources() baggage.Map {
 	return s.resources
 }
 
+func (s Scope) Name() string {
+	val, _ := s.Resources().Value(namespaceKey)
+	return val.AsString()
+}
+
 func (s Scope) Tracer() trace.Tracer {
 	if s.scopeImpl == nil {
 		return trace.NoopTracer{}
