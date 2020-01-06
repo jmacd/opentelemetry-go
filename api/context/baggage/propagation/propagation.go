@@ -32,9 +32,7 @@ func WithMap(ctx context.Context, m baggage.Map) context.Context {
 
 // WithMap enters a key:value set into a new Context.
 func NewContext(ctx context.Context, keyvalues ...core.KeyValue) context.Context {
-	return WithMap(ctx, FromContext(ctx).Apply(baggage.MapUpdate{
-		MultiKV: keyvalues,
-	}))
+	return WithMap(ctx, FromContext(ctx).AddMany(keyvalues...))
 }
 
 // FromContext gets the current baggage.Map from a Context.
@@ -106,9 +104,7 @@ func (CorrelationContext) Extract(ctx context.Context, supplier propagation.HTTP
 
 		keyValues = append(keyValues, key.New(trimmedName).String(trimmedValueWithProps.String()))
 	}
-	return WithMap(ctx, baggage.New(baggage.MapUpdate{
-		MultiKV: keyValues,
-	}))
+	return WithMap(ctx, baggage.New(keyValues...))
 }
 
 // GetAllKeys implements HTTPPropagator.

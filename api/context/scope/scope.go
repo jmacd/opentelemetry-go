@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 
-	"go.opentelemetry.io/otel/api/context/baggage"
 	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/context/propagation"
 	"go.opentelemetry.io/otel/api/core"
@@ -36,7 +35,7 @@ type (
 	}
 
 	scopeImpl struct {
-		resources   baggage.Map
+		resources   label.Set
 		provider    *Provider
 		scopeTracer scopeTracer
 		scopeMeter  scopeMeter
@@ -90,7 +89,7 @@ func (p *Provider) Propagators() propagation.Propagators {
 
 func (p *Provider) New() Scope {
 	si := &scopeImpl{
-		resources: baggage.Empty(),
+		resources: label.Empty(),
 		provider:  p,
 	}
 	si.scopeMeter.scopeImpl = si
@@ -128,9 +127,7 @@ func (s Scope) clone() Scope {
 
 func (s Scope) Named(name string) Scope {
 	r := s.clone()
-	r.resources = s.resources.Apply(baggage.MapUpdate{
-		SingleKV: namespaceKey.String(name),
-	})
+	r.resources = s.resources.Add1(namespaceKey.String(name))
 	return r
 }
 
@@ -159,9 +156,9 @@ func (s Scope) Provider() *Provider {
 	return s.provider
 }
 
-func (s Scope) Resources() baggage.Map {
+func (s Scope) Resources() label.Set {
 	if s.scopeImpl == nil {
-		return baggage.Empty()
+		return label.Empty()
 	}
 	return s.resources
 }

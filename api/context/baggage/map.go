@@ -19,40 +19,24 @@ import (
 	"go.opentelemetry.io/otel/api/core"
 )
 
-// TODO Comments needed! This was formerly known as distributedcontext.Map
-
 type Map struct {
 	set *internal.Set
-}
-
-type MapUpdate struct {
-	SingleKV core.KeyValue
-	MultiKV  []core.KeyValue
 }
 
 func Empty() Map {
 	return Map{internal.EmptySet()}
 }
 
-func New(update MapUpdate) Map {
-	return Empty().Apply(update)
+func New(kvs ...core.KeyValue) Map {
+	return Empty().AddMany(kvs...)
 }
 
-func (m Map) Apply(update MapUpdate) Map {
-	one := 0
-	if update.SingleKV.Key.Defined() {
-		one = 1
-	}
+func (m Map) AddOne(kv core.KeyValue) Map {
+	return Map{m.set.AddOne(kv)}
+}
 
-	set := make([]core.KeyValue, 0, m.Len()+len(update.MultiKV)+one)
-	set = append(set, m.set.Ordered()...)
-	if one == 1 {
-		set = append(set, update.SingleKV)
-	}
-
-	set = append(set, update.MultiKV...)
-
-	return Map{set: internal.NewSet(set...)}
+func (m Map) AddMany(kvs ...core.KeyValue) Map {
+	return Map{m.set.AddMany(kvs...)}
 }
 
 func (m Map) Value(k core.Key) (core.Value, bool) {

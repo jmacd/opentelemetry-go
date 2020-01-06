@@ -36,6 +36,11 @@ type Set struct {
 	encoded  [maxConcurrentEncoders]string
 }
 
+type update struct {
+	singleKV core.KeyValue
+	multiKV  []core.KeyValue
+}
+
 var emptySet = &Set{}
 
 func EmptySet() *Set {
@@ -143,6 +148,34 @@ func (l *Set) Equals(o *Set) bool {
 		}
 	}
 	return true
+}
+
+func (l *Set) AddOne(kv core.KeyValue) *Set {
+	return l.apply(update{singleKV: kv})
+}
+
+func (l *Set) AddMany(kvs ...core.KeyValue) *Set {
+	return l.apply(update{multiKV: kvs})
+}
+
+func (l *Set) apply(update update) *Set {
+	if l == nil {
+		l = emptySet
+	}
+	one := 0
+	if update.singleKV.Key.Defined() {
+		one = 1
+	}
+
+	set := make([]core.KeyValue, 0, l.Len()+len(update.multiKV)+one)
+	set = append(set, l.ordered...)
+	if one == 1 {
+		set = append(set, update.singleKV)
+	}
+
+	set = append(set, update.multiKV...)
+
+	return NewSet(set...)
 }
 
 // NewSet builds a Labels object, consisting of an ordered set of
