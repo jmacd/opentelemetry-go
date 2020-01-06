@@ -8,12 +8,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/global/internal"
 	"go.opentelemetry.io/otel/api/key"
-	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/exporter/metric/stdout"
 	metrictest "go.opentelemetry.io/otel/internal/metric"

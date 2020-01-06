@@ -3,8 +3,8 @@ package metric
 import (
 	"context"
 
+	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/core"
-	"go.opentelemetry.io/otel/api/label"
 )
 
 type NoopMeter struct{}

@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"strings"
 
+	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
-	"go.opentelemetry.io/otel/api/label"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/counter"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/gauge"

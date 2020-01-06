@@ -17,7 +17,7 @@ package ungrouped // import "go.opentelemetry.io/otel/sdk/metric/batcher/ungroup
 import (
 	"context"
 
-	"go.opentelemetry.io/otel/api/label"
+	"go.opentelemetry.io/otel/api/context/label"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 )
 

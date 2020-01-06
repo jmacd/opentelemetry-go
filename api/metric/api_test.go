@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"testing"
 
+	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
-	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/api/unit"
 	mock "go.opentelemetry.io/otel/internal/metric"

@@ -20,8 +20,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/core"
-	"go.opentelemetry.io/otel/api/label"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/metric/batcher/defaultkeys"
 	"go.opentelemetry.io/otel/sdk/metric/batcher/test"

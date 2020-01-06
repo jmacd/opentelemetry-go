@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"go.opentelemetry.io/otel/api/label"
+	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/metric"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	sdk "go.opentelemetry.io/otel/sdk/metric"

@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"go.opentelemetry.io/otel/api/label"
+	"go.opentelemetry.io/otel/api/context/label"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/export/metric/aggregator"
 	"go.opentelemetry.io/otel/sdk/metric/batcher/defaultkeys"

@@ -17,8 +17,8 @@ package defaultkeys // import "go.opentelemetry.io/otel/sdk/metric/batcher/defau
 import (
 	"context"
 
+	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/core"
-	"go.opentelemetry.io/otel/api/label"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 )
 

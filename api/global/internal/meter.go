@@ -7,10 +7,10 @@ import (
 	"unsafe"
 
 	"go.opentelemetry.io/otel/api/context/baggage"
+	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/context/propagation"
 	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
-	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/api/trace"
 )

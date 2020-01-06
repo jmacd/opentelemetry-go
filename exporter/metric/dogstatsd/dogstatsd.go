@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"time"
 
-	"go.opentelemetry.io/otel/api/label"
+	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/exporter/metric/internal/statsd"
 
 	export "go.opentelemetry.io/otel/sdk/export/metric"

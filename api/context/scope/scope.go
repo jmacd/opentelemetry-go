@@ -13,10 +13,6 @@
 // limitations under the License.
 
 // TODO:
-// (0) Why is meter_test.go not passing?
-// (2) Place a NOTE about non-scope-ful Propagators.
-// (4) Resources are LabelSets
-// (5) Label API moves into api/label
 // (6) Add static Meter.New*() helpers, give (ctx context.Context) param to all Meter.New* APIs.
 // (9) Get first-class about Namespaces
 
@@ -27,9 +23,9 @@ import (
 	"fmt"
 
 	"go.opentelemetry.io/otel/api/context/baggage"
+	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/context/propagation"
 	"go.opentelemetry.io/otel/api/core"
-	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/api/trace"
 )
@@ -191,6 +187,7 @@ func (s Scope) Meter() metric.Meter {
 
 func (s Scope) Propagators() propagation.Propagators {
 	if s.scopeImpl == nil {
+		// TODO
 		// return propagation.Default
 	}
 	return s.provider.Propagators()
@@ -201,7 +198,6 @@ func (s *scopeImpl) enterScope(ctx context.Context) context.Context {
 	if o.scopeImpl == s {
 		return ctx
 	}
-	// @@@ OK OK OK
 	return ContextWithScope(ctx, Scope{s})
 }
 

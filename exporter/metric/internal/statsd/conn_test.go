@@ -24,9 +24,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
-	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/unit"
 	"go.opentelemetry.io/otel/exporter/metric/internal/statsd"
 	"go.opentelemetry.io/otel/exporter/metric/test"

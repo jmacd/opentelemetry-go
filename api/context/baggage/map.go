@@ -15,8 +15,8 @@
 package baggage
 
 import (
+	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/core"
-	"go.opentelemetry.io/otel/api/label"
 )
 
 // TODO Comments needed! This was formerly known as distributedcontext.Map
