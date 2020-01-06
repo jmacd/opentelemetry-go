@@ -7,7 +7,6 @@ import (
 	"unsafe"
 
 	"go.opentelemetry.io/otel/api/context/baggage"
-	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/context/propagation"
 	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
@@ -83,8 +82,9 @@ type instImpl struct {
 }
 
 type instBound struct {
+	ctx    context.Context
 	inst   *instImpl
-	labels label.Set
+	labels []core.KeyValue
 
 	initialize sync.Once
 	delegate   unsafe.Pointer // (*metric.BoundImpl)
@@ -195,9 +195,9 @@ func (inst *instImpl) setDelegate(sc scope.Scope) {
 	atomic.StorePointer(&inst.delegate, unsafe.Pointer(implPtr))
 }
 
-func (inst *instImpl) Bind(labels label.Set) metric.BoundInstrumentImpl {
+func (inst *instImpl) Bind(ctx context.Context, labels []core.KeyValue) metric.BoundInstrumentImpl {
 	if implPtr := (*metric.InstrumentImpl)(atomic.LoadPointer(&inst.delegate)); implPtr != nil {
-		return (*implPtr).Bind(labels)
+		return (*implPtr).Bind(ctx, labels)
 	}
 	return &instBound{
 		inst:   inst,
@@ -219,13 +219,13 @@ func (bound *instBound) Unbind() {
 
 // Metric updates
 
-func (m *meter) RecordBatch(ctx context.Context, labels label.Set, measurements ...metric.Measurement) {
+func (m *meter) RecordBatch(ctx context.Context, labels []core.KeyValue, measurements ...metric.Measurement) {
 	if delegatePtr := (*scope.Scope)(atomic.LoadPointer(&m.deferred.delegate)); delegatePtr != nil {
 		(*delegatePtr).Meter().RecordBatch(ctx, labels, measurements...)
 	}
 }
 
-func (inst *instImpl) RecordOne(ctx context.Context, number core.Number, labels label.Set) {
+func (inst *instImpl) RecordOne(ctx context.Context, number core.Number, labels []core.KeyValue) {
 	if instPtr := (*metric.InstrumentImpl)(atomic.LoadPointer(&inst.delegate)); instPtr != nil {
 		(*instPtr).RecordOne(ctx, number, labels)
 	}
@@ -241,7 +241,7 @@ func (bound *instBound) RecordOne(ctx context.Context, number core.Number) {
 	var implPtr *metric.BoundInstrumentImpl
 	bound.initialize.Do(func() {
 		implPtr = new(metric.BoundInstrumentImpl)
-		*implPtr = (*instPtr).Bind(bound.labels)
+		*implPtr = (*instPtr).Bind(bound.ctx, bound.labels)
 		atomic.StorePointer(&bound.delegate, unsafe.Pointer(implPtr))
 	})
 	if implPtr == nil {

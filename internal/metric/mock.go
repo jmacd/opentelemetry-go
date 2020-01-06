@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel/api/context/label"
+	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	apimetric "go.opentelemetry.io/otel/api/metric"
 )
@@ -25,7 +26,7 @@ import (
 type (
 	Handle struct {
 		Instrument *Instrument
-		LabelSet   label.Set
+		Labels     label.Set
 	}
 
 	Instrument struct {
@@ -37,8 +38,7 @@ type (
 	}
 
 	Batch struct {
-		Ctx          context.Context
-		LabelSet     label.Set
+		Labels       label.Set
 		Measurements []Measurement
 	}
 
@@ -66,26 +66,26 @@ const (
 	KindMeasure
 )
 
-func (i *Instrument) Bind(labels label.Set) apimetric.BoundInstrumentImpl {
+func (i *Instrument) Bind(ctx context.Context, labels []core.KeyValue) apimetric.BoundInstrumentImpl {
 	return &Handle{
 		Instrument: i,
-		LabelSet:   labels,
+		Labels:     scope.Current(ctx).AddResources(labels...).Resources(),
 	}
 }
 
-func (i *Instrument) RecordOne(ctx context.Context, number core.Number, labels label.Set) {
+func (i *Instrument) RecordOne(ctx context.Context, number core.Number, labels []core.KeyValue) {
 	doRecordBatch(ctx, labels, i, number)
 }
 
 func (h *Handle) RecordOne(ctx context.Context, number core.Number) {
-	doRecordBatch(ctx, h.LabelSet, h.Instrument, number)
+	doRecordBatch(scope.ContextWithScope(ctx, scope.Current(ctx).WithResources(h.Labels)), nil, h.Instrument, number)
 }
 
 func (h *Handle) Unbind() {
 }
 
-func doRecordBatch(ctx context.Context, labelSet label.Set, instrument *Instrument, number core.Number) {
-	instrument.Meter.recordMockBatch(ctx, labelSet, Measurement{
+func doRecordBatch(ctx context.Context, labels []core.KeyValue, instrument *Instrument, number core.Number) {
+	instrument.Meter.recordMockBatch(ctx, labels, Measurement{
 		Instrument: instrument,
 		Number:     number,
 	})
@@ -161,7 +161,7 @@ func (m *Meter) newMeasureInstrument(name string, numberKind core.NumberKind, mo
 	}
 }
 
-func (m *Meter) RecordBatch(ctx context.Context, labels label.Set, measurements ...apimetric.Measurement) {
+func (m *Meter) RecordBatch(ctx context.Context, labels []core.KeyValue, measurements ...apimetric.Measurement) {
 	mm := make([]Measurement, len(measurements))
 	for i := 0; i < len(measurements); i++ {
 		m := measurements[i]
@@ -173,10 +173,9 @@ func (m *Meter) RecordBatch(ctx context.Context, labels label.Set, measurements 
 	m.recordMockBatch(ctx, labels, mm...)
 }
 
-func (m *Meter) recordMockBatch(ctx context.Context, labelSet label.Set, measurements ...Measurement) {
+func (m *Meter) recordMockBatch(ctx context.Context, labels []core.KeyValue, measurements ...Measurement) {
 	m.MeasurementBatches = append(m.MeasurementBatches, Batch{
-		Ctx:          ctx,
-		LabelSet:     labelSet,
+		Labels:       scope.Current(ctx).AddResources(labels...).Resources(),
 		Measurements: measurements,
 	})
 }

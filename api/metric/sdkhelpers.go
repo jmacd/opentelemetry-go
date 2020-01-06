@@ -17,7 +17,6 @@ package metric
 import (
 	"context"
 
-	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/core"
 )
 
@@ -26,10 +25,10 @@ import (
 type InstrumentImpl interface {
 	// Bind creates a Bound Instrument to record metrics with
 	// precomputed labels.
-	Bind(labels label.Set) BoundInstrumentImpl
+	Bind(ctx context.Context, labels []core.KeyValue) BoundInstrumentImpl
 
 	// RecordOne allows the SDK to observe a single metric event.
-	RecordOne(ctx context.Context, number core.Number, labels label.Set)
+	RecordOne(ctx context.Context, number core.Number, labels []core.KeyValue)
 }
 
 // BoundInstrumentImpl is the implementation-level interface to Set/Add/Record

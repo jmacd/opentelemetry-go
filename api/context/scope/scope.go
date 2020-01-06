@@ -20,7 +20,6 @@ package scope
 
 import (
 	"context"
-	"fmt"
 
 	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/context/propagation"
@@ -101,15 +100,6 @@ func Empty() Scope {
 	return Scope{}
 }
 
-// func (si *scopeImpl) copy(s Scope) {
-// 	si.provider = nilProvider
-// 	if s.scopeImpl != nil {
-// 		si = *s.scopeImpl
-// 	}
-// 	si.scopeMeter.scopeImpl = &si
-// 	si.scopeTracer.scopeImpl = &si
-// }
-
 func (s Scope) clone() Scope {
 	var ri scopeImpl
 	if s.scopeImpl != nil {
@@ -123,6 +113,21 @@ func (s Scope) clone() Scope {
 	return Scope{
 		scopeImpl: &ri,
 	}
+}
+
+func (s Scope) WithResources(labels label.Set) Scope {
+	r := s.clone()
+	r.resources = labels
+	return r
+}
+
+func (s Scope) AddResources(kvs ...core.KeyValue) Scope {
+	if len(kvs) == 0 {
+		return s
+	}
+	r := s.clone()
+	r.resources = s.resources.AddMany(kvs...)
+	return r
 }
 
 func (s Scope) Named(name string) Scope {
@@ -253,13 +258,8 @@ func (m *scopeMeter) NewFloat64Measure(name string, mos ...metric.MeasureOptionA
 	return m.provider.Meter().NewFloat64Measure(m.subname(name), mos...)
 }
 
-func (m *scopeMeter) RecordBatch(ctx context.Context, labels label.Set, ms ...metric.Measurement) {
-	m.provider.Meter().RecordBatch(m.enterScope(ctx), labels, ms...)
-}
-
-func (s Scope) String() string {
-	if s.scopeImpl == nil {
-		return "{ empty }"
-	}
-	return fmt.Sprintf("{ res=%v }", s.resources)
+func (m *scopeMeter) RecordBatch(ctx context.Context, labels []core.KeyValue, ms ...metric.Measurement) {
+	// Note: do not need enterScope() because resources are taken
+	// from labels at runtime.
+	m.provider.Meter().RecordBatch(ctx, labels, ms...)
 }

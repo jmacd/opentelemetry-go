@@ -17,7 +17,6 @@ package metric
 import (
 	"context"
 
-	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/core"
 )
 
@@ -29,8 +28,8 @@ type commonBoundInstrument struct {
 	boundInstrument BoundInstrumentImpl
 }
 
-func (m commonMetric) bind(labels label.Set) commonBoundInstrument {
-	return newCommonBoundInstrument(m.instrument.Bind(labels))
+func (m commonMetric) bind(ctx context.Context, labels []core.KeyValue) commonBoundInstrument {
+	return newCommonBoundInstrument(m.instrument.Bind(ctx, labels))
 }
 
 func (m commonMetric) float64Measurement(value float64) Measurement {
@@ -41,7 +40,7 @@ func (m commonMetric) int64Measurement(value int64) Measurement {
 	return newMeasurement(m.instrument, core.NewInt64Number(value))
 }
 
-func (m commonMetric) directRecord(ctx context.Context, number core.Number, labels label.Set) {
+func (m commonMetric) directRecord(ctx context.Context, number core.Number, labels []core.KeyValue) {
 	m.instrument.RecordOne(ctx, number, labels)
 }
 

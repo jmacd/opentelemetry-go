@@ -17,7 +17,6 @@ package metric
 import (
 	"context"
 
-	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/unit"
 )
@@ -112,7 +111,7 @@ type Meter interface {
 	NewFloat64Measure(name string, mos ...MeasureOptionApplier) Float64Measure
 
 	// RecordBatch atomically records a batch of measurements.
-	RecordBatch(context.Context, label.Set, ...Measurement)
+	RecordBatch(context.Context, []core.KeyValue, ...Measurement)
 }
 
 // Option supports specifying the various metric options.

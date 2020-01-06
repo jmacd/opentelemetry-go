@@ -23,6 +23,7 @@ import (
 	"unsafe"
 
 	"go.opentelemetry.io/otel/api/context/label"
+	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/metric"
 	api "go.opentelemetry.io/otel/api/metric"
@@ -156,7 +157,9 @@ func (m *SDK) SetErrorHandler(f ErrorHandler) {
 	m.errorHandler = f
 }
 
-func (i *instrument) bind(ls label.Set) *record {
+func (i *instrument) bind(ctx context.Context, labels []core.KeyValue) *record {
+	ls := scope.Current(ctx).AddResources(labels...).Resources()
+
 	// Create lookup key for sync.Map (one allocation)
 	mk := mapkey{
 		descriptor: i.descriptor,
@@ -194,12 +197,12 @@ func (i *instrument) bind(ls label.Set) *record {
 	return rec
 }
 
-func (i *instrument) Bind(ls label.Set) api.BoundInstrumentImpl {
-	return i.bind(ls)
+func (i *instrument) Bind(ctx context.Context, labels []core.KeyValue) api.BoundInstrumentImpl {
+	return i.bind(ctx, labels)
 }
 
-func (i *instrument) RecordOne(ctx context.Context, number core.Number, ls label.Set) {
-	h := i.bind(ls)
+func (i *instrument) RecordOne(ctx context.Context, number core.Number, labels []core.KeyValue) {
+	h := i.bind(ctx, labels)
 	defer h.Unbind()
 	h.RecordOne(ctx, number)
 }
@@ -369,9 +372,9 @@ func (m *SDK) checkpoint(ctx context.Context, r *record) int {
 }
 
 // RecordBatch enters a batch of metric events.
-func (m *SDK) RecordBatch(ctx context.Context, ls label.Set, measurements ...api.Measurement) {
+func (m *SDK) RecordBatch(ctx context.Context, labels []core.KeyValue, measurements ...api.Measurement) {
 	for _, meas := range measurements {
-		meas.InstrumentImpl().RecordOne(ctx, meas.Number(), ls)
+		meas.InstrumentImpl().RecordOne(ctx, meas.Number(), labels)
 	}
 }
 
