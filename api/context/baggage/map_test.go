@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/api/context/baggage"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
 )
@@ -89,12 +88,12 @@ func TestMap(t *testing.T) {
 		},
 	} {
 		t.Logf("Running test case %s", testcase.name)
-		got := baggage.Empty()
+		got := Empty()
 		if len(testcase.init) > 0 {
 			got = makeTestMap(testcase.init)
 		}
 		if testcase.updateMany != nil {
-			got = got.AddMany(testcase.updateMany)
+			got = got.AddMany(testcase.updateMany...)
 		}
 		if testcase.updateOne.Key.Defined() {
 			got = got.AddOne(testcase.updateOne)
@@ -126,5 +125,5 @@ func makeTestMap(ints []int) Map {
 	for _, v := range ints {
 		r = append(r, core.Key(fmt.Sprintf("key%d", v)).Int(v))
 	}
-	return New(MapUpdate{MultiKV: r})
+	return New(r...)
 }

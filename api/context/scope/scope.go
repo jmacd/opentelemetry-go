@@ -127,7 +127,7 @@ func (s Scope) clone() Scope {
 
 func (s Scope) Named(name string) Scope {
 	r := s.clone()
-	r.resources = s.resources.Add1(namespaceKey.String(name))
+	r.resources = s.resources.AddOne(namespaceKey.String(name))
 	return r
 }
 
