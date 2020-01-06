@@ -14,6 +14,7 @@
 
 // TODO:
 // (6) Add static Meter.New*() helpers, give (ctx context.Context) param to all Meter.New* APIs.
+//     Will require an api/internal w/ interface implemented by *scopeImpl?
 // (9) Get first-class about Namespaces
 
 package scope

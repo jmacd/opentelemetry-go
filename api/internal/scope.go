@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package scope
+package internal
 
-import (
-	"context"
+import "context"
 
-	"go.opentelemetry.io/otel/api/internal"
-)
+type currentScopeKeyType struct{}
 
-func ContextWithScope(ctx context.Context, sc Scope) context.Context {
-	return internal.SetScopeImpl(ctx, sc.scopeImpl)
+var currentScopeKey = &currentScopeKeyType{}
+
+func SetScopeImpl(ctx context.Context, si interface{}) context.Context {
+	return context.WithValue(ctx, currentScopeKey, si)
 }
 
-func Current(ctx context.Context) Scope {
-	return Scope{internal.ScopeImpl(ctx).(*scopeImpl)}
+func ScopeImpl(ctx context.Context) interface{} {
+	return ctx.Value(currentScopeKey)
 }
