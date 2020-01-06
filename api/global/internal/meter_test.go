@@ -58,36 +58,36 @@ func TestDirect(t *testing.T) {
 
 	require.Equal(t, 4, len(mock.MeasurementBatches))
 
-	require.Equal(t, map[core.Key]core.Value{
-		lvals1.Key: lvals1.Value,
-	}, mock.MeasurementBatches[0].LabelSet.AsMap())
+	require.Equal(t, []core.KeyValue{
+		{Key: lvals1.Key, Value: lvals1.Value},
+	}, mock.MeasurementBatches[0].LabelSet.Ordered())
 	require.Equal(t, 1, len(mock.MeasurementBatches[0].Measurements))
 	require.Equal(t, core.NewInt64Number(1),
 		mock.MeasurementBatches[0].Measurements[0].Number)
 	require.Equal(t, "test1/test.counter",
 		mock.MeasurementBatches[0].Measurements[0].Instrument.Name)
 
-	require.Equal(t, map[core.Key]core.Value{
-		lvals2.Key: lvals2.Value,
-	}, mock.MeasurementBatches[1].LabelSet.AsMap())
+	require.Equal(t, []core.KeyValue{
+		{Key: lvals2.Key, Value: lvals2.Value},
+	}, mock.MeasurementBatches[1].LabelSet.Ordered())
 	require.Equal(t, 1, len(mock.MeasurementBatches[1].Measurements))
 	require.Equal(t, core.NewInt64Number(3),
 		mock.MeasurementBatches[1].Measurements[0].Number)
 	require.Equal(t, "test1/test.gauge",
 		mock.MeasurementBatches[1].Measurements[0].Instrument.Name)
 
-	require.Equal(t, map[core.Key]core.Value{
-		lvals1.Key: lvals1.Value,
-	}, mock.MeasurementBatches[2].LabelSet.AsMap())
+	require.Equal(t, []core.KeyValue{
+		{Key: lvals1.Key, Value: lvals1.Value},
+	}, mock.MeasurementBatches[2].LabelSet.Ordered())
 	require.Equal(t, 1, len(mock.MeasurementBatches[2].Measurements))
 	require.Equal(t, core.NewFloat64Number(3),
 		mock.MeasurementBatches[2].Measurements[0].Number)
 	require.Equal(t, "test1/test.measure",
 		mock.MeasurementBatches[2].Measurements[0].Instrument.Name)
 
-	require.Equal(t, map[core.Key]core.Value{
-		lvals3.Key: lvals3.Value,
-	}, mock.MeasurementBatches[3].LabelSet.AsMap())
+	require.Equal(t, []core.KeyValue{
+		{Key: lvals3.Key, Value: lvals3.Value},
+	}, mock.MeasurementBatches[3].LabelSet.Ordered())
 	require.Equal(t, 1, len(mock.MeasurementBatches[3].Measurements))
 	require.Equal(t, core.NewFloat64Number(3),
 		mock.MeasurementBatches[3].Measurements[0].Number)
@@ -131,27 +131,27 @@ func TestBound(t *testing.T) {
 
 	require.Equal(t, 3, len(mock.MeasurementBatches))
 
-	require.Equal(t, map[core.Key]core.Value{
-		lvals1.Key: lvals1.Value,
-	}, mock.MeasurementBatches[0].LabelSet.AsMap())
+	require.Equal(t, []core.KeyValue{
+		{Key: lvals1.Key, Value: lvals1.Value},
+	}, mock.MeasurementBatches[0].LabelSet.Ordered())
 	require.Equal(t, 1, len(mock.MeasurementBatches[0].Measurements))
 	require.Equal(t, core.NewFloat64Number(1),
 		mock.MeasurementBatches[0].Measurements[0].Number)
 	require.Equal(t, "test/test.counter",
 		mock.MeasurementBatches[0].Measurements[0].Instrument.Name)
 
-	require.Equal(t, map[core.Key]core.Value{
-		lvals2.Key: lvals2.Value,
-	}, mock.MeasurementBatches[1].LabelSet.AsMap())
+	require.Equal(t, []core.KeyValue{
+		{Key: lvals2.Key, Value: lvals2.Value},
+	}, mock.MeasurementBatches[1].LabelSet.Ordered())
 	require.Equal(t, 1, len(mock.MeasurementBatches[1].Measurements))
 	require.Equal(t, core.NewFloat64Number(3),
 		mock.MeasurementBatches[1].Measurements[0].Number)
 	require.Equal(t, "test/test.gauge",
 		mock.MeasurementBatches[1].Measurements[0].Instrument.Name)
 
-	require.Equal(t, map[core.Key]core.Value{
-		lvals1.Key: lvals1.Value,
-	}, mock.MeasurementBatches[2].LabelSet.AsMap())
+	require.Equal(t, []core.KeyValue{
+		{Key: lvals1.Key, Value: lvals1.Value},
+	}, mock.MeasurementBatches[2].LabelSet.Ordered())
 	require.Equal(t, 1, len(mock.MeasurementBatches[2].Measurements))
 	require.Equal(t, core.NewInt64Number(3),
 		mock.MeasurementBatches[2].Measurements[0].Number)

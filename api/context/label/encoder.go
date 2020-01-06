@@ -21,13 +21,7 @@ import (
 	"go.opentelemetry.io/otel/api/core"
 )
 
-type Encoder interface {
-	// Encode is called (concurrently) in instrumentation context.
-	// It should return a unique representation of the labels
-	// suitable for the SDK to use as a map key, an aggregator
-	// grouping key, and/or the export encoding.
-	Encode([]core.KeyValue) string
-}
+type Encoder = core.LabelEncoder
 
 type defaultEncoder struct {
 	// pool is a pool of labelset builders.  The buffers in this
@@ -40,9 +34,9 @@ type defaultEncoder struct {
 	pool sync.Pool // *bytes.Buffer
 }
 
-var _ Encoder = &defaultEncoder{}
+var _ core.LabelEncoder = &defaultEncoder{}
 
-func NewDefaultEncoder() Encoder {
+func NewDefaultEncoder() core.LabelEncoder {
 	return &defaultEncoder{
 		pool: sync.Pool{
 			New: func() interface{} {

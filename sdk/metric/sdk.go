@@ -55,7 +55,7 @@ type (
 		batcher export.Batcher
 
 		// lencoder determines how labels are uniquely encoded.
-		labelEncoder label.Encoder
+		labelEncoder core.LabelEncoder
 
 		// collectLock prevents simultaneous calls to Collect().
 		collectLock sync.Mutex
@@ -213,7 +213,7 @@ func (i *instrument) RecordOne(ctx context.Context, number core.Number, ls label
 // batcher will call Collect() when it receives a request to scrape
 // current metric values.  A push-based batcher should configure its
 // own periodic collection.
-func New(batcher export.Batcher, labelEncoder label.Encoder) *SDK {
+func New(batcher export.Batcher, labelEncoder core.LabelEncoder) *SDK {
 	return &SDK{
 		batcher:      batcher,
 		labelEncoder: labelEncoder,

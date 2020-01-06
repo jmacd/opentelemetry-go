@@ -25,7 +25,7 @@ import (
 type (
 	Batcher struct {
 		selector      export.AggregationSelector
-		labelEncoder  label.Encoder
+		labelEncoder  core.LabelEncoder
 		stateful      bool
 		descKeyIndex  descKeyIndexMap
 		aggCheckpoint aggCheckpointMap
@@ -48,14 +48,14 @@ type (
 
 	checkpointSet struct {
 		aggCheckpointMap aggCheckpointMap
-		labelEncoder     label.Encoder
+		labelEncoder     core.LabelEncoder
 	}
 )
 
 var _ export.Batcher = &Batcher{}
 var _ export.CheckpointSet = &checkpointSet{}
 
-func New(selector export.AggregationSelector, labelEncoder label.Encoder, stateful bool) *Batcher {
+func New(selector export.AggregationSelector, labelEncoder core.LabelEncoder, stateful bool) *Batcher {
 	return &Batcher{
 		selector:      selector,
 		labelEncoder:  labelEncoder,

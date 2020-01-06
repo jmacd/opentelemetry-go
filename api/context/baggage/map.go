@@ -15,14 +15,14 @@
 package baggage
 
 import (
-	"go.opentelemetry.io/otel/api/context/label"
+	"go.opentelemetry.io/otel/api/context/internal"
 	"go.opentelemetry.io/otel/api/core"
 )
 
 // TODO Comments needed! This was formerly known as distributedcontext.Map
 
 type Map struct {
-	ls label.Set
+	set *internal.Set
 }
 
 type MapUpdate struct {
@@ -31,7 +31,7 @@ type MapUpdate struct {
 }
 
 func Empty() Map {
-	return Map{}
+	return Map{internal.EmptySet()}
 }
 
 func New(update MapUpdate) Map {
@@ -44,35 +44,35 @@ func (m Map) Apply(update MapUpdate) Map {
 		one = 1
 	}
 
-	ls := make([]core.KeyValue, 0, m.Len()+len(update.MultiKV)+one)
-	ls = append(ls, m.ls.Ordered()...)
+	set := make([]core.KeyValue, 0, m.Len()+len(update.MultiKV)+one)
+	set = append(set, m.set.Ordered()...)
 	if one == 1 {
-		ls = append(ls, update.SingleKV)
+		set = append(set, update.SingleKV)
 	}
 
-	ls = append(ls, update.MultiKV...)
+	set = append(set, update.MultiKV...)
 
-	return Map{ls: label.NewSet(ls...)}
+	return Map{set: internal.NewSet(set...)}
 }
 
 func (m Map) Value(k core.Key) (core.Value, bool) {
-	return m.ls.Value(k)
+	return m.set.Value(k)
 }
 
 func (m Map) HasValue(k core.Key) bool {
-	return m.ls.HasValue(k)
+	return m.set.HasValue(k)
 }
 
 func (m Map) Len() int {
-	return m.ls.Len()
+	return m.set.Len()
 }
 
 func (m Map) Ordered() []core.KeyValue {
-	return m.ls.Ordered()
+	return m.set.Ordered()
 }
 
 func (m Map) Foreach(f func(kv core.KeyValue) bool) {
-	for _, kv := range m.ls.Ordered() {
+	for _, kv := range m.set.Ordered() {
 		if !f(kv) {
 			return
 		}
