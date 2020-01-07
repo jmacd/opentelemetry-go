@@ -17,6 +17,7 @@ package trace
 import (
 	"context"
 
+	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/trace"
 	apitrace "go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/internal/trace/parent"
@@ -41,8 +42,11 @@ func (tr *Tracer) Start(ctx context.Context, name string, o ...apitrace.StartOpt
 	for _, l := range opts.Links {
 		span.addLink(l)
 	}
-	span.SetAttributes(opts.Attributes...)
 
+	currentScope := scope.Current(ctx)
+	newScope := currentScope.AddResources(opts.Attributes...)
+
+	span.attributes = newScope.Resources()
 	span.tracer = tr
 
 	if span.IsRecording() {
@@ -54,7 +58,11 @@ func (tr *Tracer) Start(ctx context.Context, name string, o ...apitrace.StartOpt
 
 	ctx, end := startExecutionTracerTask(ctx, name)
 	span.executionTracerTaskEnd = end
-	return trace.ContextWithSpan(ctx, span), span
+
+	// TODO Would be nice to avoid two context values here:
+	ctx = trace.ContextWithSpan(ctx, span)
+	ctx = scope.ContextWithScope(ctx, newScope)
+	return ctx, span
 }
 
 func (tr *Tracer) WithSpan(ctx context.Context, name string, body func(ctx context.Context) error) error {

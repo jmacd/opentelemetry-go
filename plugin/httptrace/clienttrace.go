@@ -49,7 +49,7 @@ type clientTracer struct {
 }
 
 func NewClientTrace(ctx context.Context) *httptrace.ClientTrace {
-	sc := scope.Current(ctx).Named("go.opentelemetry.io/otel/plugin/httptrace")
+	sc := scope.Current(ctx).WithNamespace("go.opentelemetry.io/otel/plugin/httptrace")
 
 	ct := &clientTracer{
 		Context:     scope.ContextWithScope(ctx, sc),

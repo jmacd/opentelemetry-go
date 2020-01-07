@@ -21,6 +21,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 
+	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/core"
 	apitrace "go.opentelemetry.io/otel/api/trace"
 	export "go.opentelemetry.io/otel/sdk/export/trace"
@@ -40,7 +41,7 @@ type span struct {
 
 	// attributes are capped at configured limit. When the capacity is reached an oldest entry
 	// is removed to create room for a new entry.
-	attributes *attributesMap
+	attributes label.Set
 
 	// messageEvents are stored in FIFO queue capped by configured limit.
 	messageEvents *evictedQueue
@@ -198,7 +199,10 @@ func (s *span) makeSpanData() *export.SpanData {
 	defer s.mu.Unlock()
 	sd = *s.data
 
-	s.attributes.toSpanData(&sd)
+	s.attributes.Foreach(func(kv core.KeyValue) bool {
+		sd.Attributes = append(sd.Attributes, kv)
+		return true
+	})
 
 	if len(s.messageEvents.queue) > 0 {
 		sd.MessageEvents = s.interfaceArrayToMessageEventArray()
@@ -230,9 +234,7 @@ func (s *span) interfaceArrayToMessageEventArray() []export.Event {
 func (s *span) copyToCappedAttributes(attributes ...core.KeyValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, a := range attributes {
-		s.attributes.add(a)
-	}
+	s.attributes = s.attributes.AddMany(attributes...)
 }
 
 func (s *span) addChild() {
@@ -283,7 +285,7 @@ func startSpanInternal(tr *Tracer, name string, parent core.SpanContext, remoteP
 		Name:            name,
 		HasRemoteParent: remoteParent,
 	}
-	span.attributes = newAttributesMap(cfg.MaxAttributesPerSpan)
+	span.attributes = label.Empty()
 	span.messageEvents = newEvictedQueue(cfg.MaxEventsPerSpan)
 	span.links = newEvictedQueue(cfg.MaxLinksPerSpan)
 

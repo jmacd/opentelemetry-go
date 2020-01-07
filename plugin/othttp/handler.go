@@ -27,7 +27,7 @@ import (
 
 var _ http.Handler = &Handler{}
 
-var otelScope = global.Scope().Named("go.opentelemetry.io/plugin/othttp")
+var otelScope = global.Scope().WithNamespace("go.opentelemetry.io/plugin/othttp")
 
 // Attribute keys that the Handler can add to a span.
 const (

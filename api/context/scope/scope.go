@@ -131,7 +131,7 @@ func (s Scope) AddResources(kvs ...core.KeyValue) Scope {
 	return r
 }
 
-func (s Scope) Named(name string) Scope {
+func (s Scope) WithNamespace(name string) Scope {
 	r := s.clone()
 	r.resources = s.resources.AddOne(namespaceKey.String(name))
 	return r
