@@ -19,7 +19,6 @@ import (
 	"log"
 	"os"
 
-	"go.opentelemetry.io/otel/api/context/baggage/propagation"
 	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/global"
@@ -37,31 +36,22 @@ const (
 )
 
 var (
-	background = context.Background()
-
-	attrKey1 = key.New("attribute1")
-	attrKey2 = key.New("attribute2")
-
-	distributedKey1 = key.New("distributed1")
-	distributedKey2 = key.New("distributed2")
+	environmentKey1 = key.New("environment1")
+	environmentKey2 = key.New("environment2")
 
 	resourceKey1 = key.New("resource1")
 	resourceKey2 = key.New("resource2")
 
-	environmentKey1 = key.New("environment1")
-	environmentKey2 = key.New("environment2")
+	attrKey1 = key.New("attribute1")
+	attrKey2 = key.New("attribute2")
 
-	// Note: metrics are allocated using the background context
-	// and package-static methods.  They inherit the global
-	// resource scope, which includes the namespace, after it is
-	// initialized.
+	// Note: metrics are allocated statically.  They use the
+	// global scope's namespace when it is initialized.
 	counter1 = metric.NewFloat64Counter(
-		background,
 		"counter1",
 		metric.WithKeys(attrKey1, attrKey2),
 	)
 	gauge1 = metric.NewFloat64Gauge(
-		background,
 		"gauge1",
 		metric.WithKeys(attrKey1, attrKey2),
 	)
@@ -92,7 +82,7 @@ func main() {
 	defer start()()
 
 	// Start with no telemetry state
-	ctx := background
+	ctx := context.Background()
 
 	// Add scoped resources.  These are on top of the global resources.
 	ctx = scope.ContextWithScope(ctx, scope.Current(ctx).AddResources(
@@ -100,24 +90,14 @@ func main() {
 		resourceKey1.String("res2"),
 	))
 
-	// Change the current namespace.  Spans started will inherit
-	// this namespace like an ordinary resource.
-	ctx = scope.ContextWithScope(ctx, scope.Current(ctx).WithNamespace(
-		"change_of_namespace",
-	))
+	// Now consider four ways to add "attrKey1" and "attrKey2" attributes
+	// to a pair of metric events.
 
-	// Introduce distributed contexts keys.  These presumably
-	// arrived from an upstream request.  They are independent of
-	// the scope.
-	ctx = propagation.NewContext(ctx,
-		distributedKey1.String("dist1"),
-		distributedKey2.String("dist2"),
-	)
+	////////////////////////////////////////////////////////////
+	// 1 As a batch, labels passed at the call site
 
 	// Using the Meter() from a scope ensures that scope's
-	// resources are attached.  These metric events have the
-	// global resource labels, the scoped resources, the dynamic
-	// context, and the values provided at the call site:
+	// resources are attached.
 	scope.Current(ctx).Meter().RecordBatch(ctx, []core.KeyValue{
 		attrKey1.String("val1"),
 		attrKey2.String("val2"),
@@ -126,9 +106,15 @@ func main() {
 		gauge1.Measurement(2),
 	)
 
+	////////////////////////////////////////////////////////////
+	// 2 Individual events, labels passed a the call site
+
 	// The batch could be written as two events:
 	counter1.Add(ctx, 1, attrKey1.String("val1"), attrKey2.String("val2"))
 	gauge1.Set(ctx, 2, attrKey1.String("val1"), attrKey2.String("val2"))
+
+	////////////////////////////////////////////////////////////
+	// 3 By placing the labels in the current resource scope
 
 	// Instead of repeating the two attributes above, and where
 	// LabelSets are currently specified, use scope to introduce local resources:
@@ -142,6 +128,10 @@ func main() {
 		counter1.Add(ctx, 1)
 		gauge1.Set(ctx, 2)
 	}
+
+	////////////////////////////////////////////////////////////
+	// 4 By starting a span with corresponding attributes, which
+	// enter the current resource scope.
 
 	// Creating a new span updates the scope with the span
 	// attributes as resources.
