@@ -20,7 +20,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/core"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/metric/batcher/test"
@@ -31,7 +30,7 @@ import (
 
 func TestUngroupedStateless(t *testing.T) {
 	ctx := context.Background()
-	b := ungrouped.New(test.NewAggregationSelector(), label.NewDefaultEncoder(), false)
+	b := ungrouped.New(test.NewAggregationSelector(), false)
 
 	// Set initial gauge values
 	_ = b.Process(ctx, test.NewGaugeRecord(test.GaugeADesc, test.Labels1, 10))
@@ -62,25 +61,25 @@ func TestUngroupedStateless(t *testing.T) {
 	checkpointSet := b.CheckpointSet()
 	b.FinishedCollection()
 
-	records := test.NewOutput(test.SdkEncoder)
+	records := test.Output{}
 	checkpointSet.ForEach(records.AddTo)
 
 	// Output gauge should have only the "G=H" and "G=" keys.
 	// Output counter should have only the "C=D" and "C=" keys.
 	require.EqualValues(t, map[string]int64{
-		"counter.a/C~D&G~H": 60, // labels1
+		"counter.a/G~H&C~D": 60, // labels1
 		"counter.a/C~D&E~F": 20, // labels2
 		"counter.a/":        40, // labels3
-		"counter.b/C~D&G~H": 60, // labels1
+		"counter.b/G~H&C~D": 60, // labels1
 		"counter.b/C~D&E~F": 20, // labels2
 		"counter.b/":        40, // labels3
-		"gauge.a/C~D&G~H":   50, // labels1
+		"gauge.a/G~H&C~D":   50, // labels1
 		"gauge.a/C~D&E~F":   20, // labels2
 		"gauge.a/":          30, // labels3
-		"gauge.b/C~D&G~H":   50, // labels1
+		"gauge.b/G~H&C~D":   50, // labels1
 		"gauge.b/C~D&E~F":   20, // labels2
 		"gauge.b/":          30, // labels3
-	}, records.Values)
+	}, records)
 
 	// Verify that state was reset
 	checkpointSet = b.CheckpointSet()
@@ -92,7 +91,7 @@ func TestUngroupedStateless(t *testing.T) {
 
 func TestUngroupedStateful(t *testing.T) {
 	ctx := context.Background()
-	b := ungrouped.New(test.NewAggregationSelector(), label.NewDefaultEncoder(), true)
+	b := ungrouped.New(test.NewAggregationSelector(), true)
 
 	counterA := test.NewCounterRecord(test.CounterADesc, test.Labels1, 10)
 	caggA := counterA.Aggregator()
@@ -105,20 +104,19 @@ func TestUngroupedStateful(t *testing.T) {
 	checkpointSet := b.CheckpointSet()
 	b.FinishedCollection()
 
-	encOut := test.SdkEncoder
-	records1 := test.NewOutput(encOut)
+	records1 := test.Output{}
 	checkpointSet.ForEach(records1.AddTo)
 
 	require.EqualValues(t, map[string]int64{
-		"counter.a/C~D&G~H": 10, // labels1
-		"counter.b/C~D&G~H": 10, // labels1
-	}, records1.Values)
+		"counter.a/G~H&C~D": 10, // labels1
+		"counter.b/G~H&C~D": 10, // labels1
+	}, records1)
 
 	// Test that state was NOT reset
 	checkpointSet = b.CheckpointSet()
 	b.FinishedCollection()
 
-	records2 := test.NewOutput(encOut)
+	records2 := test.Output{}
 	checkpointSet.ForEach(records2.AddTo)
 
 	require.EqualValues(t, records1, records2)
@@ -134,7 +132,7 @@ func TestUngroupedStateful(t *testing.T) {
 	checkpointSet = b.CheckpointSet()
 	b.FinishedCollection()
 
-	records3 := test.NewOutput(encOut)
+	records3 := test.Output{}
 	checkpointSet.ForEach(records3.AddTo)
 
 	require.EqualValues(t, records1, records3)
@@ -146,11 +144,11 @@ func TestUngroupedStateful(t *testing.T) {
 	checkpointSet = b.CheckpointSet()
 	b.FinishedCollection()
 
-	records4 := test.NewOutput(encOut)
+	records4 := test.Output{}
 	checkpointSet.ForEach(records4.AddTo)
 
 	require.EqualValues(t, map[string]int64{
-		"counter.a/C~D&G~H": 30,
-		"counter.b/C~D&G~H": 30,
-	}, records4.Values)
+		"counter.a/G~H&C~D": 30,
+		"counter.b/G~H&C~D": 30,
+	}, records4)
 }

@@ -280,7 +280,7 @@ func TestInjectTraceContextToHTTPReq(t *testing.T) {
 
 			gotHeader := req.Header.Get("traceparent")
 			if diff := cmp.Diff(gotHeader, tt.wantHeader); diff != "" {
-				t.Errorf("Extract TraceContext: %s: -got +want %s", tt.name, diff)
+				t.Errorf("Extract Tracecontext: %s: -got +want %s", tt.name, diff)
 			}
 		})
 	}

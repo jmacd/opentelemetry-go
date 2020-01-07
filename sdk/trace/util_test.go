@@ -22,10 +22,10 @@ import (
 
 var testConfig = sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}
 
-func basicTracer(t *testing.T) *sdktrace.Tracer {
-	tr, err := sdktrace.NewTracer(sdktrace.WithConfig(testConfig))
+func basicProvider(t *testing.T) *sdktrace.Provider {
+	tp, err := sdktrace.NewProvider(sdktrace.WithConfig(testConfig))
 	if err != nil {
 		t.Fatalf("failed to create provider, err: %v\n", err)
 	}
-	return tr
+	return tp
 }

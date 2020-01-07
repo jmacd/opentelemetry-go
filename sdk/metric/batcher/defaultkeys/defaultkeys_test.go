@@ -20,7 +20,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/core"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/metric/batcher/defaultkeys"
@@ -29,8 +28,7 @@ import (
 
 func TestGroupingStateless(t *testing.T) {
 	ctx := context.Background()
-	enc := label.NewDefaultEncoder()
-	b := defaultkeys.New(test.NewAggregationSelector(), enc, false)
+	b := defaultkeys.New(test.NewAggregationSelector(), test.GroupEncoder, false)
 
 	_ = b.Process(ctx, test.NewGaugeRecord(test.GaugeADesc, test.Labels1, 10))
 	_ = b.Process(ctx, test.NewGaugeRecord(test.GaugeADesc, test.Labels2, 20))
@@ -51,8 +49,8 @@ func TestGroupingStateless(t *testing.T) {
 	checkpointSet := b.CheckpointSet()
 	b.FinishedCollection()
 
-	output := test.NewOutput(enc)
-	checkpointSet.ForEach(output.AddTo)
+	records := test.Output{}
+	checkpointSet.ForEach(records.AddTo)
 
 	// Repeat for {counter,gauge}.{1,2}.
 	// Output gauge should have only the "G=H" and "G=" keys.
@@ -66,7 +64,7 @@ func TestGroupingStateless(t *testing.T) {
 		"gauge.a/G=":    30, // labels3 = last value
 		"gauge.b/G=H":   10, // labels1
 		"gauge.b/G=":    30, // labels3 = last value
-	}, output.Values)
+	}, records)
 
 	// Verify that state is reset by FinishedCollection()
 	checkpointSet = b.CheckpointSet()
@@ -91,23 +89,22 @@ func TestGroupingStateful(t *testing.T) {
 	checkpointSet := b.CheckpointSet()
 	b.FinishedCollection()
 
-	outEnc := label.NewDefaultEncoder()
-	output1 := test.NewOutput(outEnc)
-	checkpointSet.ForEach(output1.AddTo)
+	records1 := test.Output{}
+	checkpointSet.ForEach(records1.AddTo)
 
 	require.EqualValues(t, map[string]int64{
 		"counter.a/C=D": 10, // labels1
 		"counter.b/C=D": 10, // labels1
-	}, output1.Values)
+	}, records1)
 
 	// Test that state was NOT reset
 	checkpointSet = b.CheckpointSet()
 	b.FinishedCollection()
 
-	output2 := test.NewOutput(outEnc)
-	checkpointSet.ForEach(output2.AddTo)
+	records2 := test.Output{}
+	checkpointSet.ForEach(records2.AddTo)
 
-	require.EqualValues(t, output1, output2)
+	require.EqualValues(t, records1, records2)
 
 	// Update and re-checkpoint the original record.
 	_ = caggA.Update(ctx, core.NewInt64Number(20), test.CounterADesc)
@@ -120,10 +117,10 @@ func TestGroupingStateful(t *testing.T) {
 	checkpointSet = b.CheckpointSet()
 	b.FinishedCollection()
 
-	output3 := test.NewOutput(outEnc)
-	checkpointSet.ForEach(output3.AddTo)
+	records3 := test.Output{}
+	checkpointSet.ForEach(records3.AddTo)
 
-	require.EqualValues(t, output1, output3)
+	require.EqualValues(t, records1, records3)
 
 	// Now process the second update
 	_ = b.Process(ctx, export.NewRecord(test.CounterADesc, test.Labels1, caggA))
@@ -132,11 +129,11 @@ func TestGroupingStateful(t *testing.T) {
 	checkpointSet = b.CheckpointSet()
 	b.FinishedCollection()
 
-	output4 := test.NewOutput(outEnc)
-	checkpointSet.ForEach(output4.AddTo)
+	records4 := test.Output{}
+	checkpointSet.ForEach(records4.AddTo)
 
 	require.EqualValues(t, map[string]int64{
 		"counter.a/C=D": 30,
 		"counter.b/C=D": 30,
-	}, output4.Values)
+	}, records4)
 }

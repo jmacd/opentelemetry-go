@@ -17,32 +17,50 @@ package global_test
 import (
 	"testing"
 
-	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/api/metric"
+	"go.opentelemetry.io/otel/api/trace"
 )
 
-func F() {
+type (
+	testTraceProvider struct{}
+	testMeterProvider struct{}
+)
+
+var (
+	_ trace.Provider  = &testTraceProvider{}
+	_ metric.Provider = &testMeterProvider{}
+)
+
+func (*testTraceProvider) Tracer(_ string) trace.Tracer {
+	return &trace.NoopTracer{}
 }
 
-func TestMulitpleGlobalScopeProvider(t *testing.T) {
-	p1 := scope.NewProvider(nil, nil, nil).New()
-	p2 := scope.NewProvider(nil, nil, nil).New()
-	panicked := false
-	defer func() {
-		if err := recover(); err != nil {
-			panicked = true
-		} else {
-			panic("Should have recovered non-nil")
-		}
-	}()
-	global.SetScope(p1)
-	global.SetScope(p2)
-	if !panicked {
-		panic("Should have panicked")
-	}
+func (*testMeterProvider) Meter(_ string) metric.Meter {
+	return &metric.NoopMeter{}
+}
 
-	got := global.Scope()
-	want := p1
+func TestMulitpleGlobalTracerProvider(t *testing.T) {
+	p1 := testTraceProvider{}
+	p2 := trace.NoopProvider{}
+	global.SetTraceProvider(&p1)
+	global.SetTraceProvider(&p2)
+
+	got := global.TraceProvider()
+	want := &p2
+	if got != want {
+		t.Fatalf("Provider: got %p, want %p\n", got, want)
+	}
+}
+
+func TestMulitpleGlobalMeterProvider(t *testing.T) {
+	p1 := testMeterProvider{}
+	p2 := metric.NoopProvider{}
+	global.SetMeterProvider(&p1)
+	global.SetMeterProvider(&p2)
+
+	got := global.MeterProvider()
+	want := &p2
 	if got != want {
 		t.Fatalf("Provider: got %p, want %p\n", got, want)
 	}

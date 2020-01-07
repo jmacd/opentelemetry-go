@@ -41,10 +41,11 @@ func (t *testSpanProcesor) Shutdown() {
 
 func TestRegisterSpanProcessort(t *testing.T) {
 	name := "Register span processor before span starts"
-	tr := basicTracer(t)
+	tp := basicProvider(t)
 	sp := NewTestSpanProcessor()
-	tr.RegisterSpanProcessor(sp)
+	tp.RegisterSpanProcessor(sp)
 
+	tr := tp.Tracer("SpanProcessor")
 	_, span := tr.Start(context.Background(), "OnStart")
 	span.End()
 	wantCount := 1
@@ -60,13 +61,14 @@ func TestRegisterSpanProcessort(t *testing.T) {
 
 func TestUnregisterSpanProcessor(t *testing.T) {
 	name := "Start span after unregistering span processor"
-	tr := basicTracer(t)
+	tp := basicProvider(t)
 	sp := NewTestSpanProcessor()
-	tr.RegisterSpanProcessor(sp)
+	tp.RegisterSpanProcessor(sp)
 
+	tr := tp.Tracer("SpanProcessor")
 	_, span := tr.Start(context.Background(), "OnStart")
 	span.End()
-	tr.UnregisterSpanProcessor(sp)
+	tp.UnregisterSpanProcessor(sp)
 
 	// start another span after unregistering span processor.
 	_, span = tr.Start(context.Background(), "Start span after unregister")
@@ -86,12 +88,13 @@ func TestUnregisterSpanProcessor(t *testing.T) {
 
 func TestUnregisterSpanProcessorWhileSpanIsActive(t *testing.T) {
 	name := "Unregister span processor while span is active"
-	tr := basicTracer(t)
+	tp := basicProvider(t)
 	sp := NewTestSpanProcessor()
-	tr.RegisterSpanProcessor(sp)
+	tp.RegisterSpanProcessor(sp)
 
+	tr := tp.Tracer("SpanProcessor")
 	_, span := tr.Start(context.Background(), "OnStart")
-	tr.UnregisterSpanProcessor(sp)
+	tp.UnregisterSpanProcessor(sp)
 
 	span.End()
 
@@ -110,12 +113,12 @@ func TestUnregisterSpanProcessorWhileSpanIsActive(t *testing.T) {
 
 func TestSpanProcessorShutdown(t *testing.T) {
 	name := "Increment shutdown counter of a span processor"
-	tr := basicTracer(t)
+	tp := basicProvider(t)
 	sp := NewTestSpanProcessor()
 	if sp == nil {
 		t.Fatalf("Error creating new instance of TestSpanProcessor\n")
 	}
-	tr.RegisterSpanProcessor(sp)
+	tp.RegisterSpanProcessor(sp)
 
 	wantCount := 1
 	sp.Shutdown()
@@ -128,7 +131,7 @@ func TestSpanProcessorShutdown(t *testing.T) {
 
 func TestMultipleUnregisterSpanProcessorCalls(t *testing.T) {
 	name := "Increment shutdown counter after first UnregisterSpanProcessor call"
-	tr := basicTracer(t)
+	tp := basicProvider(t)
 	sp := NewTestSpanProcessor()
 	if sp == nil {
 		t.Fatalf("Error creating new instance of TestSpanProcessor\n")
@@ -136,8 +139,8 @@ func TestMultipleUnregisterSpanProcessorCalls(t *testing.T) {
 
 	wantCount := 1
 
-	tr.RegisterSpanProcessor(sp)
-	tr.UnregisterSpanProcessor(sp)
+	tp.RegisterSpanProcessor(sp)
+	tp.UnregisterSpanProcessor(sp)
 
 	gotCount := sp.shutdownCount
 	if wantCount != gotCount {
@@ -145,7 +148,7 @@ func TestMultipleUnregisterSpanProcessorCalls(t *testing.T) {
 	}
 
 	// Multiple UnregisterSpanProcessor should not trigger multiple Shutdown calls.
-	tr.UnregisterSpanProcessor(sp)
+	tp.UnregisterSpanProcessor(sp)
 
 	gotCount = sp.shutdownCount
 	if wantCount != gotCount {

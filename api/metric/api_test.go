@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"testing"
 
-	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
 	"go.opentelemetry.io/otel/api/metric"
@@ -373,7 +372,7 @@ func TestCounter(t *testing.T) {
 		meter := mock.NewMeter()
 		c := meter.NewFloat64Counter("ajwaj")
 		ctx := context.Background()
-		labels := label.NewSet()
+		labels := meter.Labels()
 		c.Add(ctx, 42, labels)
 		boundInstrument := c.Bind(labels)
 		boundInstrument.Add(ctx, 42)
@@ -385,7 +384,7 @@ func TestCounter(t *testing.T) {
 		meter := mock.NewMeter()
 		c := meter.NewInt64Counter("ajwaj")
 		ctx := context.Background()
-		labels := label.NewSet()
+		labels := meter.Labels()
 		c.Add(ctx, 42, labels)
 		boundInstrument := c.Bind(labels)
 		boundInstrument.Add(ctx, 42)
@@ -400,7 +399,7 @@ func TestGauge(t *testing.T) {
 		meter := mock.NewMeter()
 		g := meter.NewFloat64Gauge("ajwaj")
 		ctx := context.Background()
-		labels := label.NewSet()
+		labels := meter.Labels()
 		g.Set(ctx, 42, labels)
 		boundInstrument := g.Bind(labels)
 		boundInstrument.Set(ctx, 42)
@@ -412,7 +411,7 @@ func TestGauge(t *testing.T) {
 		meter := mock.NewMeter()
 		g := meter.NewInt64Gauge("ajwaj")
 		ctx := context.Background()
-		labels := label.NewSet()
+		labels := meter.Labels()
 		g.Set(ctx, 42, labels)
 		boundInstrument := g.Bind(labels)
 		boundInstrument.Set(ctx, 42)
@@ -427,7 +426,7 @@ func TestMeasure(t *testing.T) {
 		meter := mock.NewMeter()
 		m := meter.NewFloat64Measure("ajwaj")
 		ctx := context.Background()
-		labels := label.NewSet()
+		labels := meter.Labels()
 		m.Record(ctx, 42, labels)
 		boundInstrument := m.Bind(labels)
 		boundInstrument.Record(ctx, 42)
@@ -439,7 +438,7 @@ func TestMeasure(t *testing.T) {
 		meter := mock.NewMeter()
 		m := meter.NewInt64Measure("ajwaj")
 		ctx := context.Background()
-		labels := label.NewSet()
+		labels := meter.Labels()
 		m.Record(ctx, 42, labels)
 		boundInstrument := m.Bind(labels)
 		boundInstrument.Record(ctx, 42)
@@ -449,12 +448,13 @@ func TestMeasure(t *testing.T) {
 	}
 }
 
-func checkBatches(t *testing.T, ctx context.Context, labels label.Set, meter *mock.Meter, kind core.NumberKind, instrument metric.InstrumentImpl) {
+func checkBatches(t *testing.T, ctx context.Context, labels metric.LabelSet, meter *mock.Meter, kind core.NumberKind, instrument metric.InstrumentImpl) {
 	t.Helper()
 	if len(meter.MeasurementBatches) != 3 {
 		t.Errorf("Expected 3 recorded measurement batches, got %d", len(meter.MeasurementBatches))
 	}
 	ourInstrument := instrument.(*mock.Instrument)
+	ourLabelSet := labels.(*mock.LabelSet)
 	minLen := 3
 	if minLen > len(meter.MeasurementBatches) {
 		minLen = len(meter.MeasurementBatches)
@@ -467,11 +467,11 @@ func checkBatches(t *testing.T, ctx context.Context, labels label.Set, meter *mo
 			}
 			t.Errorf("Wrong recorded context in batch %d, expected %s, got %s", i, d(ctx), d(got.Ctx))
 		}
-		if !got.LabelSet.Equals(labels) {
-			d := func(l label.Set) string {
-				return fmt.Sprintf("(labels %#v)", l)
+		if got.LabelSet != ourLabelSet {
+			d := func(l *mock.LabelSet) string {
+				return fmt.Sprintf("(ptr: %p, labels %#v)", l, l.Labels)
 			}
-			t.Errorf("Wrong recorded label set in batch %d, expected %s, got %s", i, d(labels), d(got.LabelSet))
+			t.Errorf("Wrong recorded label set in batch %d, expected %s, got %s", i, d(ourLabelSet), d(got.LabelSet))
 		}
 		if len(got.Measurements) != 1 {
 			t.Errorf("Expected 1 measurement in batch %d, got %d", i, len(got.Measurements))

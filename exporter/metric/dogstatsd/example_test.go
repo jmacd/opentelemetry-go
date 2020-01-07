@@ -7,8 +7,6 @@ import (
 	"log"
 	"sync"
 
-	"go.opentelemetry.io/otel/api/context/label"
-	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/key"
 	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/exporter/metric/dogstatsd"
@@ -57,11 +55,11 @@ func ExampleNew() {
 	key := key.New("key")
 
 	// pusher implements the metric.MeterProvider interface:
-	sdk := scope.NewProvider(nil, pusher.Meter(), nil).New().Named("example")
+	meter := pusher.Meter("example")
 
 	// Create and update a single counter:
-	counter := sdk.Meter().NewInt64Counter("a.counter", metric.WithKeys(key))
-	labels := label.NewSet(key.String("value"))
+	counter := meter.NewInt64Counter("a.counter", metric.WithKeys(key))
+	labels := meter.Labels(key.String("value"))
 
 	counter.Add(ctx, 100, labels)
 
@@ -71,5 +69,5 @@ func ExampleNew() {
 	wg.Wait()
 
 	// Output:
-	// example/a.counter:100|c|#key:value
+	// a.counter:100|c|#key:value
 }

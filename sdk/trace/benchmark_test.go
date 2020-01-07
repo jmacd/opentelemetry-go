@@ -25,7 +25,7 @@ import (
 )
 
 func BenchmarkStartEndSpan(b *testing.B) {
-	traceBenchmark(b, func(b *testing.B, t apitrace.Tracer) {
+	traceBenchmark(b, "Benchmark StartEndSpan", func(b *testing.B, t apitrace.Tracer) {
 		ctx := context.Background()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -36,7 +36,7 @@ func BenchmarkStartEndSpan(b *testing.B) {
 }
 
 func BenchmarkSpanWithAttributes_4(b *testing.B) {
-	traceBenchmark(b, func(b *testing.B, t apitrace.Tracer) {
+	traceBenchmark(b, "Benchmark Start With 4 Attributes", func(b *testing.B, t apitrace.Tracer) {
 		ctx := context.Background()
 		b.ResetTimer()
 
@@ -54,7 +54,7 @@ func BenchmarkSpanWithAttributes_4(b *testing.B) {
 }
 
 func BenchmarkSpanWithAttributes_8(b *testing.B) {
-	traceBenchmark(b, func(b *testing.B, t apitrace.Tracer) {
+	traceBenchmark(b, "Benchmark Start With 8 Attributes", func(b *testing.B, t apitrace.Tracer) {
 		ctx := context.Background()
 		b.ResetTimer()
 
@@ -76,7 +76,7 @@ func BenchmarkSpanWithAttributes_8(b *testing.B) {
 }
 
 func BenchmarkSpanWithAttributes_all(b *testing.B) {
-	traceBenchmark(b, func(b *testing.B, t apitrace.Tracer) {
+	traceBenchmark(b, "Benchmark Start With all Attribute types", func(b *testing.B, t apitrace.Tracer) {
 		ctx := context.Background()
 		b.ResetTimer()
 
@@ -100,7 +100,7 @@ func BenchmarkSpanWithAttributes_all(b *testing.B) {
 }
 
 func BenchmarkSpanWithAttributes_all_2x(b *testing.B) {
-	traceBenchmark(b, func(b *testing.B, t apitrace.Tracer) {
+	traceBenchmark(b, "Benchmark Start With all Attributes types twice", func(b *testing.B, t apitrace.Tracer) {
 		ctx := context.Background()
 		b.ResetTimer()
 
@@ -155,21 +155,21 @@ func BenchmarkSpanID_DotString(b *testing.B) {
 	}
 }
 
-func traceBenchmark(b *testing.B, fn func(*testing.B, apitrace.Tracer)) {
+func traceBenchmark(b *testing.B, name string, fn func(*testing.B, apitrace.Tracer)) {
 	b.Run("AlwaysSample", func(b *testing.B) {
 		b.ReportAllocs()
-		fn(b, tracer(b, sdktrace.AlwaysSample()))
+		fn(b, tracer(b, name, sdktrace.AlwaysSample()))
 	})
 	b.Run("NeverSample", func(b *testing.B) {
 		b.ReportAllocs()
-		fn(b, tracer(b, sdktrace.NeverSample()))
+		fn(b, tracer(b, name, sdktrace.NeverSample()))
 	})
 }
 
-func tracer(b *testing.B, sampler sdktrace.Sampler) apitrace.Tracer {
-	tr, err := sdktrace.NewTracer(sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sampler}))
+func tracer(b *testing.B, name string, sampler sdktrace.Sampler) apitrace.Tracer {
+	tp, err := sdktrace.NewProvider(sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sampler}))
 	if err != nil {
-		b.Fatalf("Failed to create tracer\n")
+		b.Fatalf("Failed to create trace provider for test %s\n", name)
 	}
-	return tr
+	return tp.Tracer(name)
 }

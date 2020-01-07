@@ -5,17 +5,18 @@ import (
 	"strings"
 	"testing"
 
-	"go.opentelemetry.io/otel/api/context/label"
-	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/global/internal"
 	"go.opentelemetry.io/otel/api/key"
+	"go.opentelemetry.io/otel/api/metric"
+	"go.opentelemetry.io/otel/api/trace"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	sdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/counter"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/ddsketch"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/gauge"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/minmaxsumcount"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 // benchFixture is copied from sdk/metric/benchmark_test.go.
@@ -25,12 +26,14 @@ type benchFixture struct {
 	B   *testing.B
 }
 
+var _ metric.Provider = &benchFixture{}
+
 func newFixture(b *testing.B) *benchFixture {
 	b.ReportAllocs()
 	bf := &benchFixture{
 		B: b,
 	}
-	bf.sdk = sdk.New(bf, label.NewDefaultEncoder())
+	bf.sdk = sdk.New(bf, sdk.NewDefaultLabelEncoder())
 	return bf
 }
 
@@ -63,11 +66,15 @@ func (*benchFixture) CheckpointSet() export.CheckpointSet {
 func (*benchFixture) FinishedCollection() {
 }
 
+func (fix *benchFixture) Meter(name string) metric.Meter {
+	return fix.sdk
+}
+
 func BenchmarkGlobalInt64CounterAddNoSDK(b *testing.B) {
 	internal.ResetForTest()
 	ctx := context.Background()
-	sdk := global.Scope().Named("test").Meter()
-	labs := label.NewSet(key.String("A", "B"))
+	sdk := global.MeterProvider().Meter("test")
+	labs := sdk.Labels(key.String("A", "B"))
 	cnt := sdk.NewInt64Counter("int64.counter")
 
 	b.ResetTimer()
@@ -82,11 +89,11 @@ func BenchmarkGlobalInt64CounterAddWithSDK(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
 
-	sdk := global.Scope().Named("test").Meter()
+	sdk := global.MeterProvider().Meter("test")
 
-	global.SetScope(scope.NewProvider(nil, fix.sdk, nil).New())
+	global.SetMeterProvider(fix)
 
-	labs := label.NewSet(key.String("A", "B"))
+	labs := sdk.Labels(key.String("A", "B"))
 	cnt := sdk.NewInt64Counter("int64.counter")
 
 	b.ResetTimer()
@@ -96,41 +103,41 @@ func BenchmarkGlobalInt64CounterAddWithSDK(b *testing.B) {
 	}
 }
 
-// func BenchmarkStartEndSpan(b *testing.B) {
-// 	// Comapare with BenchmarkStartEndSpan() in ../../sdk/trace/benchmark_test.go
-// 	traceBenchmark(b, func(b *testing.B) {
-// 		t := global.TraceProvider().Tracer("Benchmark StartEndSpan")
-// 		ctx := context.Background()
-// 		b.ResetTimer()
-// 		for i := 0; i < b.N; i++ {
-// 			_, span := t.Start(ctx, "/foo")
-// 			span.End()
-// 		}
-// 	})
-// }
+func BenchmarkStartEndSpan(b *testing.B) {
+	// Comapare with BenchmarkStartEndSpan() in ../../sdk/trace/benchmark_test.go
+	traceBenchmark(b, func(b *testing.B) {
+		t := global.TraceProvider().Tracer("Benchmark StartEndSpan")
+		ctx := context.Background()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, span := t.Start(ctx, "/foo")
+			span.End()
+		}
+	})
+}
 
-// func traceBenchmark(b *testing.B, fn func(*testing.B)) {
-// 	internal.ResetForTest()
-// 	b.Run("No SDK", func(b *testing.B) {
-// 		b.ReportAllocs()
-// 		fn(b)
-// 	})
-// 	b.Run("Default SDK (AlwaysSample)", func(b *testing.B) {
-// 		b.ReportAllocs()
-// 		global.SetTraceProvider(traceProvider(b, sdktrace.AlwaysSample()))
-// 		fn(b)
-// 	})
-// 	b.Run("Default SDK (NeverSample)", func(b *testing.B) {
-// 		b.ReportAllocs()
-// 		global.SetTraceProvider(traceProvider(b, sdktrace.NeverSample()))
-// 		fn(b)
-// 	})
-// }
+func traceBenchmark(b *testing.B, fn func(*testing.B)) {
+	internal.ResetForTest()
+	b.Run("No SDK", func(b *testing.B) {
+		b.ReportAllocs()
+		fn(b)
+	})
+	b.Run("Default SDK (AlwaysSample)", func(b *testing.B) {
+		b.ReportAllocs()
+		global.SetTraceProvider(traceProvider(b, sdktrace.AlwaysSample()))
+		fn(b)
+	})
+	b.Run("Default SDK (NeverSample)", func(b *testing.B) {
+		b.ReportAllocs()
+		global.SetTraceProvider(traceProvider(b, sdktrace.NeverSample()))
+		fn(b)
+	})
+}
 
-// func traceProvider(b *testing.B, sampler sdktrace.Sampler) trace.Provider {
-// 	tp, err := sdktrace.NewProvider(sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sampler}))
-// 	if err != nil {
-// 		b.Fatalf("Failed to create trace provider with sampler: %v", err)
-// 	}
-// 	return tp
-// }
+func traceProvider(b *testing.B, sampler sdktrace.Sampler) trace.Provider {
+	tp, err := sdktrace.NewProvider(sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sampler}))
+	if err != nil {
+		b.Fatalf("Failed to create trace provider with sampler: %v", err)
+	}
+	return tp
+}

@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"strings"
 
-	"go.opentelemetry.io/otel/api/context/scope"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/trace"
@@ -52,12 +51,12 @@ func ExampleNewHandler() {
 		log.Fatal(err)
 	}
 
-	tr, err := sdktrace.NewTracer(sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
+	tp, err := sdktrace.NewProvider(sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
 		sdktrace.WithSyncer(exporter))
 	if err != nil {
 		log.Fatal(err)
 	}
-	global.SetScope(scope.NewProvider(tr, nil, nil).New())
+	global.SetTraceProvider(tp)
 
 	figureOutName := func(ctx context.Context, s string) (string, error) {
 		pp := strings.SplitN(s, "/", 2)
@@ -78,7 +77,7 @@ func ExampleNewHandler() {
 				ctx := r.Context()
 				var name string
 				// Wrap another function in its own span
-				if err := scope.Current(ctx).Tracer().WithSpan(ctx, "figureOutName",
+				if err := trace.SpanFromContext(ctx).Tracer().WithSpan(ctx, "figureOutName",
 					func(ctx context.Context) error {
 						var err error
 						name, err = figureOutName(ctx, r.URL.Path[1:])

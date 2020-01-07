@@ -10,13 +10,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.opentelemetry.io/otel/api/context/label"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
 	"go.opentelemetry.io/otel/exporter/metric/stdout"
 	"go.opentelemetry.io/otel/exporter/metric/test"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/export/metric/aggregator"
+	sdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/array"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/counter"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/ddsketch"
@@ -79,7 +79,7 @@ func TestStdoutTimestamp(t *testing.T) {
 
 	before := time.Now()
 
-	checkpointSet := test.NewCheckpointSet(label.NewDefaultEncoder())
+	checkpointSet := test.NewCheckpointSet(sdk.NewDefaultLabelEncoder())
 
 	ctx := context.Background()
 	desc := export.NewDescriptor("test.name", export.GaugeKind, nil, "", "", core.Int64NumberKind, false)
@@ -125,7 +125,7 @@ func TestStdoutTimestamp(t *testing.T) {
 func TestStdoutCounterFormat(t *testing.T) {
 	fix := newFixture(t, stdout.Config{})
 
-	checkpointSet := test.NewCheckpointSet(label.NewDefaultEncoder())
+	checkpointSet := test.NewCheckpointSet(sdk.NewDefaultLabelEncoder())
 
 	desc := export.NewDescriptor("test.name", export.CounterKind, nil, "", "", core.Int64NumberKind, false)
 	cagg := counter.New()
@@ -142,7 +142,7 @@ func TestStdoutCounterFormat(t *testing.T) {
 func TestStdoutGaugeFormat(t *testing.T) {
 	fix := newFixture(t, stdout.Config{})
 
-	checkpointSet := test.NewCheckpointSet(label.NewDefaultEncoder())
+	checkpointSet := test.NewCheckpointSet(sdk.NewDefaultLabelEncoder())
 
 	desc := export.NewDescriptor("test.name", export.GaugeKind, nil, "", "", core.Float64NumberKind, false)
 	gagg := gauge.New()
@@ -159,7 +159,7 @@ func TestStdoutGaugeFormat(t *testing.T) {
 func TestStdoutMinMaxSumCount(t *testing.T) {
 	fix := newFixture(t, stdout.Config{})
 
-	checkpointSet := test.NewCheckpointSet(label.NewDefaultEncoder())
+	checkpointSet := test.NewCheckpointSet(sdk.NewDefaultLabelEncoder())
 
 	desc := export.NewDescriptor("test.name", export.MeasureKind, nil, "", "", core.Float64NumberKind, false)
 	magg := minmaxsumcount.New(desc)
@@ -179,7 +179,7 @@ func TestStdoutMeasureFormat(t *testing.T) {
 		PrettyPrint: true,
 	})
 
-	checkpointSet := test.NewCheckpointSet(label.NewDefaultEncoder())
+	checkpointSet := test.NewCheckpointSet(sdk.NewDefaultLabelEncoder())
 
 	desc := export.NewDescriptor("test.name", export.MeasureKind, nil, "", "", core.Float64NumberKind, false)
 	magg := array.New()
@@ -233,7 +233,7 @@ func TestStdoutEmptyDataSet(t *testing.T) {
 
 			fix := newFixture(t, stdout.Config{})
 
-			checkpointSet := test.NewCheckpointSet(label.NewDefaultEncoder())
+			checkpointSet := test.NewCheckpointSet(sdk.NewDefaultLabelEncoder())
 
 			magg := tc
 			magg.Checkpoint(fix.ctx, desc)
@@ -250,7 +250,7 @@ func TestStdoutEmptyDataSet(t *testing.T) {
 func TestStdoutGaugeNotSet(t *testing.T) {
 	fix := newFixture(t, stdout.Config{})
 
-	checkpointSet := test.NewCheckpointSet(label.NewDefaultEncoder())
+	checkpointSet := test.NewCheckpointSet(sdk.NewDefaultLabelEncoder())
 
 	desc := export.NewDescriptor("test.name", export.GaugeKind, nil, "", "", core.Float64NumberKind, false)
 	gagg := gauge.New()

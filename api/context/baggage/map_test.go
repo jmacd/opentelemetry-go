@@ -18,24 +18,22 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"
 )
 
 func TestMap(t *testing.T) {
 	for _, testcase := range []struct {
-		name       string
-		updateOne  core.KeyValue
-		updateMany []core.KeyValue
-		init       []int
-		wantKVs    []core.KeyValue
+		name    string
+		value   MapUpdate
+		init    []int
+		wantKVs []core.KeyValue
 	}{
 		{
 			name: "NewMap with MultiKV",
-			updateMany: []core.KeyValue{
+			value: MapUpdate{MultiKV: []core.KeyValue{
 				key.Int64("key1", 1),
-				key.String("key2", "val2"),
+				key.String("key2", "val2")},
 			},
 			init: []int{},
 			wantKVs: []core.KeyValue{
@@ -44,23 +42,37 @@ func TestMap(t *testing.T) {
 			},
 		},
 		{
-			name:      "NewMap with SingleKV",
-			updateOne: key.String("key1", "val1"),
-			init:      []int{},
+			name:  "NewMap with SingleKV",
+			value: MapUpdate{SingleKV: key.String("key1", "val1")},
+			init:  []int{},
 			wantKVs: []core.KeyValue{
 				key.String("key1", "val1"),
 			},
 		},
 		{
+			name: "NewMap with MapUpdate",
+			value: MapUpdate{SingleKV: key.Int64("key1", 3),
+				MultiKV: []core.KeyValue{
+					key.String("key1", ""),
+					key.String("key2", "val2")},
+			},
+			init: []int{},
+			wantKVs: []core.KeyValue{
+				key.String("key1", ""),
+				key.String("key2", "val2"),
+			},
+		},
+		{
 			name:    "NewMap with empty MapUpdate",
+			value:   MapUpdate{MultiKV: []core.KeyValue{}},
 			init:    []int{},
-			wantKVs: nil,
+			wantKVs: []core.KeyValue{},
 		},
 		{
 			name: "Map with MultiKV",
-			updateMany: []core.KeyValue{
+			value: MapUpdate{MultiKV: []core.KeyValue{
 				key.Int64("key1", 1),
-				key.String("key2", "val2"),
+				key.String("key2", "val2")},
 			},
 			init: []int{5},
 			wantKVs: []core.KeyValue{
@@ -70,33 +82,43 @@ func TestMap(t *testing.T) {
 			},
 		},
 		{
-			name:      "Map with SingleKV",
-			updateOne: key.String("key1", "val1"),
-			init:      []int{5},
+			name:  "Map with SingleKV",
+			value: MapUpdate{SingleKV: key.String("key1", "val1")},
+			init:  []int{5},
 			wantKVs: []core.KeyValue{
 				key.String("key1", "val1"),
 				key.Int("key5", 5),
 			},
 		},
 		{
-			name:       "Map with empty MapUpdate",
-			updateMany: []core.KeyValue{},
-			init:       []int{5},
+			name: "Map with MapUpdate",
+			value: MapUpdate{SingleKV: key.Int64("key1", 3),
+				MultiKV: []core.KeyValue{
+					key.String("key1", ""),
+					key.String("key2", "val2")},
+			},
+			init: []int{5},
+			wantKVs: []core.KeyValue{
+				key.String("key1", ""),
+				key.String("key2", "val2"),
+				key.Int("key5", 5),
+			},
+		},
+		{
+			name:  "Map with empty MapUpdate",
+			value: MapUpdate{MultiKV: []core.KeyValue{}},
+			init:  []int{5},
 			wantKVs: []core.KeyValue{
 				key.Int("key5", 5),
 			},
 		},
 	} {
 		t.Logf("Running test case %s", testcase.name)
-		got := Empty()
+		var got Map
 		if len(testcase.init) > 0 {
-			got = makeTestMap(testcase.init)
-		}
-		if testcase.updateMany != nil {
-			got = got.AddMany(testcase.updateMany...)
-		}
-		if testcase.updateOne.Key.Defined() {
-			got = got.AddOne(testcase.updateOne)
+			got = makeTestMap(testcase.init).Apply(testcase.value)
+		} else {
+			got = NewMap(testcase.value)
 		}
 		for _, s := range testcase.wantKVs {
 			if ok := got.HasValue(s.Key); !ok {
@@ -116,14 +138,18 @@ func TestMap(t *testing.T) {
 			t.Errorf("Expected kv %v, but not found", kv)
 			return true
 		})
-		require.EqualValues(t, got.Ordered(), testcase.wantKVs)
+		if l, exp := got.Len(), len(testcase.wantKVs); l != exp {
+			t.Errorf("+got: %d, -want: %d", l, exp)
+		}
 	}
 }
 
 func makeTestMap(ints []int) Map {
-	var r []core.KeyValue
+	r := make(rawMap, len(ints))
 	for _, v := range ints {
-		r = append(r, core.Key(fmt.Sprintf("key%d", v)).Int(v))
+		r[core.Key(fmt.Sprintf("key%d", v))] = entry{
+			value: core.Int(v),
+		}
 	}
-	return New(r...)
+	return newMap(r)
 }
