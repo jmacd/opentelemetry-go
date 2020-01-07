@@ -49,8 +49,9 @@ type (
 	Kind int8
 
 	Measurement struct {
-		Instrument *Instrument
+		// Number needs to be aligned for 64-bit atomic operations.
 		Number     core.Number
+		Instrument *Instrument
 	}
 )
 

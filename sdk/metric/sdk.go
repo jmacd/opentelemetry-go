@@ -96,20 +96,28 @@ type (
 		// refcount counts the number of active handles on
 		// referring to this record.  active handles prevent
 		// removing the record from the current map.
+		//
+		// refcount has to be aligned for 64-bit atomic operations.
 		refcount int64
 
 		// collectedEpoch is the epoch number for which this
 		// record has been exported.  This is modified by the
 		// `Collect()` method.
+		//
+		// collectedEpoch has to be aligned for 64-bit atomic operations.
 		collectedEpoch int64
 
 		// modifiedEpoch is the latest epoch number for which
 		// this record was updated.  Generally, if
 		// modifiedEpoch is less than collectedEpoch, this
 		// record is due for reclaimation.
+		//
+		// modifiedEpoch has to be aligned for 64-bit atomic operations.
 		modifiedEpoch int64
 
 		// reclaim is an atomic to control the start of reclaiming.
+		//
+		// reclaim has to be aligned for 64-bit atomic operations.
 		reclaim int64
 
 		// recorder implements the actual RecordOne() API,
