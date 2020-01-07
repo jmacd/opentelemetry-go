@@ -39,6 +39,16 @@ type TraceContext struct{}
 var _ propagation.HTTPPropagator = TraceContext{}
 var traceCtxRegExp = regexp.MustCompile("^[0-9a-f]{2}-[a-f0-9]{32}-[a-f0-9]{16}-[a-f0-9]{2}-?")
 
+// DefaultPropagators returns a default Propagators, configured
+// with W3C trace context propagation.
+func DefaultPropagators() propagation.Propagators {
+	inex := TraceContext{}
+	return propagation.New(
+		propagation.WithExtractors(inex),
+		propagation.WithInjectors(inex),
+	)
+}
+
 func (TraceContext) Inject(ctx context.Context, supplier propagation.HTTPSupplier) {
 	sc := trace.SpanFromContext(ctx).SpanContext()
 	if !sc.IsValid() {

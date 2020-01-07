@@ -14,7 +14,16 @@
 
 package internal
 
-import "context"
+import (
+	"context"
+	"sync"
+	"sync/atomic"
+)
+
+var (
+	GlobalScope        *atomic.Value
+	GlobalDelegateOnce sync.Once
+)
 
 type currentScopeKeyType struct{}
 

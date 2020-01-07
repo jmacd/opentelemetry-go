@@ -261,27 +261,27 @@ func (m *SDK) newMeasureInstrument(name string, numberKind core.NumberKind, mos 
 	return m.newInstrument(name, export.MeasureKind, numberKind, &opts)
 }
 
-func (m *SDK) NewInt64Counter(name string, cos ...api.CounterOptionApplier) api.Int64Counter {
+func (m *SDK) NewInt64Counter(ctx context.Context, name string, cos ...api.CounterOptionApplier) api.Int64Counter {
 	return api.WrapInt64CounterInstrument(m.newCounterInstrument(name, core.Int64NumberKind, cos...))
 }
 
-func (m *SDK) NewFloat64Counter(name string, cos ...api.CounterOptionApplier) api.Float64Counter {
+func (m *SDK) NewFloat64Counter(ctx context.Context, name string, cos ...api.CounterOptionApplier) api.Float64Counter {
 	return api.WrapFloat64CounterInstrument(m.newCounterInstrument(name, core.Float64NumberKind, cos...))
 }
 
-func (m *SDK) NewInt64Gauge(name string, gos ...api.GaugeOptionApplier) api.Int64Gauge {
+func (m *SDK) NewInt64Gauge(ctx context.Context, name string, gos ...api.GaugeOptionApplier) api.Int64Gauge {
 	return api.WrapInt64GaugeInstrument(m.newGaugeInstrument(name, core.Int64NumberKind, gos...))
 }
 
-func (m *SDK) NewFloat64Gauge(name string, gos ...api.GaugeOptionApplier) api.Float64Gauge {
+func (m *SDK) NewFloat64Gauge(ctx context.Context, name string, gos ...api.GaugeOptionApplier) api.Float64Gauge {
 	return api.WrapFloat64GaugeInstrument(m.newGaugeInstrument(name, core.Float64NumberKind, gos...))
 }
 
-func (m *SDK) NewInt64Measure(name string, mos ...api.MeasureOptionApplier) api.Int64Measure {
+func (m *SDK) NewInt64Measure(ctx context.Context, name string, mos ...api.MeasureOptionApplier) api.Int64Measure {
 	return api.WrapInt64MeasureInstrument(m.newMeasureInstrument(name, core.Int64NumberKind, mos...))
 }
 
-func (m *SDK) NewFloat64Measure(name string, mos ...api.MeasureOptionApplier) api.Float64Measure {
+func (m *SDK) NewFloat64Measure(ctx context.Context, name string, mos ...api.MeasureOptionApplier) api.Float64Measure {
 	return api.WrapFloat64MeasureInstrument(m.newMeasureInstrument(name, core.Float64NumberKind, mos...))
 }
 

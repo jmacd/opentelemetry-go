@@ -93,22 +93,22 @@ func (m Measurement) Number() core.Number {
 type Meter interface {
 	// NewInt64Counter creates a new integral counter with a given
 	// name and customized with passed options.
-	NewInt64Counter(name string, cos ...CounterOptionApplier) Int64Counter
+	NewInt64Counter(ctx context.Context, name string, cos ...CounterOptionApplier) Int64Counter
 	// NewFloat64Counter creates a new floating point counter with
 	// a given name and customized with passed options.
-	NewFloat64Counter(name string, cos ...CounterOptionApplier) Float64Counter
+	NewFloat64Counter(ctx context.Context, name string, cos ...CounterOptionApplier) Float64Counter
 	// NewInt64Gauge creates a new integral gauge with a given
 	// name and customized with passed options.
-	NewInt64Gauge(name string, gos ...GaugeOptionApplier) Int64Gauge
+	NewInt64Gauge(ctx context.Context, name string, gos ...GaugeOptionApplier) Int64Gauge
 	// NewFloat64Gauge creates a new floating point gauge with a
 	// given name and customized with passed options.
-	NewFloat64Gauge(name string, gos ...GaugeOptionApplier) Float64Gauge
+	NewFloat64Gauge(ctx context.Context, name string, gos ...GaugeOptionApplier) Float64Gauge
 	// NewInt64Measure creates a new integral measure with a given
 	// name and customized with passed options.
-	NewInt64Measure(name string, mos ...MeasureOptionApplier) Int64Measure
+	NewInt64Measure(ctx context.Context, name string, mos ...MeasureOptionApplier) Int64Measure
 	// NewFloat64Measure creates a new floating point measure with
 	// a given name and customized with passed options.
-	NewFloat64Measure(name string, mos ...MeasureOptionApplier) Float64Measure
+	NewFloat64Measure(ctx context.Context, name string, mos ...MeasureOptionApplier) Float64Measure
 
 	// RecordBatch atomically records a batch of measurements.
 	RecordBatch(context.Context, []core.KeyValue, ...Measurement)

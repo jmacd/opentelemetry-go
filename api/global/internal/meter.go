@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/api/trace"
+	tpropagation "go.opentelemetry.io/otel/api/trace/propagation"
 )
 
 // This file contains the forwarding implementation of metric.Provider
@@ -73,6 +74,7 @@ type propagators struct {
 type instImpl struct {
 	meter *meter
 
+	ctx   context.Context
 	name  string
 	mkind metricKind
 	nkind core.NumberKind
@@ -101,7 +103,7 @@ func newDeferred() *deferred {
 	d.meter.deferred = d
 	d.tracer.deferred = d
 	d.propagators.deferred = d
-	d.propagators.Propagators = getDefaultPropagators()
+	d.propagators.Propagators = tpropagation.DefaultPropagators()
 	return d
 }
 
@@ -145,15 +147,16 @@ func (m *meter) setDelegate(sc scope.Scope) {
 	m.instruments = nil
 }
 
-func (m *meter) newInst(name string, mkind metricKind, nkind core.NumberKind, opts interface{}) metric.InstrumentImpl {
+func (m *meter) newInst(ctx context.Context, name string, mkind metricKind, nkind core.NumberKind, opts interface{}) metric.InstrumentImpl {
 	m.deferred.lock.Lock()
 	defer m.deferred.lock.Unlock()
 
 	if implPtr := (*scope.Scope)(atomic.LoadPointer(&m.deferred.delegate)); implPtr != nil {
-		return newInstDelegate((*implPtr).Meter(), name, mkind, nkind, opts)
+		return newInstDelegate(ctx, (*implPtr).Meter(), name, mkind, nkind, opts)
 	}
 
 	inst := &instImpl{
+		ctx:   ctx,
 		meter: m,
 		name:  name,
 		mkind: mkind,
@@ -164,23 +167,23 @@ func (m *meter) newInst(name string, mkind metricKind, nkind core.NumberKind, op
 	return inst
 }
 
-func newInstDelegate(m metric.Meter, name string, mkind metricKind, nkind core.NumberKind, opts interface{}) metric.InstrumentImpl {
+func newInstDelegate(ctx context.Context, m metric.Meter, name string, mkind metricKind, nkind core.NumberKind, opts interface{}) metric.InstrumentImpl {
 	switch mkind {
 	case counterKind:
 		if nkind == core.Int64NumberKind {
-			return m.NewInt64Counter(name, opts.([]metric.CounterOptionApplier)...).Impl()
+			return m.NewInt64Counter(ctx, name, opts.([]metric.CounterOptionApplier)...).Impl()
 		}
-		return m.NewFloat64Counter(name, opts.([]metric.CounterOptionApplier)...).Impl()
+		return m.NewFloat64Counter(ctx, name, opts.([]metric.CounterOptionApplier)...).Impl()
 	case gaugeKind:
 		if nkind == core.Int64NumberKind {
-			return m.NewInt64Gauge(name, opts.([]metric.GaugeOptionApplier)...).Impl()
+			return m.NewInt64Gauge(ctx, name, opts.([]metric.GaugeOptionApplier)...).Impl()
 		}
-		return m.NewFloat64Gauge(name, opts.([]metric.GaugeOptionApplier)...).Impl()
+		return m.NewFloat64Gauge(ctx, name, opts.([]metric.GaugeOptionApplier)...).Impl()
 	case measureKind:
 		if nkind == core.Int64NumberKind {
-			return m.NewInt64Measure(name, opts.([]metric.MeasureOptionApplier)...).Impl()
+			return m.NewInt64Measure(ctx, name, opts.([]metric.MeasureOptionApplier)...).Impl()
 		}
-		return m.NewFloat64Measure(name, opts.([]metric.MeasureOptionApplier)...).Impl()
+		return m.NewFloat64Measure(ctx, name, opts.([]metric.MeasureOptionApplier)...).Impl()
 	}
 	return nil
 }
@@ -190,7 +193,7 @@ func newInstDelegate(m metric.Meter, name string, mkind metricKind, nkind core.N
 func (inst *instImpl) setDelegate(sc scope.Scope) {
 	implPtr := new(metric.InstrumentImpl)
 
-	*implPtr = newInstDelegate(sc.Meter(), inst.name, inst.mkind, inst.nkind, inst.opts)
+	*implPtr = newInstDelegate(inst.ctx, sc.Meter(), inst.name, inst.mkind, inst.nkind, inst.opts)
 
 	atomic.StorePointer(&inst.delegate, unsafe.Pointer(implPtr))
 }
@@ -252,26 +255,26 @@ func (bound *instBound) RecordOne(ctx context.Context, number core.Number) {
 
 // Constructors
 
-func (m *meter) NewInt64Counter(name string, opts ...metric.CounterOptionApplier) metric.Int64Counter {
-	return metric.WrapInt64CounterInstrument(m.newInst(name, counterKind, core.Int64NumberKind, opts))
+func (m *meter) NewInt64Counter(ctx context.Context, name string, opts ...metric.CounterOptionApplier) metric.Int64Counter {
+	return metric.WrapInt64CounterInstrument(m.newInst(ctx, name, counterKind, core.Int64NumberKind, opts))
 }
 
-func (m *meter) NewFloat64Counter(name string, opts ...metric.CounterOptionApplier) metric.Float64Counter {
-	return metric.WrapFloat64CounterInstrument(m.newInst(name, counterKind, core.Float64NumberKind, opts))
+func (m *meter) NewFloat64Counter(ctx context.Context, name string, opts ...metric.CounterOptionApplier) metric.Float64Counter {
+	return metric.WrapFloat64CounterInstrument(m.newInst(ctx, name, counterKind, core.Float64NumberKind, opts))
 }
 
-func (m *meter) NewInt64Gauge(name string, opts ...metric.GaugeOptionApplier) metric.Int64Gauge {
-	return metric.WrapInt64GaugeInstrument(m.newInst(name, gaugeKind, core.Int64NumberKind, opts))
+func (m *meter) NewInt64Gauge(ctx context.Context, name string, opts ...metric.GaugeOptionApplier) metric.Int64Gauge {
+	return metric.WrapInt64GaugeInstrument(m.newInst(ctx, name, gaugeKind, core.Int64NumberKind, opts))
 }
 
-func (m *meter) NewFloat64Gauge(name string, opts ...metric.GaugeOptionApplier) metric.Float64Gauge {
-	return metric.WrapFloat64GaugeInstrument(m.newInst(name, gaugeKind, core.Float64NumberKind, opts))
+func (m *meter) NewFloat64Gauge(ctx context.Context, name string, opts ...metric.GaugeOptionApplier) metric.Float64Gauge {
+	return metric.WrapFloat64GaugeInstrument(m.newInst(ctx, name, gaugeKind, core.Float64NumberKind, opts))
 }
 
-func (m *meter) NewInt64Measure(name string, opts ...metric.MeasureOptionApplier) metric.Int64Measure {
-	return metric.WrapInt64MeasureInstrument(m.newInst(name, measureKind, core.Int64NumberKind, opts))
+func (m *meter) NewInt64Measure(ctx context.Context, name string, opts ...metric.MeasureOptionApplier) metric.Int64Measure {
+	return metric.WrapInt64MeasureInstrument(m.newInst(ctx, name, measureKind, core.Int64NumberKind, opts))
 }
 
-func (m *meter) NewFloat64Measure(name string, opts ...metric.MeasureOptionApplier) metric.Float64Measure {
-	return metric.WrapFloat64MeasureInstrument(m.newInst(name, measureKind, core.Float64NumberKind, opts))
+func (m *meter) NewFloat64Measure(ctx context.Context, name string, opts ...metric.MeasureOptionApplier) metric.Float64Measure {
+	return metric.WrapFloat64MeasureInstrument(m.newInst(ctx, name, measureKind, core.Float64NumberKind, opts))
 }

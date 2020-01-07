@@ -4,31 +4,29 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"go.opentelemetry.io/otel/api/context/propagation"
 	"go.opentelemetry.io/otel/api/context/scope"
-	tracePropagation "go.opentelemetry.io/otel/api/trace/propagation"
+	"go.opentelemetry.io/otel/api/internal"
 )
 
 type (
 	scopeHolder struct {
-		sc scope.Scope
+		scope.Scope
 	}
 )
 
-var (
-	globalScope  = defaultScopeValue()
-	delegateOnce sync.Once
-)
+func init() {
+	ResetForTest()
+}
 
 // Scope is the internal implementation for global.Scope().
 func Scope() scope.Scope {
-	return globalScope.Load().(scopeHolder).sc
+	return internal.GlobalScope.Load().(scopeHolder).Scope
 }
 
 // SetScope is the internal implementation for global.SetScope().
 func SetScope(sc scope.Scope) {
 	first := false
-	delegateOnce.Do(func() {
+	internal.GlobalDelegateOnce.Do(func() {
 		current := Scope()
 		currentProvider := current.Provider()
 		newProvider := sc.Provider()
@@ -49,31 +47,20 @@ func SetScope(sc scope.Scope) {
 	if !first {
 		panic("global scope has already been initialized")
 	}
-	globalScope.Store(scopeHolder{sc: sc})
+	internal.GlobalScope.Store(scopeHolder{Scope: sc})
 }
 
 func defaultScopeValue() *atomic.Value {
 	v := &atomic.Value{}
 	d := newDeferred()
 	v.Store(scopeHolder{
-		sc: scope.NewProvider(&d.tracer, &d.meter, &d.propagators).New(),
+		Scope: scope.NewProvider(&d.tracer, &d.meter, &d.propagators).New(),
 	})
 	return v
 }
 
-// TODO move me into propagation package
-// getDefaultPropagators returns a default Propagators, configured
-// with W3C trace context propagation.
-func getDefaultPropagators() propagation.Propagators {
-	inex := tracePropagation.TraceContext{}
-	return propagation.New(
-		propagation.WithExtractors(inex),
-		propagation.WithInjectors(inex),
-	)
-}
-
 // ResetForTest restores the initial global state, for testing purposes.
 func ResetForTest() {
-	globalScope = defaultScopeValue()
-	delegateOnce = sync.Once{}
+	internal.GlobalScope = defaultScopeValue()
+	internal.GlobalDelegateOnce = sync.Once{}
 }

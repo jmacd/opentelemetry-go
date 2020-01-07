@@ -235,32 +235,30 @@ func (s *scopeTracer) WithSpan(
 	return s.provider.Tracer().WithSpan(s.enterScope(ctx), s.subname(name), fn)
 }
 
-func (m *scopeMeter) NewInt64Counter(name string, cos ...metric.CounterOptionApplier) metric.Int64Counter {
-	return m.provider.Meter().NewInt64Counter(m.subname(name), cos...)
+func (m *scopeMeter) NewInt64Counter(ctx context.Context, name string, cos ...metric.CounterOptionApplier) metric.Int64Counter {
+	return m.provider.Meter().NewInt64Counter(ctx, m.subname(name), cos...)
 }
 
-func (m *scopeMeter) NewFloat64Counter(name string, cos ...metric.CounterOptionApplier) metric.Float64Counter {
-	return m.provider.Meter().NewFloat64Counter(m.subname(name), cos...)
+func (m *scopeMeter) NewFloat64Counter(ctx context.Context, name string, cos ...metric.CounterOptionApplier) metric.Float64Counter {
+	return m.provider.Meter().NewFloat64Counter(ctx, m.subname(name), cos...)
 }
 
-func (m *scopeMeter) NewInt64Gauge(name string, gos ...metric.GaugeOptionApplier) metric.Int64Gauge {
-	return m.provider.Meter().NewInt64Gauge(m.subname(name), gos...)
+func (m *scopeMeter) NewInt64Gauge(ctx context.Context, name string, gos ...metric.GaugeOptionApplier) metric.Int64Gauge {
+	return m.provider.Meter().NewInt64Gauge(ctx, m.subname(name), gos...)
 }
 
-func (m *scopeMeter) NewFloat64Gauge(name string, gos ...metric.GaugeOptionApplier) metric.Float64Gauge {
-	return m.provider.Meter().NewFloat64Gauge(m.subname(name), gos...)
+func (m *scopeMeter) NewFloat64Gauge(ctx context.Context, name string, gos ...metric.GaugeOptionApplier) metric.Float64Gauge {
+	return m.provider.Meter().NewFloat64Gauge(ctx, m.subname(name), gos...)
 }
 
-func (m *scopeMeter) NewInt64Measure(name string, mos ...metric.MeasureOptionApplier) metric.Int64Measure {
-	return m.provider.Meter().NewInt64Measure(m.subname(name), mos...)
+func (m *scopeMeter) NewInt64Measure(ctx context.Context, name string, mos ...metric.MeasureOptionApplier) metric.Int64Measure {
+	return m.provider.Meter().NewInt64Measure(ctx, m.subname(name), mos...)
 }
 
-func (m *scopeMeter) NewFloat64Measure(name string, mos ...metric.MeasureOptionApplier) metric.Float64Measure {
-	return m.provider.Meter().NewFloat64Measure(m.subname(name), mos...)
+func (m *scopeMeter) NewFloat64Measure(ctx context.Context, name string, mos ...metric.MeasureOptionApplier) metric.Float64Measure {
+	return m.provider.Meter().NewFloat64Measure(ctx, m.subname(name), mos...)
 }
 
 func (m *scopeMeter) RecordBatch(ctx context.Context, labels []core.KeyValue, ms ...metric.Measurement) {
-	// Note: do not need enterScope() because resources are taken
-	// from labels at runtime.
-	m.provider.Meter().RecordBatch(ctx, labels, ms...)
+	m.provider.Meter().RecordBatch(m.enterScope(ctx), labels, ms...)
 }
