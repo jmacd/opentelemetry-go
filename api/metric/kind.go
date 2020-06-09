@@ -37,6 +37,9 @@ const (
 
 	// ValueObserverKind indicates an ValueObserver instrument.
 	ValueObserverKind
+
+	// NumKinds is the number of instrument kinds.
+	NumKinds
 )
 
 // Synchronous returns whether this is a synchronous kind of instrument.

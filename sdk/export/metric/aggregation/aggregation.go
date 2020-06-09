@@ -102,6 +102,11 @@ type (
 		MinMaxSumCount
 		Quantile
 	}
+
+	Multiple interface {
+		Len() int
+		Get(int) Aggregation
+	}
 )
 
 type (
@@ -115,6 +120,7 @@ const (
 	LastValueKind      Kind = "lastvalue"
 	SketchKind         Kind = "sketch"
 	ExactKind          Kind = "exact"
+	MultipleKind       Kind = "multiple"
 )
 
 var (

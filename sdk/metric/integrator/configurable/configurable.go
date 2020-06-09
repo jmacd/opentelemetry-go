@@ -22,13 +22,12 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel/api/kv"
-	"go.opentelemetry.io/otel/api/label"
 	"go.opentelemetry.io/otel/api/metric"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
+	"go.opentelemetry.io/otel/sdk/export/metric/aggregation"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/array"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/ddsketch"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/histogram"
@@ -36,7 +35,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/minmaxsumcount"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/multi"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/sum"
-	"go.opentelemetry.io/otel/sdk/resource"
+	basic "go.opentelemetry.io/otel/sdk/metric/integrator/simple"
 )
 
 type (
@@ -63,40 +62,18 @@ type (
 		Labels     []string `mapstructure:"labels"`
 	}
 
-	// Exporters map[string]Exporter
-
 	Integrator struct {
-		instDefault [][]*aggregation // always len=1
-		views       map[string][]*aggregation
-		state
+		basic       *basic.Integrator
+		instDefault [][]*prototype // always len=1
+		views       map[string][]*prototype
 	}
 
-	aggregation struct {
+	prototype struct {
 		newFunc newFunc
 		labels  []kv.Key
 	}
 
 	newFunc func(desc *metric.Descriptor) export.Aggregator
-
-	stateKey struct {
-		descriptor *metric.Descriptor
-		distinct   label.Distinct
-		resource   label.Distinct
-	}
-
-	stateValue struct {
-		aggregator export.Aggregator
-		labels     *label.Set
-		resource   *resource.Resource
-	}
-
-	state struct {
-		// RWMutex implements locking for the `CheckpointSet` interface.
-		sync.RWMutex
-
-		persistent map[stateKey]stateValue
-		temporary  []export.Record
-	}
 )
 
 var _ export.Integrator = (*Integrator)(nil)
@@ -121,12 +98,12 @@ func s2k(ss ...string) (rr []kv.Key) {
 	return
 }
 
-func (ci *Integrator) newInstDefault() [][]*aggregation {
-	id := make([][]*aggregation, metric.NumKinds)
+func (ci *Integrator) newInstDefault() [][]*prototype {
+	id := make([][]*prototype, metric.NumKinds)
 
 	addDef := func(mkind metric.Kind, _ aggregation.Kind, nf newFunc) {
-		id[mkind] = []*aggregation{
-			&aggregation{
+		id[mkind] = []*prototype{
+			&prototype{
 				newFunc: nf,
 			},
 		}
@@ -142,15 +119,13 @@ func (ci *Integrator) newInstDefault() [][]*aggregation {
 	return id
 }
 
-func New(cfg Config) (*Integrator, error) {
-	policies := map[string]*aggregation{}
+func New(cfg Config, kind export.ExporterKind) (*Integrator, error) {
+	policies := map[string]*prototype{}
 
 	ci := &Integrator{
-		views: map[string][]*aggregation{},
-		state: state{
-			persistent: map[stateKey]stateValue{},
-		},
+		views: map[string][]*prototype{},
 	}
+	ci.basic = basic.New(ci, kind)
 	ci.instDefault = ci.newInstDefault()
 
 	for policy, agg := range cfg.Aggregations {
@@ -180,7 +155,7 @@ func New(cfg Config) (*Integrator, error) {
 			return nil, fmt.Errorf("unrecognized aggregator name: %s", agg.Aggregator)
 		}
 
-		agg := &aggregation{
+		agg := &prototype{
 			newFunc: nf,
 			labels:  s2k(agg.Labels...),
 		}
@@ -213,7 +188,7 @@ func New(cfg Config) (*Integrator, error) {
 			return nil, fmt.Errorf("invalid instrument kind: %s", instKind)
 		}
 
-		ci.instDefault[kind] = []*aggregation{agg}
+		ci.instDefault[kind] = []*prototype{agg}
 	}
 
 	for instName, list := range cfg.Views {
@@ -260,7 +235,7 @@ func (ci *Integrator) arrayAggregator(desc *metric.Descriptor) export.Aggregator
 	return array.New()
 }
 
-func (ci *Integrator) aggregationFor(desc *metric.Descriptor) []*aggregation {
+func (ci *Integrator) aggregationFor(desc *metric.Descriptor) []*prototype {
 	views, ok := ci.views[desc.Name()]
 	if !ok {
 		return ci.instDefault[desc.MetricKind()]
@@ -283,7 +258,8 @@ func (ci *Integrator) AggregatorFor(desc *metric.Descriptor) export.Aggregator {
 	return multi.New(aggs...)
 }
 
-func (ci *Integrator) Process(record export.Record) error {
+func (ci *Integrator) Process(record export.Accumulation) error {
+
 	// desc := record.Descriptor()
 	// for _, view := range ci.aggregationFor(desc) {
 	// 	keys := view.Labels
@@ -381,19 +357,19 @@ func (ci *Integrator) Process(record export.Record) error {
 	return nil
 }
 
-func (b *state) ForEach(f func(export.Record) error) error {
-	// for key, value := range b.values {
-	// 	if err := f(export.NewRecord(
-	// 		key.descriptor,
-	// 		value.labels,
-	// 		value.resource,
-	// 		value.aggregator,
-	// 	)); err != nil && !errors.Is(err, aggregation.ErrNoData) {
-	// 		return err
-	// 	}
-	// }
-	return nil
-}
+// func (b *state) ForEach(f func(export.Record) error) error {
+// 	// for key, value := range b.values {
+// 	// 	if err := f(export.NewRecord(
+// 	// 		key.descriptor,
+// 	// 		value.labels,
+// 	// 		value.resource,
+// 	// 		value.aggregator,
+// 	// 	)); err != nil && !errors.Is(err, aggregation.ErrNoData) {
+// 	// 		return err
+// 	// 	}
+// 	// }
+// 	return nil
+// }
 
 // @@@
 
