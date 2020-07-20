@@ -243,13 +243,13 @@ func newExporterEndToEndTest(t *testing.T, additionalOpts []otlp.ExporterOption)
 			switch data.nKind {
 			case metricapi.Int64NumberKind:
 				assert.Equal(t, metricpb.MetricDescriptor_INT64.String(), desc.GetType().String())
-				if dp := m.GetInt64DataPoints(); assert.Len(t, dp, 1) {
-					assert.Equal(t, data.val, dp[0].Value, "invalid value for %q", desc.Name)
+				if dp := m.GetScalarDataPoints(); assert.Len(t, dp, 1) {
+					assert.Equal(t, data.val, dp[0].ValueInt64, "invalid value for %q", desc.Name)
 				}
 			case metricapi.Float64NumberKind:
 				assert.Equal(t, metricpb.MetricDescriptor_DOUBLE.String(), desc.GetType().String())
-				if dp := m.GetDoubleDataPoints(); assert.Len(t, dp, 1) {
-					assert.Equal(t, float64(data.val), dp[0].Value, "invalid value for %q", desc.Name)
+				if dp := m.GetScalarDataPoints(); assert.Len(t, dp, 1) {
+					assert.Equal(t, float64(data.val), dp[0].ValueDouble, "invalid value for %q", desc.Name)
 				}
 			default:
 				assert.Failf(t, "invalid number kind", data.nKind.String())

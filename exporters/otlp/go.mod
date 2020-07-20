@@ -2,6 +2,8 @@ module go.opentelemetry.io/otel/exporters/otlp
 
 replace go.opentelemetry.io/otel => ../..
 
+replace github.com/open-telemetry/opentelemetry-proto => ../../../github.com/open-telemetry/opentelemetry-proto
+
 require (
 	github.com/gogo/protobuf v1.3.1
 	github.com/google/go-cmp v0.5.0

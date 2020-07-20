@@ -188,15 +188,15 @@ func TestNoGroupingExport(t *testing.T) {
 						Metrics: []*metricpb.Metric{
 							{
 								MetricDescriptor: md,
-								Int64DataPoints: []*metricpb.Int64DataPoint{
+								ScalarDataPoints: []*metricpb.ScalarDataPoint{
 									{
-										Value:             11,
+										ValueInt64:        11,
 										Labels:            cpu1Labels,
 										StartTimeUnixNano: startTime(),
 										TimeUnixNano:      pointTime(),
 									},
 									{
-										Value:             11,
+										ValueInt64:        11,
 										Labels:            cpu2Labels,
 										StartTimeUnixNano: startTime(),
 										TimeUnixNano:      pointTime(),
@@ -317,15 +317,15 @@ func TestCountInt64MetricGroupingExport(t *testing.T) {
 						Metrics: []*metricpb.Metric{
 							{
 								MetricDescriptor: md,
-								Int64DataPoints: []*metricpb.Int64DataPoint{
+								ScalarDataPoints: []*metricpb.ScalarDataPoint{
 									{
-										Value:             11,
+										ValueInt64:        11,
 										Labels:            cpu1Labels,
 										StartTimeUnixNano: startTime(),
 										TimeUnixNano:      pointTime(),
 									},
 									{
-										Value:             11,
+										ValueInt64:        11,
 										Labels:            cpu1Labels,
 										StartTimeUnixNano: startTime(),
 										TimeUnixNano:      pointTime(),
@@ -363,9 +363,9 @@ func TestCountFloat64MetricGroupingExport(t *testing.T) {
 									Name: "float64-count",
 									Type: metricpb.MetricDescriptor_DOUBLE,
 								},
-								DoubleDataPoints: []*metricpb.DoubleDataPoint{
+								ScalarDataPoints: []*metricpb.ScalarDataPoint{
 									{
-										Value: 11,
+										ValueDouble: 11,
 										Labels: []*commonpb.StringKeyValue{
 											{
 												Key:   "CPU",
@@ -380,7 +380,7 @@ func TestCountFloat64MetricGroupingExport(t *testing.T) {
 										TimeUnixNano:      pointTime(),
 									},
 									{
-										Value: 11,
+										ValueDouble: 11,
 										Labels: []*commonpb.StringKeyValue{
 											{
 												Key:   "CPU",
@@ -449,21 +449,21 @@ func TestResourceMetricGroupingExport(t *testing.T) {
 						Metrics: []*metricpb.Metric{
 							{
 								MetricDescriptor: md,
-								Int64DataPoints: []*metricpb.Int64DataPoint{
+								ScalarDataPoints: []*metricpb.ScalarDataPoint{
 									{
-										Value:             11,
+										ValueInt64:        11,
 										Labels:            cpu1Labels,
 										StartTimeUnixNano: startTime(),
 										TimeUnixNano:      pointTime(),
 									},
 									{
-										Value:             11,
+										ValueInt64:        11,
 										Labels:            cpu1Labels,
 										StartTimeUnixNano: startTime(),
 										TimeUnixNano:      pointTime(),
 									},
 									{
-										Value:             11,
+										ValueInt64:        11,
 										Labels:            cpu2Labels,
 										StartTimeUnixNano: startTime(),
 										TimeUnixNano:      pointTime(),
@@ -481,9 +481,9 @@ func TestResourceMetricGroupingExport(t *testing.T) {
 						Metrics: []*metricpb.Metric{
 							{
 								MetricDescriptor: md,
-								Int64DataPoints: []*metricpb.Int64DataPoint{
+								ScalarDataPoints: []*metricpb.ScalarDataPoint{
 									{
-										Value:             11,
+										ValueInt64:        11,
 										Labels:            cpu1Labels,
 										StartTimeUnixNano: startTime(),
 										TimeUnixNano:      pointTime(),
@@ -574,21 +574,21 @@ func TestResourceInstLibMetricGroupingExport(t *testing.T) {
 						Metrics: []*metricpb.Metric{
 							{
 								MetricDescriptor: md,
-								Int64DataPoints: []*metricpb.Int64DataPoint{
+								ScalarDataPoints: []*metricpb.ScalarDataPoint{
 									{
-										Value:             11,
+										ValueInt64:        11,
 										Labels:            cpu1Labels,
 										StartTimeUnixNano: startTime(),
 										TimeUnixNano:      pointTime(),
 									},
 									{
-										Value:             11,
+										ValueInt64:        11,
 										Labels:            cpu1Labels,
 										StartTimeUnixNano: startTime(),
 										TimeUnixNano:      pointTime(),
 									},
 									{
-										Value:             11,
+										ValueInt64:        11,
 										Labels:            cpu2Labels,
 										StartTimeUnixNano: startTime(),
 										TimeUnixNano:      pointTime(),
@@ -605,9 +605,9 @@ func TestResourceInstLibMetricGroupingExport(t *testing.T) {
 						Metrics: []*metricpb.Metric{
 							{
 								MetricDescriptor: md,
-								Int64DataPoints: []*metricpb.Int64DataPoint{
+								ScalarDataPoints: []*metricpb.ScalarDataPoint{
 									{
-										Value:             11,
+										ValueInt64:        11,
 										Labels:            cpu1Labels,
 										StartTimeUnixNano: startTime(),
 										TimeUnixNano:      pointTime(),
@@ -623,9 +623,9 @@ func TestResourceInstLibMetricGroupingExport(t *testing.T) {
 						Metrics: []*metricpb.Metric{
 							{
 								MetricDescriptor: md,
-								Int64DataPoints: []*metricpb.Int64DataPoint{
+								ScalarDataPoints: []*metricpb.ScalarDataPoint{
 									{
-										Value:             11,
+										ValueInt64:        11,
 										Labels:            cpu1Labels,
 										StartTimeUnixNano: startTime(),
 										TimeUnixNano:      pointTime(),
@@ -647,9 +647,9 @@ func TestResourceInstLibMetricGroupingExport(t *testing.T) {
 						Metrics: []*metricpb.Metric{
 							{
 								MetricDescriptor: md,
-								Int64DataPoints: []*metricpb.Int64DataPoint{
+								ScalarDataPoints: []*metricpb.ScalarDataPoint{
 									{
-										Value:             11,
+										ValueInt64:        11,
 										Labels:            cpu1Labels,
 										StartTimeUnixNano: startTime(),
 										TimeUnixNano:      pointTime(),
@@ -753,8 +753,7 @@ func runMetricExportTest(t *testing.T, exp *Exporter, rs []record, expected []me
 				// Compare each list directly because there is no order
 				// guarantee with the concurrent processing design of the exporter
 				// and ElementsMatch does not apply to contained slices.
-				assert.ElementsMatch(t, expected.GetInt64DataPoints(), g[i].GetInt64DataPoints())
-				assert.ElementsMatch(t, expected.GetDoubleDataPoints(), g[i].GetDoubleDataPoints())
+				assert.ElementsMatch(t, expected.GetScalarDataPoints(), g[i].GetScalarDataPoints())
 				assert.ElementsMatch(t, expected.GetHistogramDataPoints(), g[i].GetHistogramDataPoints())
 				assert.ElementsMatch(t, expected.GetSummaryDataPoints(), g[i].GetSummaryDataPoints())
 			}

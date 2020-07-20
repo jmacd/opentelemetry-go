@@ -199,8 +199,7 @@ func TestMinMaxSumCountDatapoints(t *testing.T) {
 	record := export.NewRecord(&desc, &labels, nil, ckpt.Aggregation(), intervalStart, intervalEnd)
 	m, err := minMaxSumCount(record, ckpt.(aggregation.MinMaxSumCount))
 	if assert.NoError(t, err) {
-		assert.Equal(t, []*metricpb.Int64DataPoint(nil), m.Int64DataPoints)
-		assert.Equal(t, []*metricpb.DoubleDataPoint(nil), m.DoubleDataPoints)
+		assert.Equal(t, []*metricpb.ScalarDataPoint(nil), m.ScalarDataPoints)
 		assert.Equal(t, []*metricpb.HistogramDataPoint(nil), m.HistogramDataPoints)
 		assert.Equal(t, expected, m.SummaryDataPoints)
 	}
@@ -279,12 +278,11 @@ func TestSumInt64DataPoints(t *testing.T) {
 	require.NoError(t, s.SynchronizedMove(ckpt, &desc))
 	record := export.NewRecord(&desc, &labels, nil, ckpt.Aggregation(), intervalStart, intervalEnd)
 	if m, err := sum(record, ckpt.(aggregation.Sum)); assert.NoError(t, err) {
-		assert.Equal(t, []*metricpb.Int64DataPoint{{
-			Value:             1,
+		assert.Equal(t, []*metricpb.ScalarDataPoint{{
+			ValueInt64:        1,
 			StartTimeUnixNano: uint64(intervalStart.UnixNano()),
 			TimeUnixNano:      uint64(intervalEnd.UnixNano()),
-		}}, m.Int64DataPoints)
-		assert.Equal(t, []*metricpb.DoubleDataPoint(nil), m.DoubleDataPoints)
+		}}, m.ScalarDataPoints)
 		assert.Equal(t, []*metricpb.HistogramDataPoint(nil), m.HistogramDataPoints)
 		assert.Equal(t, []*metricpb.SummaryDataPoint(nil), m.SummaryDataPoints)
 	}
@@ -298,12 +296,11 @@ func TestSumFloat64DataPoints(t *testing.T) {
 	require.NoError(t, s.SynchronizedMove(ckpt, &desc))
 	record := export.NewRecord(&desc, &labels, nil, ckpt.Aggregation(), intervalStart, intervalEnd)
 	if m, err := sum(record, ckpt.(aggregation.Sum)); assert.NoError(t, err) {
-		assert.Equal(t, []*metricpb.Int64DataPoint(nil), m.Int64DataPoints)
-		assert.Equal(t, []*metricpb.DoubleDataPoint{{
-			Value:             1,
+		assert.Equal(t, []*metricpb.ScalarDataPoint{{
+			ValueDouble:       1,
 			StartTimeUnixNano: uint64(intervalStart.UnixNano()),
 			TimeUnixNano:      uint64(intervalEnd.UnixNano()),
-		}}, m.DoubleDataPoints)
+		}}, m.ScalarDataPoints)
 		assert.Equal(t, []*metricpb.HistogramDataPoint(nil), m.HistogramDataPoints)
 		assert.Equal(t, []*metricpb.SummaryDataPoint(nil), m.SummaryDataPoints)
 	}

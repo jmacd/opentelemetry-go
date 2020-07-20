@@ -185,11 +185,8 @@ func sink(ctx context.Context, in <-chan result) ([]*metricpb.ResourceMetrics, e
 			mb[mID] = res.Metric
 			continue
 		}
-		if len(res.Metric.Int64DataPoints) > 0 {
-			m.Int64DataPoints = append(m.Int64DataPoints, res.Metric.Int64DataPoints...)
-		}
-		if len(res.Metric.DoubleDataPoints) > 0 {
-			m.DoubleDataPoints = append(m.DoubleDataPoints, res.Metric.DoubleDataPoints...)
+		if len(res.Metric.ScalarDataPoints) > 0 {
+			m.ScalarDataPoints = append(m.ScalarDataPoints, res.Metric.ScalarDataPoints...)
 		}
 		if len(res.Metric.HistogramDataPoints) > 0 {
 			m.HistogramDataPoints = append(m.HistogramDataPoints, res.Metric.HistogramDataPoints...)
@@ -261,27 +258,21 @@ func sum(record export.Record, a aggregation.Sum) (*metricpb.Metric, error) {
 		},
 	}
 
+	m.ScalarDataPoints = []*metricpb.ScalarDataPoint{
+		{
+			Labels:            stringKeyValues(labels.Iter()),
+			StartTimeUnixNano: uint64(record.StartTime().UnixNano()),
+			TimeUnixNano:      uint64(record.EndTime().UnixNano()),
+		},
+	}
+
 	switch n := desc.NumberKind(); n {
 	case metric.Int64NumberKind:
 		m.MetricDescriptor.Type = metricpb.MetricDescriptor_INT64
-		m.Int64DataPoints = []*metricpb.Int64DataPoint{
-			{
-				Value:             sum.CoerceToInt64(n),
-				Labels:            stringKeyValues(labels.Iter()),
-				StartTimeUnixNano: uint64(record.StartTime().UnixNano()),
-				TimeUnixNano:      uint64(record.EndTime().UnixNano()),
-			},
-		}
+		m.ScalarDataPoints[0].ValueInt64 = sum.CoerceToInt64(n)
 	case metric.Float64NumberKind:
 		m.MetricDescriptor.Type = metricpb.MetricDescriptor_DOUBLE
-		m.DoubleDataPoints = []*metricpb.DoubleDataPoint{
-			{
-				Value:             sum.CoerceToFloat64(n),
-				Labels:            stringKeyValues(labels.Iter()),
-				StartTimeUnixNano: uint64(record.StartTime().UnixNano()),
-				TimeUnixNano:      uint64(record.EndTime().UnixNano()),
-			},
-		}
+		m.ScalarDataPoints[0].ValueDouble = sum.CoerceToFloat64(n)
 	default:
 		return nil, fmt.Errorf("%w: %v", ErrUnknownValueType, n)
 	}
