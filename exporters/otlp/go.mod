@@ -10,7 +10,7 @@ require (
 	go.opentelemetry.io/otel v0.9.0
 	golang.org/x/net v0.0.0-20191002035440-2ec189313ef0 // indirect
 	golang.org/x/text v0.3.2 // indirect
-	google.golang.org/grpc v1.30.0
+	google.golang.org/grpc v1.31.0
 )
 
 go 1.13
