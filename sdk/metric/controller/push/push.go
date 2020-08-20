@@ -55,6 +55,9 @@ func New(checkpointer export.Checkpointer, exporter export.Exporter, opts ...Opt
 	for _, opt := range opts {
 		opt.Apply(c)
 	}
+	if c.Period <= 0 {
+		c.Period = DefaultPushPeriod
+	}
 	if c.Timeout == 0 {
 		c.Timeout = c.Period
 	}
