@@ -45,7 +45,8 @@ type MeterImpl interface {
 type InstrumentImpl interface {
 	// Implementation returns the underlying implementation of the
 	// instrument, which allows the implementation to gain access
-	// to its own representation especially from a `Measurement`.
+	// to its own representation especially from a `Measurement`
+	// or `Observation`.
 	Implementation() interface{}
 
 	// Descriptor returns a copy of the instrument's Descriptor.
