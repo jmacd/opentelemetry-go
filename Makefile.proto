@@ -64,6 +64,9 @@ copy-protobufs: | $(PROTOBUF_GEN_DIR)/
 	find ./$(PROTOBUF_TEMP_DIR)/go.opentelemetry.io/otel/$(PROTOBUF_GEN_DIR) -type f -print0 | \
       pax -0 -s ',^./$(PROTOBUF_TEMP_DIR)/go.opentelemetry.io/otel/$(PROTOBUF_GEN_DIR),,' -rw ./$(PROTOBUF_GEN_DIR)
 
+list-protobufs: | $(PROTOBUF_GEN_DIR)/
+	find ./$(PROTOBUF_TEMP_DIR)/go.opentelemetry.io/otel/$(PROTOBUF_GEN_DIR) -type f -print
+
 $(PROTO_SOURCE_DIR)/ $(PROTOBUF_GEN_DIR)/:
 	mkdir -p $@
 
