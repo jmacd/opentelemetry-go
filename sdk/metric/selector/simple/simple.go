@@ -86,7 +86,7 @@ func sumAggs(aggPtrs []*export.Aggregator) {
 	}
 }
 
-func (selectorInexpensive) AggregatorFor(descriptor *metric.Descriptor, aggPtrs ...*export.Aggregator) {
+func (selectorInexpensive) AggregatorFor(descriptor metric.Descriptor, aggPtrs ...*export.Aggregator) {
 	switch descriptor.MetricKind() {
 	case metric.ValueObserverKind, metric.ValueRecorderKind:
 		aggs := minmaxsumcount.New(len(aggPtrs), descriptor)
@@ -98,7 +98,7 @@ func (selectorInexpensive) AggregatorFor(descriptor *metric.Descriptor, aggPtrs 
 	}
 }
 
-func (s selectorSketch) AggregatorFor(descriptor *metric.Descriptor, aggPtrs ...*export.Aggregator) {
+func (s selectorSketch) AggregatorFor(descriptor metric.Descriptor, aggPtrs ...*export.Aggregator) {
 	switch descriptor.MetricKind() {
 	case metric.ValueObserverKind, metric.ValueRecorderKind:
 		aggs := ddsketch.New(len(aggPtrs), descriptor, s.config)
@@ -110,7 +110,7 @@ func (s selectorSketch) AggregatorFor(descriptor *metric.Descriptor, aggPtrs ...
 	}
 }
 
-func (selectorExact) AggregatorFor(descriptor *metric.Descriptor, aggPtrs ...*export.Aggregator) {
+func (selectorExact) AggregatorFor(descriptor metric.Descriptor, aggPtrs ...*export.Aggregator) {
 	switch descriptor.MetricKind() {
 	case metric.ValueObserverKind, metric.ValueRecorderKind:
 		aggs := array.New(len(aggPtrs))
@@ -122,7 +122,7 @@ func (selectorExact) AggregatorFor(descriptor *metric.Descriptor, aggPtrs ...*ex
 	}
 }
 
-func (s selectorHistogram) AggregatorFor(descriptor *metric.Descriptor, aggPtrs ...*export.Aggregator) {
+func (s selectorHistogram) AggregatorFor(descriptor metric.Descriptor, aggPtrs ...*export.Aggregator) {
 	switch descriptor.MetricKind() {
 	case metric.ValueObserverKind, metric.ValueRecorderKind:
 		aggs := histogram.New(len(aggPtrs), descriptor, s.boundaries)

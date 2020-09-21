@@ -53,9 +53,8 @@ func newProfiles() []Profile {
 	}
 }
 
-func NewAggregatorTest(mkind metric.Kind, nkind metric.NumberKind) *metric.Descriptor {
-	desc := metric.NewDescriptor("test.name", mkind, nkind)
-	return &desc
+func NewAggregatorTest(mkind metric.Kind, nkind metric.NumberKind) metric.Descriptor {
+	return metric.NewDescriptor("test.name", mkind, nkind)
 }
 
 func RunProfiles(t *testing.T, f func(*testing.T, Profile)) {
@@ -150,7 +149,7 @@ func (n *Numbers) Points() []metric.Number {
 }
 
 // Performs the same range test the SDK does on behalf of the aggregator.
-func CheckedUpdate(t *testing.T, agg export.Aggregator, number metric.Number, descriptor *metric.Descriptor) {
+func CheckedUpdate(t *testing.T, agg export.Aggregator, number metric.Number, descriptor metric.Descriptor) {
 	ctx := context.Background()
 
 	// Note: Aggregator tests are written assuming that the SDK
@@ -166,7 +165,7 @@ func CheckedUpdate(t *testing.T, agg export.Aggregator, number metric.Number, de
 	}
 }
 
-func CheckedMerge(t *testing.T, aggInto, aggFrom export.Aggregator, descriptor *metric.Descriptor) {
+func CheckedMerge(t *testing.T, aggInto, aggFrom export.Aggregator, descriptor metric.Descriptor) {
 	if err := aggInto.Merge(aggFrom, descriptor); err != nil {
 		t.Error("Unexpected Merge failure", err)
 	}

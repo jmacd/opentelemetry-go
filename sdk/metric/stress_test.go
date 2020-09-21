@@ -69,7 +69,7 @@ type (
 
 	testKey struct {
 		labels     string
-		descriptor *metric.Descriptor
+		descriptor metric.Descriptor
 	}
 
 	testImpl struct {
@@ -161,9 +161,9 @@ func (f *testFixture) startWorker(impl *Accumulator, meter api.Meter, wg *sync.W
 	ctx := context.Background()
 	name := fmt.Sprint("test_", i)
 	instrument := f.impl.newInstrument(meter, name)
-	var descriptor *metric.Descriptor
+	var descriptor metric.Descriptor
 	if ii, ok := instrument.SyncImpl().(*syncInstrument); ok {
-		descriptor = &ii.descriptor
+		descriptor = ii.descriptor
 	}
 	kvs := f.someLabels()
 	clabs := canonicalizeLabels(kvs)

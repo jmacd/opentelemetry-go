@@ -91,7 +91,7 @@ func (g *Aggregator) LastValue() (metric.Number, time.Time, error) {
 }
 
 // SynchronizedMove atomically saves the current value.
-func (g *Aggregator) SynchronizedMove(oa export.Aggregator, _ *metric.Descriptor) error {
+func (g *Aggregator) SynchronizedMove(oa export.Aggregator, _ metric.Descriptor) error {
 	o, _ := oa.(*Aggregator)
 	if o == nil {
 		return aggregator.NewInconsistentAggregatorError(g, oa)
@@ -101,7 +101,7 @@ func (g *Aggregator) SynchronizedMove(oa export.Aggregator, _ *metric.Descriptor
 }
 
 // Update atomically sets the current "last" value.
-func (g *Aggregator) Update(_ context.Context, number metric.Number, desc *metric.Descriptor) error {
+func (g *Aggregator) Update(_ context.Context, number metric.Number, desc metric.Descriptor) error {
 	ngd := &lastValueData{
 		value:     number,
 		timestamp: time.Now(),
@@ -112,7 +112,7 @@ func (g *Aggregator) Update(_ context.Context, number metric.Number, desc *metri
 
 // Merge combines state from two aggregators.  The most-recently set
 // value is chosen.
-func (g *Aggregator) Merge(oa export.Aggregator, desc *metric.Descriptor) error {
+func (g *Aggregator) Merge(oa export.Aggregator, desc metric.Descriptor) error {
 	o, _ := oa.(*Aggregator)
 	if o == nil {
 		return aggregator.NewInconsistentAggregatorError(g, oa)

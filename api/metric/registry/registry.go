@@ -60,10 +60,10 @@ func (p *Provider) Meter(instrumentationName string, opts ...metric.MeterOption)
 	return metric.WrapMeterImpl(p.impl, instrumentationName, opts...)
 }
 
-// ErrMetricKindMismatch is the standard error for mismatched metric
-// instrument definitions.
-var ErrMetricKindMismatch = fmt.Errorf(
-	"A metric was already registered by this name with another kind or number type")
+// ErrMetricDuplicateInstrument is the standard error returned when a duplicate
+// metric instrument is requested.  Duplicate instrument registration is not permitted
+var ErrMetricDuplicateInstrument = fmt.Errorf(
+	"A metric was already registered by this name")
 
 // NewUniqueInstrumentMeterImpl returns a wrapped metric.MeterImpl with
 // the addition of uniqueness checking.
@@ -87,41 +87,28 @@ func keyOf(descriptor metric.Descriptor) key {
 	}
 }
 
-// NewMetricKindMismatchError formats an error that describes a
+// NewMetricDuplicateInstrumentError formats an error that describes a
 // mismatched metric instrument definition.
-func NewMetricKindMismatchError(desc metric.Descriptor) error {
+func NewMetricDuplicateInstrumentError(desc metric.Descriptor) error {
 	return fmt.Errorf("Metric was %s (%s %s)registered as a %s %s: %w",
 		desc.Name(),
 		desc.InstrumentationName(),
 		desc.InstrumentationVersion(),
 		desc.NumberKind(),
 		desc.MetricKind(),
-		ErrMetricKindMismatch)
+		ErrMetricDuplicateInstrument)
 }
 
-// Compatible determines whether two metric.Descriptors are considered
-// the same for the purpose of uniqueness checking.
-func Compatible(candidate, existing metric.Descriptor) bool {
-	return candidate.MetricKind() == existing.MetricKind() &&
-		candidate.NumberKind() == existing.NumberKind()
-}
-
-// checkUniqueness returns an ErrMetricKindMismatch error if there is
-// a conflict between a descriptor that was already registered and the
-// `descriptor` argument.  If there is an existing compatible
-// registration, this returns the already-registered instrument.  If
-// there is no conflict and no prior registration, returns (nil, nil).
+// checkUniqueness returns an ErrMetricDuplicateInstrument error if any previous
+// instrument with the same name was registered.
 func (u *uniqueInstrumentMeterImpl) checkUniqueness(descriptor metric.Descriptor) (metric.InstrumentImpl, error) {
 	impl, ok := u.state[keyOf(descriptor)]
 	if !ok {
 		return nil, nil
 	}
 
-	if !Compatible(descriptor, impl.Descriptor()) {
-		return nil, NewMetricKindMismatchError(impl.Descriptor())
-	}
-
-	return impl, nil
+	// (Allow duplicate registration under no conditions.)
+	return nil, NewMetricDuplicateInstrumentError(impl.Descriptor())
 }
 
 // NewSyncInstrument implements metric.MeterImpl.

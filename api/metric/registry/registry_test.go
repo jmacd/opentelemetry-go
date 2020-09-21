@@ -75,12 +75,12 @@ func TestRegistrySameInstruments(t *testing.T) {
 		_, provider := mockTest.NewProvider()
 
 		meter := provider.Meter("meter")
-		inst1, err1 := nf(meter, "this")
-		inst2, err2 := nf(meter, "this")
+		_, err1 := nf(meter, "this")
+		_, err2 := nf(meter, "this")
 
 		require.NoError(t, err1)
-		require.NoError(t, err2)
-		require.Equal(t, inst1, inst2)
+		require.Error(t, err2)
+		require.True(t, errors.Is(err2, registry.ErrMetricDuplicateInstrument))
 	}
 }
 
@@ -115,7 +115,7 @@ func TestRegistryDiffInstruments(t *testing.T) {
 			other, err := nf(meter, "this")
 			require.Error(t, err)
 			require.NotNil(t, other)
-			require.True(t, errors.Is(err, registry.ErrMetricKindMismatch))
+			require.True(t, errors.Is(err, registry.ErrMetricDuplicateInstrument))
 		}
 	}
 }

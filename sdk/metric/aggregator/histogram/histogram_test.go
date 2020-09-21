@@ -60,17 +60,17 @@ var (
 	boundaries = []float64{500, 250, 750}
 )
 
-func new2(desc *metric.Descriptor) (_, _ *histogram.Aggregator) {
+func new2(desc metric.Descriptor) (_, _ *histogram.Aggregator) {
 	alloc := histogram.New(2, desc, boundaries)
 	return &alloc[0], &alloc[1]
 }
 
-func new4(desc *metric.Descriptor) (_, _, _, _ *histogram.Aggregator) {
+func new4(desc metric.Descriptor) (_, _, _, _ *histogram.Aggregator) {
 	alloc := histogram.New(4, desc, boundaries)
 	return &alloc[0], &alloc[1], &alloc[2], &alloc[3]
 }
 
-func checkZero(t *testing.T, agg *histogram.Aggregator, desc *metric.Descriptor) {
+func checkZero(t *testing.T, agg *histogram.Aggregator, desc metric.Descriptor) {
 	asum, err := agg.Sum()
 	require.Equal(t, metric.Number(0), asum, "Empty checkpoint sum = 0")
 	require.NoError(t, err)

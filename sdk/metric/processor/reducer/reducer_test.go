@@ -45,7 +45,7 @@ var (
 
 type testFilter struct{}
 
-func (testFilter) LabelFilterFor(_ *metric.Descriptor) label.Filter {
+func (testFilter) LabelFilterFor(_ metric.Descriptor) label.Filter {
 	return func(label label.KeyValue) bool {
 		return label.Key == "A" || label.Key == "C"
 	}

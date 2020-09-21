@@ -72,12 +72,12 @@ func unwrap(impl interface{}, err error) (metric.InstrumentImpl, error) {
 func TestRegistrySameInstruments(t *testing.T) {
 	for _, nf := range allNew {
 		ResetForTest()
-		inst1, err1 := nf("this", "meter")
-		inst2, err2 := nf("this", "meter")
+		_, err1 := nf("this", "meter")
+		_, err2 := nf("this", "meter")
 
 		require.NoError(t, err1)
-		require.NoError(t, err2)
-		require.Equal(t, inst1, inst2)
+		require.Error(t, err2)
+		require.True(t, errors.Is(err2, registry.ErrMetricDuplicateInstrument))
 	}
 }
 
@@ -108,7 +108,7 @@ func TestRegistryDiffInstruments(t *testing.T) {
 			other, err := nf("this", "super")
 			require.Error(t, err)
 			require.NotNil(t, other)
-			require.True(t, errors.Is(err, registry.ErrMetricKindMismatch))
+			require.True(t, errors.Is(err, registry.ErrMetricDuplicateInstrument))
 			require.Contains(t, err.Error(), "super")
 		}
 	}

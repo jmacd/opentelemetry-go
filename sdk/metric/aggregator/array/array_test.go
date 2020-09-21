@@ -31,7 +31,7 @@ type updateTest struct {
 	count int
 }
 
-func checkZero(t *testing.T, agg *Aggregator, desc *metric.Descriptor) {
+func checkZero(t *testing.T, agg *Aggregator, desc metric.Descriptor) {
 	kind := desc.NumberKind()
 
 	sum, err := agg.Sum()

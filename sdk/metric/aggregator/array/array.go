@@ -94,7 +94,7 @@ func (c *Aggregator) Points() ([]metric.Number, error) {
 
 // SynchronizedMove saves the current state to oa and resets the current state to
 // the empty set, taking a lock to prevent concurrent Update() calls.
-func (c *Aggregator) SynchronizedMove(oa export.Aggregator, desc *metric.Descriptor) error {
+func (c *Aggregator) SynchronizedMove(oa export.Aggregator, desc metric.Descriptor) error {
 	o, _ := oa.(*Aggregator)
 	if o == nil {
 		return aggregator.NewInconsistentAggregatorError(c, oa)
@@ -116,7 +116,7 @@ func (c *Aggregator) SynchronizedMove(oa export.Aggregator, desc *metric.Descrip
 // Update adds the recorded measurement to the current data set.
 // Update takes a lock to prevent concurrent Update() and SynchronizedMove()
 // calls.
-func (c *Aggregator) Update(_ context.Context, number metric.Number, desc *metric.Descriptor) error {
+func (c *Aggregator) Update(_ context.Context, number metric.Number, desc metric.Descriptor) error {
 	c.lock.Lock()
 	c.points = append(c.points, number)
 	c.sum.AddNumber(desc.NumberKind(), number)
@@ -126,7 +126,7 @@ func (c *Aggregator) Update(_ context.Context, number metric.Number, desc *metri
 }
 
 // Merge combines two data sets into one.
-func (c *Aggregator) Merge(oa export.Aggregator, desc *metric.Descriptor) error {
+func (c *Aggregator) Merge(oa export.Aggregator, desc metric.Descriptor) error {
 	o, _ := oa.(*Aggregator)
 	if o == nil {
 		return aggregator.NewInconsistentAggregatorError(c, oa)

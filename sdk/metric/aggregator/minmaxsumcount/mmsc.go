@@ -49,7 +49,7 @@ var _ aggregation.MinMaxSumCount = &Aggregator{}
 // Max.
 //
 // This type uses a mutex for Update() and SynchronizedMove() concurrency.
-func New(cnt int, desc *metric.Descriptor) []Aggregator {
+func New(cnt int, desc metric.Descriptor) []Aggregator {
 	kind := desc.NumberKind()
 	aggs := make([]Aggregator, cnt)
 	for i := range aggs {
@@ -103,7 +103,7 @@ func (c *Aggregator) Max() (metric.Number, error) {
 
 // SynchronizedMove saves the current state into oa and resets the current state to
 // the empty set.
-func (c *Aggregator) SynchronizedMove(oa export.Aggregator, desc *metric.Descriptor) error {
+func (c *Aggregator) SynchronizedMove(oa export.Aggregator, desc metric.Descriptor) error {
 	o, _ := oa.(*Aggregator)
 	if o == nil {
 		return aggregator.NewInconsistentAggregatorError(c, oa)
@@ -129,7 +129,7 @@ func emptyState(kind metric.NumberKind) state {
 }
 
 // Update adds the recorded measurement to the current data set.
-func (c *Aggregator) Update(_ context.Context, number metric.Number, desc *metric.Descriptor) error {
+func (c *Aggregator) Update(_ context.Context, number metric.Number, desc metric.Descriptor) error {
 	kind := desc.NumberKind()
 
 	c.lock.Lock()
@@ -146,7 +146,7 @@ func (c *Aggregator) Update(_ context.Context, number metric.Number, desc *metri
 }
 
 // Merge combines two data sets into one.
-func (c *Aggregator) Merge(oa export.Aggregator, desc *metric.Descriptor) error {
+func (c *Aggregator) Merge(oa export.Aggregator, desc metric.Descriptor) error {
 	o, _ := oa.(*Aggregator)
 	if o == nil {
 		return aggregator.NewInconsistentAggregatorError(c, oa)

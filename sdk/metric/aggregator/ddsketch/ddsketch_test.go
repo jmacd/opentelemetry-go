@@ -31,17 +31,17 @@ const count = 1000
 type updateTest struct {
 }
 
-func new2(desc *metric.Descriptor) (_, _ *Aggregator) {
+func new2(desc metric.Descriptor) (_, _ *Aggregator) {
 	alloc := New(2, desc, NewDefaultConfig())
 	return &alloc[0], &alloc[1]
 }
 
-func new4(desc *metric.Descriptor) (_, _, _, _ *Aggregator) {
+func new4(desc metric.Descriptor) (_, _, _, _ *Aggregator) {
 	alloc := New(4, desc, NewDefaultConfig())
 	return &alloc[0], &alloc[1], &alloc[2], &alloc[3]
 }
 
-func checkZero(t *testing.T, agg *Aggregator, desc *metric.Descriptor) {
+func checkZero(t *testing.T, agg *Aggregator, desc metric.Descriptor) {
 	kind := desc.NumberKind()
 
 	sum, err := agg.Sum()

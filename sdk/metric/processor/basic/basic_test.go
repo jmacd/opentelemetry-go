@@ -102,7 +102,7 @@ func asNumber(nkind metric.NumberKind, value int64) metric.Number {
 	return metric.NewFloat64Number(float64(value))
 }
 
-func updateFor(t *testing.T, desc *metric.Descriptor, selector export.AggregatorSelector, res *resource.Resource, value int64, labs ...label.KeyValue) export.Accumulation {
+func updateFor(t *testing.T, desc metric.Descriptor, selector export.AggregatorSelector, res *resource.Resource, value int64, labs ...label.KeyValue) export.Accumulation {
 	ls := label.NewSet(labs...)
 	var agg export.Aggregator
 	selector.AggregatorFor(desc, &agg)
@@ -148,14 +148,14 @@ func testProcessor(
 			processor.StartCollection()
 
 			for na := 0; na < nAccum; na++ {
-				_ = processor.Process(updateFor(t, &desc1, selector, res, input, labs1...))
-				_ = processor.Process(updateFor(t, &desc2, selector, res, input, labs2...))
+				_ = processor.Process(updateFor(t, desc1, selector, res, input, labs1...))
+				_ = processor.Process(updateFor(t, desc2, selector, res, input, labs2...))
 			}
 
 			err := processor.FinishCollection()
 			if err == aggregation.ErrNoSubtraction {
 				var subr export.Aggregator
-				selector.AggregatorFor(&desc1, &subr)
+				selector.AggregatorFor(desc1, &subr)
 				_, canSub := subr.(export.Subtractor)
 
 				// Allow unsupported subraction case only when it is called for.
@@ -258,7 +258,7 @@ func testProcessor(
 
 type bogusExporter struct{}
 
-func (bogusExporter) ExportKindFor(*metric.Descriptor, aggregation.Kind) export.ExportKind {
+func (bogusExporter) ExportKindFor(metric.Descriptor, aggregation.Kind) export.ExportKind {
 	return 1000000
 }
 
@@ -296,7 +296,7 @@ func TestBasicInconsistent(t *testing.T) {
 	b = basic.New(processorTest.AggregatorSelector(), export.PassThroughExporter)
 
 	desc := metric.NewDescriptor("inst", metric.CounterKind, metric.Int64NumberKind)
-	accum := export.NewAccumulation(&desc, label.EmptySet(), resource.Empty(), metrictest.NoopAggregator{})
+	accum := export.NewAccumulation(desc, label.EmptySet(), resource.Empty(), metrictest.NoopAggregator{})
 	require.Equal(t, basic.ErrInconsistentState, b.Process(accum))
 
 	// Test invalid kind:
@@ -319,7 +319,7 @@ func TestBasicTimestamps(t *testing.T) {
 	afterNew := time.Now()
 
 	desc := metric.NewDescriptor("inst", metric.CounterKind, metric.Int64NumberKind)
-	accum := export.NewAccumulation(&desc, label.EmptySet(), resource.Empty(), metrictest.NoopAggregator{})
+	accum := export.NewAccumulation(desc, label.EmptySet(), resource.Empty(), metrictest.NoopAggregator{})
 
 	b.StartCollection()
 	_ = b.Process(accum)
@@ -382,7 +382,7 @@ func TestStatefulNoMemoryCumulative(t *testing.T) {
 
 		// Add 10
 		processor.StartCollection()
-		_ = processor.Process(updateFor(t, &desc, selector, res, 10, label.String("A", "B")))
+		_ = processor.Process(updateFor(t, desc, selector, res, 10, label.String("A", "B")))
 		require.NoError(t, processor.FinishCollection())
 
 		// Verify one element
@@ -416,7 +416,7 @@ func TestStatefulNoMemoryDelta(t *testing.T) {
 
 		// Add 10
 		processor.StartCollection()
-		_ = processor.Process(updateFor(t, &desc, selector, res, int64(i*10), label.String("A", "B")))
+		_ = processor.Process(updateFor(t, desc, selector, res, int64(i*10), label.String("A", "B")))
 		require.NoError(t, processor.FinishCollection())
 
 		// Verify one element
@@ -445,9 +445,9 @@ func TestMultiObserverSum(t *testing.T) {
 		for i := 1; i < 3; i++ {
 			// Add i*10*3 times
 			processor.StartCollection()
-			_ = processor.Process(updateFor(t, &desc, selector, res, int64(i*10), label.String("A", "B")))
-			_ = processor.Process(updateFor(t, &desc, selector, res, int64(i*10), label.String("A", "B")))
-			_ = processor.Process(updateFor(t, &desc, selector, res, int64(i*10), label.String("A", "B")))
+			_ = processor.Process(updateFor(t, desc, selector, res, int64(i*10), label.String("A", "B")))
+			_ = processor.Process(updateFor(t, desc, selector, res, int64(i*10), label.String("A", "B")))
+			_ = processor.Process(updateFor(t, desc, selector, res, int64(i*10), label.String("A", "B")))
 			require.NoError(t, processor.FinishCollection())
 
 			// Multiplier is 1 for deltas, otherwise i.

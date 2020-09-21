@@ -29,7 +29,7 @@ import (
 func TestStressInt64Histogram(t *testing.T) {
 	desc := metric.NewDescriptor("some_metric", metric.ValueRecorderKind, metric.Int64NumberKind)
 
-	alloc := histogram.New(2, &desc, []float64{25, 50, 75})
+	alloc := histogram.New(2, desc, []float64{25, 50, 75})
 	h, ckpt := &alloc[0], &alloc[1]
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -41,14 +41,14 @@ func TestStressInt64Histogram(t *testing.T) {
 			case <-ctx.Done():
 				return
 			default:
-				_ = h.Update(ctx, metric.NewInt64Number(rnd.Int63()%100), &desc)
+				_ = h.Update(ctx, metric.NewInt64Number(rnd.Int63()%100), desc)
 			}
 		}
 	}()
 
 	startTime := time.Now()
 	for time.Since(startTime) < time.Second {
-		require.NoError(t, h.SynchronizedMove(ckpt, &desc))
+		require.NoError(t, h.SynchronizedMove(ckpt, desc))
 
 		b, _ := ckpt.Histogram()
 		c, _ := ckpt.Count()

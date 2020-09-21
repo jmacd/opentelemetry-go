@@ -234,8 +234,8 @@ func TestErrorInDeferredConstructor(t *testing.T) {
 	ctx := context.Background()
 	meter := global.MeterProvider().Meter("builtin")
 
-	c1 := Must(meter).NewInt64Counter("test")
-	c2 := Must(meter).NewInt64Counter("test")
+	c1, err := meter.NewInt64Counter("test")
+	require.NoError(t, err)
 
 	_, provider := metrictest.NewProvider()
 	sdk := &meterProviderWithConstructorError{provider}
@@ -245,7 +245,6 @@ func TestErrorInDeferredConstructor(t *testing.T) {
 	})
 
 	c1.Add(ctx, 1)
-	c2.Add(ctx, 2)
 }
 
 func TestImplementationIndirection(t *testing.T) {

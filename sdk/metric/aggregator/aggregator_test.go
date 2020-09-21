@@ -38,7 +38,7 @@ func TestInconsistentAggregatorErr(t *testing.T) {
 	require.True(t, errors.Is(err, aggregation.ErrInconsistentType))
 }
 
-func testRangeNaN(t *testing.T, desc *metric.Descriptor) {
+func testRangeNaN(t *testing.T, desc metric.Descriptor) {
 	// If the descriptor uses int64 numbers, this won't register as NaN
 	nan := metric.NewFloat64Number(math.NaN())
 	err := aggregator.RangeTest(nan, desc)
@@ -50,7 +50,7 @@ func testRangeNaN(t *testing.T, desc *metric.Descriptor) {
 	}
 }
 
-func testRangeNegative(t *testing.T, desc *metric.Descriptor) {
+func testRangeNegative(t *testing.T, desc metric.Descriptor) {
 	var neg, pos metric.Number
 
 	if desc.NumberKind() == metric.Float64NumberKind {
@@ -77,7 +77,7 @@ func TestRangeTest(t *testing.T) {
 				metric.CounterKind,
 				nkind,
 			)
-			testRangeNegative(t, &desc)
+			testRangeNegative(t, desc)
 		})
 	}
 }
@@ -95,7 +95,7 @@ func TestNaNTest(t *testing.T) {
 					mkind,
 					nkind,
 				)
-				testRangeNaN(t, &desc)
+				testRangeNaN(t, desc)
 			}
 		})
 	}

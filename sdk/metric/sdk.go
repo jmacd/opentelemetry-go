@@ -76,7 +76,7 @@ type (
 	// mapkey uniquely describes a metric instrument in terms of
 	// its InstrumentID and the encoded form of its labels.
 	mapkey struct {
-		descriptor *metric.Descriptor
+		descriptor metric.Descriptor
 		ordered    label.Distinct
 	}
 
@@ -163,7 +163,7 @@ func (s *syncInstrument) Implementation() interface{} {
 }
 
 func (a *asyncInstrument) observe(number api.Number, labels *label.Set) {
-	if err := aggregator.RangeTest(number, &a.descriptor); err != nil {
+	if err := aggregator.RangeTest(number, a.descriptor); err != nil {
 		global.Handle(err)
 		return
 	}
@@ -173,7 +173,7 @@ func (a *asyncInstrument) observe(number api.Number, labels *label.Set) {
 		// AggregatorSelector.
 		return
 	}
-	if err := recorder.Update(context.Background(), number, &a.descriptor); err != nil {
+	if err := recorder.Update(context.Background(), number, a.descriptor); err != nil {
 		global.Handle(err)
 		return
 	}
@@ -185,7 +185,7 @@ func (a *asyncInstrument) getRecorder(labels *label.Set) export.Aggregator {
 		if lrec.observedEpoch == a.meter.currentEpoch {
 			// last value wins for Observers, so if we see the same labels
 			// in the current epoch, we replace the old recorder
-			a.meter.processor.AggregatorFor(&a.descriptor, &lrec.observed)
+			a.meter.processor.AggregatorFor(a.descriptor, &lrec.observed)
 		} else {
 			lrec.observedEpoch = a.meter.currentEpoch
 		}
@@ -193,7 +193,7 @@ func (a *asyncInstrument) getRecorder(labels *label.Set) export.Aggregator {
 		return lrec.observed
 	}
 	var rec export.Aggregator
-	a.meter.processor.AggregatorFor(&a.descriptor, &rec)
+	a.meter.processor.AggregatorFor(a.descriptor, &rec)
 	if a.recorders == nil {
 		a.recorders = make(map[label.Distinct]*labeledRecorder)
 	}
@@ -232,7 +232,7 @@ func (s *syncInstrument) acquireHandle(kvs []label.KeyValue, labelPtr *label.Set
 	// Create lookup key for sync.Map (one allocation, as this
 	// passes through an interface{})
 	mk := mapkey{
-		descriptor: &s.descriptor,
+		descriptor: s.descriptor,
 		ordered:    equiv,
 	}
 
@@ -254,7 +254,7 @@ func (s *syncInstrument) acquireHandle(kvs []label.KeyValue, labelPtr *label.Set
 	rec.refMapped = refcountMapped{value: 2}
 	rec.inst = s
 
-	s.meter.processor.AggregatorFor(&s.descriptor, &rec.current, &rec.checkpoint)
+	s.meter.processor.AggregatorFor(s.descriptor, &rec.current, &rec.checkpoint)
 
 	for {
 		// Load/Store: there's a memory allocation to place `mk` into
@@ -437,13 +437,13 @@ func (m *Accumulator) checkpointRecord(r *record) int {
 	if r.current == nil {
 		return 0
 	}
-	err := r.current.SynchronizedMove(r.checkpoint, &r.inst.descriptor)
+	err := r.current.SynchronizedMove(r.checkpoint, r.inst.descriptor)
 	if err != nil {
 		global.Handle(err)
 		return 0
 	}
 
-	a := export.NewAccumulation(&r.inst.descriptor, r.labels, m.resource, r.checkpoint)
+	a := export.NewAccumulation(r.inst.descriptor, r.labels, m.resource, r.checkpoint)
 	err = m.processor.Process(a)
 	if err != nil {
 		global.Handle(err)
@@ -461,7 +461,7 @@ func (m *Accumulator) checkpointAsync(a *asyncInstrument) int {
 		epochDiff := m.currentEpoch - lrec.observedEpoch
 		if epochDiff == 0 {
 			if lrec.observed != nil {
-				a := export.NewAccumulation(&a.descriptor, lrec.labels, m.resource, lrec.observed)
+				a := export.NewAccumulation(a.descriptor, lrec.labels, m.resource, lrec.observed)
 				err := m.processor.Process(a)
 				if err != nil {
 					global.Handle(err)
@@ -511,11 +511,11 @@ func (r *record) RecordOne(ctx context.Context, number api.Number) {
 		// The instrument is disabled according to the AggregatorSelector.
 		return
 	}
-	if err := aggregator.RangeTest(number, &r.inst.descriptor); err != nil {
+	if err := aggregator.RangeTest(number, r.inst.descriptor); err != nil {
 		global.Handle(err)
 		return
 	}
-	if err := r.current.Update(ctx, number, &r.inst.descriptor); err != nil {
+	if err := r.current.Update(ctx, number, r.inst.descriptor); err != nil {
 		global.Handle(err)
 		return
 	}
@@ -531,7 +531,7 @@ func (r *record) Unbind() {
 
 func (r *record) mapkey() mapkey {
 	return mapkey{
-		descriptor: &r.inst.descriptor,
+		descriptor: r.inst.descriptor,
 		ordered:    r.labels.Equivalent(),
 	}
 }

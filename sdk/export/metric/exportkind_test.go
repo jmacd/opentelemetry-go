@@ -26,9 +26,9 @@ import (
 func TestExportKindIdentity(t *testing.T) {
 	akind := aggregation.Kind("Noop")
 
-	require.Equal(t, CumulativeExporter, CumulativeExporter.ExportKindFor(nil, akind))
-	require.Equal(t, DeltaExporter, DeltaExporter.ExportKindFor(nil, akind))
-	require.Equal(t, PassThroughExporter, PassThroughExporter.ExportKindFor(nil, akind))
+	require.Equal(t, CumulativeExporter, CumulativeExporter.ExportKindFor(metric.Descriptor{}, akind))
+	require.Equal(t, DeltaExporter, DeltaExporter.ExportKindFor(metric.Descriptor{}, akind))
+	require.Equal(t, PassThroughExporter, PassThroughExporter.ExportKindFor(metric.Descriptor{}, akind))
 }
 
 func TestExportKindIncludes(t *testing.T) {

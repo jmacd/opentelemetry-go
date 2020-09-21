@@ -42,7 +42,7 @@ var _ aggregation.MinMaxSumCount = &Aggregator{}
 var _ aggregation.Distribution = &Aggregator{}
 
 // New returns a new DDSketch aggregator.
-func New(cnt int, desc *metric.Descriptor, cfg *Config) []Aggregator {
+func New(cnt int, desc metric.Descriptor, cfg *Config) []Aggregator {
 	if cfg == nil {
 		cfg = NewDefaultConfig()
 	}
@@ -114,7 +114,7 @@ func (c *Aggregator) toNumber(f float64) metric.Number {
 
 // SynchronizedMove saves the current state into oa and resets the current state to
 // a new sketch, taking a lock to prevent concurrent Update() calls.
-func (c *Aggregator) SynchronizedMove(oa export.Aggregator, _ *metric.Descriptor) error {
+func (c *Aggregator) SynchronizedMove(oa export.Aggregator, _ metric.Descriptor) error {
 	o, _ := oa.(*Aggregator)
 	if o == nil {
 		return aggregator.NewInconsistentAggregatorError(c, oa)
@@ -131,7 +131,7 @@ func (c *Aggregator) SynchronizedMove(oa export.Aggregator, _ *metric.Descriptor
 // Update adds the recorded measurement to the current data set.
 // Update takes a lock to prevent concurrent Update() and SynchronizedMove()
 // calls.
-func (c *Aggregator) Update(_ context.Context, number metric.Number, desc *metric.Descriptor) error {
+func (c *Aggregator) Update(_ context.Context, number metric.Number, desc metric.Descriptor) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.sketch.Add(number.CoerceToFloat64(desc.NumberKind()))
@@ -139,7 +139,7 @@ func (c *Aggregator) Update(_ context.Context, number metric.Number, desc *metri
 }
 
 // Merge combines two sketches into one.
-func (c *Aggregator) Merge(oa export.Aggregator, d *metric.Descriptor) error {
+func (c *Aggregator) Merge(oa export.Aggregator, d metric.Descriptor) error {
 	o, _ := oa.(*Aggregator)
 	if o == nil {
 		return aggregator.NewInconsistentAggregatorError(c, oa)

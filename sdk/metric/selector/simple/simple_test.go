@@ -35,7 +35,7 @@ var (
 	testValueObserverDesc = metric.NewDescriptor("valueobserver", metric.ValueObserverKind, metric.Int64NumberKind)
 )
 
-func oneAgg(sel export.AggregatorSelector, desc *metric.Descriptor) export.Aggregator {
+func oneAgg(sel export.AggregatorSelector, desc metric.Descriptor) export.Aggregator {
 	var agg export.Aggregator
 	sel.AggregatorFor(desc, &agg)
 	return agg
@@ -43,28 +43,28 @@ func oneAgg(sel export.AggregatorSelector, desc *metric.Descriptor) export.Aggre
 
 func TestInexpensiveDistribution(t *testing.T) {
 	inex := simple.NewWithInexpensiveDistribution()
-	require.NotPanics(t, func() { _ = oneAgg(inex, &testCounterDesc).(*sum.Aggregator) })
-	require.NotPanics(t, func() { _ = oneAgg(inex, &testValueRecorderDesc).(*minmaxsumcount.Aggregator) })
-	require.NotPanics(t, func() { _ = oneAgg(inex, &testValueObserverDesc).(*minmaxsumcount.Aggregator) })
+	require.NotPanics(t, func() { _ = oneAgg(inex, testCounterDesc).(*sum.Aggregator) })
+	require.NotPanics(t, func() { _ = oneAgg(inex, testValueRecorderDesc).(*minmaxsumcount.Aggregator) })
+	require.NotPanics(t, func() { _ = oneAgg(inex, testValueObserverDesc).(*minmaxsumcount.Aggregator) })
 }
 
 func TestSketchDistribution(t *testing.T) {
 	sk := simple.NewWithSketchDistribution(ddsketch.NewDefaultConfig())
-	require.NotPanics(t, func() { _ = oneAgg(sk, &testCounterDesc).(*sum.Aggregator) })
-	require.NotPanics(t, func() { _ = oneAgg(sk, &testValueRecorderDesc).(*ddsketch.Aggregator) })
-	require.NotPanics(t, func() { _ = oneAgg(sk, &testValueObserverDesc).(*ddsketch.Aggregator) })
+	require.NotPanics(t, func() { _ = oneAgg(sk, testCounterDesc).(*sum.Aggregator) })
+	require.NotPanics(t, func() { _ = oneAgg(sk, testValueRecorderDesc).(*ddsketch.Aggregator) })
+	require.NotPanics(t, func() { _ = oneAgg(sk, testValueObserverDesc).(*ddsketch.Aggregator) })
 }
 
 func TestExactDistribution(t *testing.T) {
 	ex := simple.NewWithExactDistribution()
-	require.NotPanics(t, func() { _ = oneAgg(ex, &testCounterDesc).(*sum.Aggregator) })
-	require.NotPanics(t, func() { _ = oneAgg(ex, &testValueRecorderDesc).(*array.Aggregator) })
-	require.NotPanics(t, func() { _ = oneAgg(ex, &testValueObserverDesc).(*array.Aggregator) })
+	require.NotPanics(t, func() { _ = oneAgg(ex, testCounterDesc).(*sum.Aggregator) })
+	require.NotPanics(t, func() { _ = oneAgg(ex, testValueRecorderDesc).(*array.Aggregator) })
+	require.NotPanics(t, func() { _ = oneAgg(ex, testValueObserverDesc).(*array.Aggregator) })
 }
 
 func TestHistogramDistribution(t *testing.T) {
 	ex := simple.NewWithHistogramDistribution(nil)
-	require.NotPanics(t, func() { _ = oneAgg(ex, &testCounterDesc).(*sum.Aggregator) })
-	require.NotPanics(t, func() { _ = oneAgg(ex, &testValueRecorderDesc).(*histogram.Aggregator) })
-	require.NotPanics(t, func() { _ = oneAgg(ex, &testValueObserverDesc).(*histogram.Aggregator) })
+	require.NotPanics(t, func() { _ = oneAgg(ex, testCounterDesc).(*sum.Aggregator) })
+	require.NotPanics(t, func() { _ = oneAgg(ex, testValueRecorderDesc).(*histogram.Aggregator) })
+	require.NotPanics(t, func() { _ = oneAgg(ex, testValueObserverDesc).(*histogram.Aggregator) })
 }
