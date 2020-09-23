@@ -40,12 +40,13 @@ protobuf: protobuf-source gen-protobuf copy-protobufs
 protobuf-source: $(SOURCE_PROTO_FILES) | $(PROTO_SOURCE_DIR)/
 
 # Changes go_package in .proto file to point to repo-local location
+# @@@ something is wrong, maybe the `sed` command?
 define exec-replace-pkgname
 sed  's,go_package = "github.com/open-telemetry/opentelemetry-proto/gen/go,go_package = "go.opentelemetry.io/otel/exporters/otlp/internal/opentelemetry-proto-gen,' < $(1) > $(2)
 
 endef
 
-# replace opentelemetry-proto package name by go.opentelemetry.io/otel specific version
+ replace opentelemetry-proto package name by go.opentelemetry.io/otel specific version
 $(SOURCE_PROTO_FILES): $(PROTO_SOURCE_DIR)/%.proto: $(OTEL_PROTO_SUBMODULE)/%.proto
 	@mkdir -p $(@D)
 	$(call exec-replace-pkgname,$<,$@)
