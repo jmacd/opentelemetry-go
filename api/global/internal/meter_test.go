@@ -65,7 +65,7 @@ func TestDirect(t *testing.T) {
 	second.Record(ctx, 1, labels3...)
 	second.Record(ctx, 2, labels3...)
 
-	mock, provider := metrictest.NewProvider()
+	mock, provider := metrictest.NewMeterProvider()
 	global.SetMeterProvider(provider)
 
 	counter.Add(ctx, 1, labels1...)
@@ -150,7 +150,7 @@ func TestBound(t *testing.T) {
 	boundM.Record(ctx, 1)
 	boundM.Record(ctx, 2)
 
-	mock, provider := metrictest.NewProvider()
+	mock, provider := metrictest.NewMeterProvider()
 	global.SetMeterProvider(provider)
 
 	boundC.Add(ctx, 1)
@@ -198,7 +198,7 @@ func TestUnbindThenRecordOne(t *testing.T) {
 	internal.ResetForTest()
 
 	ctx := context.Background()
-	mock, provider := metrictest.NewProvider()
+	mock, provider := metrictest.NewMeterProvider()
 
 	meter := global.Meter("test")
 	counter := Must(meter).NewInt64Counter("test.counter")
@@ -213,7 +213,7 @@ func TestUnbindThenRecordOne(t *testing.T) {
 }
 
 type meterProviderWithConstructorError struct {
-	metric.Provider
+	metric.MeterProvider
 }
 
 type meterWithConstructorError struct {
@@ -221,7 +221,7 @@ type meterWithConstructorError struct {
 }
 
 func (m *meterProviderWithConstructorError) Meter(iName string, opts ...metric.MeterOption) metric.Meter {
-	return metric.WrapMeterImpl(&meterWithConstructorError{m.Provider.Meter(iName, opts...).MeterImpl()}, iName, opts...)
+	return metric.WrapMeterImpl(&meterWithConstructorError{m.MeterProvider.Meter(iName, opts...).MeterImpl()}, iName, opts...)
 }
 
 func (m *meterWithConstructorError) NewSyncInstrument(_ metric.Descriptor) (metric.SyncImpl, error) {
@@ -237,7 +237,7 @@ func TestErrorInDeferredConstructor(t *testing.T) {
 	c1, err := meter.NewInt64Counter("test")
 	require.NoError(t, err)
 
-	_, provider := metrictest.NewProvider()
+	_, provider := metrictest.NewMeterProvider()
 	sdk := &meterProviderWithConstructorError{provider}
 
 	require.Panics(t, func() {
@@ -278,7 +278,7 @@ func TestImplementationIndirection(t *testing.T) {
 	require.False(t, ok)
 
 	// Register the SDK
-	_, provider := metrictest.NewProvider()
+	_, provider := metrictest.NewMeterProvider()
 	global.SetMeterProvider(provider)
 
 	// Repeat the above tests
@@ -307,7 +307,7 @@ func TestRecordBatchMock(t *testing.T) {
 
 	meter.RecordBatch(context.Background(), nil, counter.Measurement(1))
 
-	mock, provider := metrictest.NewProvider()
+	mock, provider := metrictest.NewMeterProvider()
 	global.SetMeterProvider(provider)
 
 	meter.RecordBatch(context.Background(), nil, counter.Measurement(1))
