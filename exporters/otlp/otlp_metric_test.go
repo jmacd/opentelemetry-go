@@ -690,25 +690,25 @@ func runMetricExportTest(t *testing.T, exp *Exporter, rs []record, expected []me
 		case metric.CounterKind:
 			agg, ckpt = metrictest.Unslice2(sum.New(2))
 		default:
-			agg, ckpt = metrictest.Unslice2(minmaxsumcount.New(2, &desc))
+			agg, ckpt = metrictest.Unslice2(minmaxsumcount.New(2, desc))
 		}
 
 		ctx := context.Background()
 		switch r.nKind {
 		case metric.Int64NumberKind:
-			require.NoError(t, agg.Update(ctx, metric.NewInt64Number(1), &desc))
-			require.NoError(t, agg.Update(ctx, metric.NewInt64Number(10), &desc))
+			require.NoError(t, agg.Update(ctx, metric.NewInt64Number(1), desc))
+			require.NoError(t, agg.Update(ctx, metric.NewInt64Number(10), desc))
 		case metric.Float64NumberKind:
-			require.NoError(t, agg.Update(ctx, metric.NewFloat64Number(1), &desc))
-			require.NoError(t, agg.Update(ctx, metric.NewFloat64Number(10), &desc))
+			require.NoError(t, agg.Update(ctx, metric.NewFloat64Number(1), desc))
+			require.NoError(t, agg.Update(ctx, metric.NewFloat64Number(10), desc))
 		default:
 			t.Fatalf("invalid number kind: %v", r.nKind)
 		}
-		require.NoError(t, agg.SynchronizedMove(ckpt, &desc))
+		require.NoError(t, agg.SynchronizedMove(ckpt, desc))
 
 		equiv := r.resource.Equivalent()
 		resources[equiv] = r.resource
-		recs[equiv] = append(recs[equiv], metricsdk.NewRecord(&desc, &labs, r.resource, ckpt.Aggregation(), intervalStart, intervalEnd))
+		recs[equiv] = append(recs[equiv], metricsdk.NewRecord(desc, &labs, r.resource, ckpt.Aggregation(), intervalStart, intervalEnd))
 	}
 	for _, records := range recs {
 		assert.NoError(t, exp.Export(context.Background(), &checkpointSet{records: records}))

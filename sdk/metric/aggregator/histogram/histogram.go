@@ -50,7 +50,7 @@ type (
 	}
 )
 
-var  _ export.Aggregator = &Aggregator{}
+var _ export.Aggregator = &Aggregator{}
 var _ aggregation.Sum = &Aggregator{}
 var _ aggregation.Count = &Aggregator{}
 var _ aggregation.Histogram = &Aggregator{}

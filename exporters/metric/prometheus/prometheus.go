@@ -166,7 +166,7 @@ func (e *Exporter) Controller() *pull.Controller {
 	return e.controller
 }
 
-func (e *Exporter) ExportKindFor(*metric.Descriptor, aggregation.Kind) export.ExportKind {
+func (e *Exporter) ExportKindFor(metric.Descriptor, aggregation.Kind) export.ExportKind {
 	// NOTE: Summary values should use Delta aggregation, then be
 	// combined into a sliding window, see the TODO below.
 	// NOTE: Prometheus also supports a "GaugeDelta" exposition format,

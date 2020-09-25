@@ -103,10 +103,10 @@ func TestStdoutTimestamp(t *testing.T) {
 
 	lvagg, ckpt := metrictest.Unslice2(lastvalue.New(2))
 
-	aggregatortest.CheckedUpdate(t, lvagg, metric.NewInt64Number(321), &desc)
-	require.NoError(t, lvagg.SynchronizedMove(ckpt, &desc))
+	aggregatortest.CheckedUpdate(t, lvagg, metric.NewInt64Number(321), desc)
+	require.NoError(t, lvagg.SynchronizedMove(ckpt, desc))
 
-	checkpointSet.Add(&desc, ckpt)
+	checkpointSet.Add(desc, ckpt)
 
 	if err := exporter.Export(ctx, checkpointSet); err != nil {
 		t.Fatal("Unexpected export error: ", err)
@@ -142,10 +142,10 @@ func TestStdoutCounterFormat(t *testing.T) {
 
 	cagg, ckpt := metrictest.Unslice2(sum.New(2))
 
-	aggregatortest.CheckedUpdate(fix.t, cagg, metric.NewInt64Number(123), &desc)
-	require.NoError(t, cagg.SynchronizedMove(ckpt, &desc))
+	aggregatortest.CheckedUpdate(fix.t, cagg, metric.NewInt64Number(123), desc)
+	require.NoError(t, cagg.SynchronizedMove(ckpt, desc))
 
-	checkpointSet.Add(&desc, ckpt, label.String("A", "B"), label.String("C", "D"))
+	checkpointSet.Add(desc, ckpt, label.String("A", "B"), label.String("C", "D"))
 
 	fix.Export(checkpointSet)
 
@@ -160,10 +160,10 @@ func TestStdoutLastValueFormat(t *testing.T) {
 	desc := metric.NewDescriptor("test.name", metric.ValueObserverKind, metric.Float64NumberKind)
 	lvagg, ckpt := metrictest.Unslice2(lastvalue.New(2))
 
-	aggregatortest.CheckedUpdate(fix.t, lvagg, metric.NewFloat64Number(123.456), &desc)
-	require.NoError(t, lvagg.SynchronizedMove(ckpt, &desc))
+	aggregatortest.CheckedUpdate(fix.t, lvagg, metric.NewFloat64Number(123.456), desc)
+	require.NoError(t, lvagg.SynchronizedMove(ckpt, desc))
 
-	checkpointSet.Add(&desc, ckpt, label.String("A", "B"), label.String("C", "D"))
+	checkpointSet.Add(desc, ckpt, label.String("A", "B"), label.String("C", "D"))
 
 	fix.Export(checkpointSet)
 
@@ -177,13 +177,13 @@ func TestStdoutMinMaxSumCount(t *testing.T) {
 
 	desc := metric.NewDescriptor("test.name", metric.ValueRecorderKind, metric.Float64NumberKind)
 
-	magg, ckpt := metrictest.Unslice2(minmaxsumcount.New(2, &desc))
+	magg, ckpt := metrictest.Unslice2(minmaxsumcount.New(2, desc))
 
-	aggregatortest.CheckedUpdate(fix.t, magg, metric.NewFloat64Number(123.456), &desc)
-	aggregatortest.CheckedUpdate(fix.t, magg, metric.NewFloat64Number(876.543), &desc)
-	require.NoError(t, magg.SynchronizedMove(ckpt, &desc))
+	aggregatortest.CheckedUpdate(fix.t, magg, metric.NewFloat64Number(123.456), desc)
+	aggregatortest.CheckedUpdate(fix.t, magg, metric.NewFloat64Number(876.543), desc)
+	require.NoError(t, magg.SynchronizedMove(ckpt, desc))
 
-	checkpointSet.Add(&desc, ckpt, label.String("A", "B"), label.String("C", "D"))
+	checkpointSet.Add(desc, ckpt, label.String("A", "B"), label.String("C", "D"))
 
 	fix.Export(checkpointSet)
 
@@ -199,12 +199,12 @@ func TestStdoutValueRecorderFormat(t *testing.T) {
 	aagg, ckpt := metrictest.Unslice2(array.New(2))
 
 	for i := 0; i < 1000; i++ {
-		aggregatortest.CheckedUpdate(fix.t, aagg, metric.NewFloat64Number(float64(i)+0.5), &desc)
+		aggregatortest.CheckedUpdate(fix.t, aagg, metric.NewFloat64Number(float64(i)+0.5), desc)
 	}
 
-	require.NoError(t, aagg.SynchronizedMove(ckpt, &desc))
+	require.NoError(t, aagg.SynchronizedMove(ckpt, desc))
 
-	checkpointSet.Add(&desc, ckpt, label.String("A", "B"), label.String("C", "D"))
+	checkpointSet.Add(desc, ckpt, label.String("A", "B"), label.String("C", "D"))
 
 	fix.Export(checkpointSet)
 
@@ -244,9 +244,9 @@ func TestStdoutNoData(t *testing.T) {
 
 			checkpointSet := metrictest.NewCheckpointSet(testResource)
 
-			require.NoError(t, agg.SynchronizedMove(ckpt, &desc))
+			require.NoError(t, agg.SynchronizedMove(ckpt, desc))
 
-			checkpointSet.Add(&desc, ckpt)
+			checkpointSet.Add(desc, ckpt)
 
 			fix.Export(checkpointSet)
 
@@ -254,8 +254,8 @@ func TestStdoutNoData(t *testing.T) {
 		})
 	}
 
-	runTwoAggs(metrictest.Unslice2(ddsketch.New(2, &desc, ddsketch.NewDefaultConfig())))
-	runTwoAggs(metrictest.Unslice2(minmaxsumcount.New(2, &desc)))
+	runTwoAggs(metrictest.Unslice2(ddsketch.New(2, desc, ddsketch.NewDefaultConfig())))
+	runTwoAggs(metrictest.Unslice2(minmaxsumcount.New(2, desc)))
 }
 
 func TestStdoutLastValueNotSet(t *testing.T) {
@@ -266,9 +266,9 @@ func TestStdoutLastValueNotSet(t *testing.T) {
 	desc := metric.NewDescriptor("test.name", metric.ValueObserverKind, metric.Float64NumberKind)
 
 	lvagg, ckpt := metrictest.Unslice2(lastvalue.New(2))
-	require.NoError(t, lvagg.SynchronizedMove(ckpt, &desc))
+	require.NoError(t, lvagg.SynchronizedMove(ckpt, desc))
 
-	checkpointSet.Add(&desc, lvagg, label.String("A", "B"), label.String("C", "D"))
+	checkpointSet.Add(desc, lvagg, label.String("A", "B"), label.String("C", "D"))
 
 	fix.Export(checkpointSet)
 
@@ -317,10 +317,10 @@ func TestStdoutResource(t *testing.T) {
 		desc := metric.NewDescriptor("test.name", metric.ValueObserverKind, metric.Float64NumberKind)
 		lvagg, ckpt := metrictest.Unslice2(lastvalue.New(2))
 
-		aggregatortest.CheckedUpdate(fix.t, lvagg, metric.NewFloat64Number(123.456), &desc)
-		require.NoError(t, lvagg.SynchronizedMove(ckpt, &desc))
+		aggregatortest.CheckedUpdate(fix.t, lvagg, metric.NewFloat64Number(123.456), desc)
+		require.NoError(t, lvagg.SynchronizedMove(ckpt, desc))
 
-		checkpointSet.Add(&desc, ckpt, tc.attrs...)
+		checkpointSet.Add(desc, ckpt, tc.attrs...)
 
 		fix.Export(checkpointSet)
 

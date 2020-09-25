@@ -52,7 +52,7 @@ type quantile struct {
 	Value    interface{} `json:"Value"`
 }
 
-func (e *metricExporter) ExportKindFor(*apimetric.Descriptor, aggregation.Kind) metric.ExportKind {
+func (e *metricExporter) ExportKindFor(apimetric.Descriptor, aggregation.Kind) metric.ExportKind {
 	return metric.PassThroughExporter
 }
 

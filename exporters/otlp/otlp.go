@@ -280,7 +280,7 @@ func (e *Exporter) Export(parent context.Context, cps metricsdk.CheckpointSet) e
 	return nil
 }
 
-func (e *Exporter) ExportKindFor(*metric.Descriptor, aggregation.Kind) metricsdk.ExportKind {
+func (e *Exporter) ExportKindFor(metric.Descriptor, aggregation.Kind) metricsdk.ExportKind {
 	return metricsdk.PassThroughExporter
 }
 
