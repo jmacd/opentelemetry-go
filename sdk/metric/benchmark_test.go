@@ -90,7 +90,7 @@ func benchmarkLabels(b *testing.B, n int) {
 	ctx := context.Background()
 	fix := newFixture(b)
 	labs := makeLabels(n)
-	cnt := fix.meterMust().NewInt64Counter("int64.counter")
+	cnt := fix.meterMust().NewInt64Counter("int64.sum")
 
 	b.ResetTimer()
 
@@ -125,7 +125,7 @@ func BenchmarkInt64CounterAddWithLabels_16(b *testing.B) {
 func BenchmarkAcquireNewHandle(b *testing.B) {
 	fix := newFixture(b)
 	labelSets := makeManyLabels(b.N)
-	cnt := fix.meterMust().NewInt64Counter("int64.counter")
+	cnt := fix.meterMust().NewInt64Counter("int64.sum")
 
 	b.ResetTimer()
 
@@ -137,7 +137,7 @@ func BenchmarkAcquireNewHandle(b *testing.B) {
 func BenchmarkAcquireExistingHandle(b *testing.B) {
 	fix := newFixture(b)
 	labelSets := makeManyLabels(b.N)
-	cnt := fix.meterMust().NewInt64Counter("int64.counter")
+	cnt := fix.meterMust().NewInt64Counter("int64.sum")
 
 	for i := 0; i < b.N; i++ {
 		cnt.Bind(labelSets[i]...).Unbind()
@@ -153,7 +153,7 @@ func BenchmarkAcquireExistingHandle(b *testing.B) {
 func BenchmarkAcquireReleaseExistingHandle(b *testing.B) {
 	fix := newFixture(b)
 	labelSets := makeManyLabels(b.N)
-	cnt := fix.meterMust().NewInt64Counter("int64.counter")
+	cnt := fix.meterMust().NewInt64Counter("int64.sum")
 
 	for i := 0; i < b.N; i++ {
 		cnt.Bind(labelSets[i]...).Unbind()
@@ -218,7 +218,7 @@ func BenchmarkGlobalInt64CounterAddWithSDK(b *testing.B) {
 	global.SetMeterProvider(fix)
 
 	labs := []label.KeyValue{label.String("A", "B")}
-	cnt := Must(sdk).NewInt64Counter("int64.counter")
+	cnt := Must(sdk).NewInt64Counter("int64.sum")
 
 	b.ResetTimer()
 
@@ -231,7 +231,7 @@ func BenchmarkInt64CounterAdd(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
 	labs := makeLabels(1)
-	cnt := fix.meterMust().NewInt64Counter("int64.counter")
+	cnt := fix.meterMust().NewInt64Counter("int64.sum")
 
 	b.ResetTimer()
 
@@ -244,7 +244,7 @@ func BenchmarkInt64CounterHandleAdd(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
 	labs := makeLabels(1)
-	cnt := fix.meterMust().NewInt64Counter("int64.counter")
+	cnt := fix.meterMust().NewInt64Counter("int64.sum")
 	handle := cnt.Bind(labs...)
 
 	b.ResetTimer()
@@ -258,7 +258,7 @@ func BenchmarkFloat64CounterAdd(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
 	labs := makeLabels(1)
-	cnt := fix.meterMust().NewFloat64Counter("float64.counter")
+	cnt := fix.meterMust().NewFloat64Counter("float64.sum")
 
 	b.ResetTimer()
 
@@ -271,7 +271,7 @@ func BenchmarkFloat64CounterHandleAdd(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
 	labs := makeLabels(1)
-	cnt := fix.meterMust().NewFloat64Counter("float64.counter")
+	cnt := fix.meterMust().NewFloat64Counter("float64.sum")
 	handle := cnt.Bind(labs...)
 
 	b.ResetTimer()
@@ -504,7 +504,7 @@ func benchmarkBatchRecord8Labels(b *testing.B, numInst int) {
 	var meas []metric.Measurement
 
 	for i := 0; i < numInst; i++ {
-		inst := fix.meterMust().NewInt64Counter(fmt.Sprint("int64.counter.", i))
+		inst := fix.meterMust().NewInt64Counter(fmt.Sprint("int64.sum.", i))
 		meas = append(meas, inst.Measurement(1))
 	}
 
@@ -537,7 +537,7 @@ func BenchmarkRepeatedDirectCalls(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
 
-	c := fix.meterMust().NewInt64Counter("int64.counter")
+	c := fix.meterMust().NewInt64Counter("int64.sum")
 	k := label.String("bench", "true")
 
 	b.ResetTimer()
