@@ -399,7 +399,7 @@ func BenchmarkObserverRegistration(b *testing.B) {
 	fix := newFixture(b)
 	names := make([]string, 0, b.N)
 	for i := 0; i < b.N; i++ {
-		names = append(names, fmt.Sprintf("test.valueobserver.%d", i))
+		names = append(names, fmt.Sprintf("test.%d.lastvalue", i))
 	}
 	cb := func(_ context.Context, result metric.Int64ObserverResult) {}
 
@@ -414,7 +414,7 @@ func BenchmarkValueObserverObservationInt64(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
 	labs := makeLabels(1)
-	_ = fix.meterMust().NewInt64ValueObserver("test.valueobserver", func(_ context.Context, result metric.Int64ObserverResult) {
+	_ = fix.meterMust().NewInt64ValueObserver("test.lastvalue", func(_ context.Context, result metric.Int64ObserverResult) {
 		for i := 0; i < b.N; i++ {
 			result.Observe((int64)(i), labs...)
 		}
@@ -429,7 +429,7 @@ func BenchmarkValueObserverObservationFloat64(b *testing.B) {
 	ctx := context.Background()
 	fix := newFixture(b)
 	labs := makeLabels(1)
-	_ = fix.meterMust().NewFloat64ValueObserver("test.valueobserver", func(_ context.Context, result metric.Float64ObserverResult) {
+	_ = fix.meterMust().NewFloat64ValueObserver("test.lastvalue", func(_ context.Context, result metric.Float64ObserverResult) {
 		for i := 0; i < b.N; i++ {
 			result.Observe((float64)(i), labs...)
 		}
@@ -461,37 +461,37 @@ func BenchmarkFloat64MaxSumCountHandleAdd(b *testing.B) {
 // DDSketch
 
 func BenchmarkInt64DDSketchAdd(b *testing.B) {
-	benchmarkInt64ValueRecorderAdd(b, "int64.ddsketch")
+	benchmarkInt64ValueRecorderAdd(b, "int64.sketch")
 }
 
 func BenchmarkInt64DDSketchHandleAdd(b *testing.B) {
-	benchmarkInt64ValueRecorderHandleAdd(b, "int64.ddsketch")
+	benchmarkInt64ValueRecorderHandleAdd(b, "int64.sketch")
 }
 
 func BenchmarkFloat64DDSketchAdd(b *testing.B) {
-	benchmarkFloat64ValueRecorderAdd(b, "float64.ddsketch")
+	benchmarkFloat64ValueRecorderAdd(b, "float64.sketch")
 }
 
 func BenchmarkFloat64DDSketchHandleAdd(b *testing.B) {
-	benchmarkFloat64ValueRecorderHandleAdd(b, "float64.ddsketch")
+	benchmarkFloat64ValueRecorderHandleAdd(b, "float64.sketch")
 }
 
 // Array
 
 func BenchmarkInt64ArrayAdd(b *testing.B) {
-	benchmarkInt64ValueRecorderAdd(b, "int64.array")
+	benchmarkInt64ValueRecorderAdd(b, "int64.exact")
 }
 
 func BenchmarkInt64ArrayHandleAdd(b *testing.B) {
-	benchmarkInt64ValueRecorderHandleAdd(b, "int64.array")
+	benchmarkInt64ValueRecorderHandleAdd(b, "int64.exact")
 }
 
 func BenchmarkFloat64ArrayAdd(b *testing.B) {
-	benchmarkFloat64ValueRecorderAdd(b, "float64.array")
+	benchmarkFloat64ValueRecorderAdd(b, "float64.exact")
 }
 
 func BenchmarkFloat64ArrayHandleAdd(b *testing.B) {
-	benchmarkFloat64ValueRecorderHandleAdd(b, "float64.array")
+	benchmarkFloat64ValueRecorderHandleAdd(b, "float64.exact")
 }
 
 // BatchRecord
@@ -504,7 +504,7 @@ func benchmarkBatchRecord8Labels(b *testing.B, numInst int) {
 	var meas []metric.Measurement
 
 	for i := 0; i < numInst; i++ {
-		inst := fix.meterMust().NewInt64Counter(fmt.Sprint("int64.sum.", i))
+		inst := fix.meterMust().NewInt64Counter(fmt.Sprintf("int64.%d.sum", i))
 		meas = append(meas, inst.Measurement(1))
 	}
 
