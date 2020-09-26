@@ -87,7 +87,7 @@ type (
 	record struct {
 		// refMapped keeps track of refcounts and the mapping state to the
 		// Accumulator.current map.
-		refMapped refcountMapped
+		refMapped RefcountMapped
 
 		// updateCount is incremented on every Update.
 		updateCount int64
@@ -243,7 +243,7 @@ func (s *syncInstrument) acquireHandle(kvs []label.KeyValue, labelPtr *label.Set
 	if actual, ok := s.meter.current.Load(mk); ok {
 		// Existing record case.
 		existingRec := actual.(*record)
-		if existingRec.refMapped.ref() {
+		if existingRec.refMapped.Ref() {
 			// At this moment it is guaranteed that the entry is in
 			// the map and will not be removed.
 			return existingRec
@@ -255,7 +255,7 @@ func (s *syncInstrument) acquireHandle(kvs []label.KeyValue, labelPtr *label.Set
 		rec = &record{}
 		rec.labels = labelPtr
 	}
-	rec.refMapped = refcountMapped{value: 2}
+	rec.refMapped = InitRefcountMapped()
 	rec.inst = s
 
 	s.meter.processor.AggregatorFor(&s.descriptor, &rec.current, &rec.checkpoint)
@@ -267,7 +267,7 @@ func (s *syncInstrument) acquireHandle(kvs []label.KeyValue, labelPtr *label.Set
 			// Existing record case. Cannot change rec here because if fail
 			// will try to add rec again to avoid new allocations.
 			oldRec := actual.(*record)
-			if oldRec.refMapped.ref() {
+			if oldRec.refMapped.Ref() {
 				// At this moment it is guaranteed that the entry is in
 				// the map and will not be removed.
 				return oldRec
@@ -385,7 +385,7 @@ func (m *Accumulator) collectSyncInstruments() int {
 		}
 
 		// Having no updates since last collection, try to unmap:
-		if unmapped := inuse.refMapped.tryUnmap(); !unmapped {
+		if unmapped := inuse.refMapped.TryUnmap(); !unmapped {
 			// The record is referenced by a binding, continue.
 			return true
 		}
@@ -396,7 +396,7 @@ func (m *Accumulator) collectSyncInstruments() int {
 		m.current.Delete(inuse.mapkey())
 
 		// There's a potential race between `LoadInt64` and
-		// `tryUnmap` in this function.  Since this is the
+		// `TryUnmap` in this function.  Since this is the
 		// last we'll see of this record, checkpoint
 		mods = atomic.LoadInt64(&inuse.updateCount)
 		if mods != coll {
@@ -530,7 +530,7 @@ func (r *record) RecordOne(ctx context.Context, number api.Number) {
 
 // Unbind implements api.SyncImpl.
 func (r *record) Unbind() {
-	r.refMapped.unref()
+	r.refMapped.Unref()
 }
 
 func (r *record) mapkey() mapkey {
