@@ -154,6 +154,10 @@ func (inst *instrument) Descriptor() api.Descriptor {
 	return inst.descriptor
 }
 
+func (inst *instrument) Unref() {
+	// This is a no-op for the standard Accumulator.
+}
+
 func (a *asyncInstrument) Implementation() interface{} {
 	return a
 }

@@ -50,6 +50,9 @@ type InstrumentImpl interface {
 
 	// Descriptor returns a copy of the instrument's Descriptor.
 	Descriptor() Descriptor
+
+	// @@@
+	Unref()
 }
 
 // SyncImpl is the implementation-level interface to a generic

@@ -123,6 +123,9 @@ func (inst *instrument) Descriptor() metric.Descriptor {
 	return inst.descriptor
 }
 
+func (inst *instrument) Unref() {
+}
+
 // MeterProvider interface and delegation
 
 func newMeterProvider() *meterProvider {

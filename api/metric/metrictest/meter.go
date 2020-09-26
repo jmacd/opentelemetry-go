@@ -80,6 +80,9 @@ func (i Instrument) Descriptor() apimetric.Descriptor {
 	return i.descriptor
 }
 
+func (i Instrument) Unref() {
+}
+
 func (a *Async) Implementation() interface{} {
 	return a
 }

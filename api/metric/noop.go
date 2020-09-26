@@ -40,6 +40,9 @@ func (noopInstrument) Implementation() interface{} {
 	return nil
 }
 
+func (noopInstrument) Unref() {
+}
+
 func (noopInstrument) Descriptor() Descriptor {
 	return Descriptor{}
 }
