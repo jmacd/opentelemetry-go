@@ -17,7 +17,9 @@ package transient
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"sync"
+	"sync/atomic"
 
 	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/label"
@@ -28,12 +30,16 @@ import (
 type (
 	Accumulator struct {
 		standard    *sdk.Accumulator
+		lock        sync.Mutex
 		instruments sync.Map
 	}
 
 	syncImpl struct {
 		standard  metric.SyncImpl
 		refMapped sdk.RefcountMapped
+
+		updateCount    int64
+		collectedCount int64
 	}
 
 	boundSyncImpl struct {
@@ -57,19 +63,12 @@ func NewAccumulator(processor export.Processor, opts ...sdk.Option) *Accumulator
 	}
 }
 
-func (a *Accumulator) RecordBatch(ctx context.Context, labels []label.KeyValue, measurements ...metric.Measurement) {
-	a.standard.RecordBatch(ctx, labels, measurements...)
-}
-
 func (a *Accumulator) NewSyncInstrument(descriptor metric.Descriptor) (metric.SyncImpl, error) {
-	// TODO: key is instrumentation library, ... ?
 	if actual, ok := a.instruments.Load(descriptor); ok {
 		existing := actual.(*syncImpl)
 		if existing.refMapped.Ref() {
-			// the entry is in the map and will not be removed.
 			return existing, nil
 		}
-		// This entry is no longer mapped, try to add a new entry.
 	}
 
 	s, err := a.standard.NewSyncInstrument(descriptor)
@@ -82,21 +81,61 @@ func (a *Accumulator) NewSyncInstrument(descriptor metric.Descriptor) (metric.Sy
 		refMapped: sdk.InitRefcountMapped(),
 	}
 
-	// TODO: the try-insert loop
+	for {
+		if actual, loaded := a.instruments.LoadOrStore(descriptor, impl); loaded {
+			existing := actual.(*syncImpl)
+			if existing.refMapped.Ref() {
+				return existing, nil
+			}
+			runtime.Gosched()
+			continue
+		}
 
-	return impl, nil
+		return impl, nil
+	}
 }
 
 func (a *Accumulator) NewAsyncInstrument(metric.Descriptor, metric.AsyncRunner) (metric.AsyncImpl, error) {
 	return metric.NoopAsync{}, ErrAsyncNotSupported
 }
 
+func (a *Accumulator) RecordBatch(ctx context.Context, labels []label.KeyValue, measurements ...metric.Measurement) {
+	for _, m := range measurements {
+		impl := m.SyncImpl().(*syncImpl)
+		atomic.AddInt64(&impl.updateCount, 1)
+	}
+	a.standard.RecordBatch(ctx, labels, measurements...)
+}
+
 func (a *Accumulator) Collect(ctx context.Context) int {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	defer a.purgeInstruments()
 	return a.standard.Collect(ctx)
 }
 
+func (a *Accumulator) purgeInstruments() {
+	a.instruments.Range(func(key, value interface{}) bool {
+		impl := value.(*syncImpl)
+
+		uses := atomic.LoadInt64(&impl.updateCount)
+		coll := impl.collectedCount
+
+		if uses != coll {
+			impl.collectedCount = uses
+			return true
+		}
+
+		if unmapped := impl.refMapped.TryUnmap(); !unmapped {
+			return true
+		}
+
+		a.instruments.Delete(key)
+		return true
+	})
+}
+
 func (s *syncImpl) Implementation() interface{} {
-	// TODO: comment
 	return s.standard.Implementation()
 }
 
@@ -120,14 +159,25 @@ func (s *syncImpl) Bind(labels []label.KeyValue) metric.BoundSyncImpl {
 }
 
 func (s *syncImpl) RecordOne(ctx context.Context, number metric.Number, labels []label.KeyValue) {
+	atomic.AddInt64(&s.updateCount, 1)
 	s.standard.RecordOne(ctx, number, labels)
 }
 
 func (b *boundSyncImpl) RecordOne(ctx context.Context, number metric.Number) {
+	atomic.AddInt64(&b.impl.updateCount, 1)
 	b.standard.RecordOne(ctx, number)
 }
 
 func (b *boundSyncImpl) Unbind() {
 	b.standard.Unbind()
 	b.impl.refMapped.Unref()
+}
+
+func (a *Accumulator) Size() int {
+	sz := 0
+	a.instruments.Range(func(_, _ interface{}) bool {
+		sz++
+		return true
+	})
+	return sz
 }
