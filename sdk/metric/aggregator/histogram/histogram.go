@@ -16,6 +16,7 @@ package histogram // import "go.opentelemetry.io/otel/sdk/metric/aggregator/hist
 
 import (
 	"context"
+	"math/rand"
 	"sort"
 	"sync"
 
@@ -37,6 +38,8 @@ type (
 	Aggregator struct {
 		lock       sync.Mutex
 		boundaries []float64
+		exemplars  int
+		exFilter   func(ctx context.Context) bool
 		kind       number.Kind
 		state      state
 	}
@@ -46,6 +49,9 @@ type (
 		// ExplicitBoundaries support arbitrary bucketing schemes.  This
 		// is the general case.
 		ExplicitBoundaries []float64
+
+		// ExemplarsPerBucket is the number of exemplars saved per bucket.
+		ExemplarsPerBucket int
 	}
 
 	// Option configures a histogram Config.
@@ -61,6 +67,22 @@ type (
 		bucketCounts []float64
 		sum          number.Number
 		count        int64
+
+		// bucketExemplars are stored as
+		//   (b0, 0), ... (b0, exemplars-1),
+		//   (b1, 0), ... (b1, exemplars-1),
+		//   ...
+		//   (bN, 0), ... (bN, exemplars-1).
+		//
+		// Their context value may contain distributed context
+		// details that will be expanded at the end of the
+		// selection period.
+		exState *exState
+	}
+
+	exState struct {
+		bucketExemplars []context.Context
+		bucketExCount   []uint64
 	}
 )
 
@@ -75,6 +97,17 @@ type explicitBoundariesOption struct {
 
 func (o explicitBoundariesOption) Apply(config *Config) {
 	config.ExplicitBoundaries = o.boundaries
+}
+
+// WithExemplars sets the Exemplars configuration option of a Config.
+func WithExemplars(exemplars int) Option {
+	return exemplarsOption(exemplars)
+}
+
+type exemplarsOption int
+
+func (o exemplarsOption) Apply(config *Config) {
+	config.ExemplarsPerBucket = int(o)
 }
 
 // defaultExplicitBoundaries have been copied from prometheus.DefBuckets.
@@ -123,6 +156,10 @@ func New(cnt int, desc *metric.Descriptor, opts ...Option) []Aggregator {
 		opt.Apply(&cfg)
 	}
 
+	if cfg.ExemplarsPerBucket < 0 {
+		cfg.ExemplarsPerBucket = 0
+	}
+
 	aggs := make([]Aggregator, cnt)
 
 	// Boundaries MUST be ordered otherwise the histogram could not
@@ -136,8 +173,10 @@ func New(cnt int, desc *metric.Descriptor, opts ...Option) []Aggregator {
 		aggs[i] = Aggregator{
 			kind:       desc.NumberKind(),
 			boundaries: sortedBoundaries,
-			state:      emptyState(sortedBoundaries),
+			exemplars:  cfg.ExemplarsPerBucket,
 		}
+		aggs[i].state = aggs[i].emptyState()
+
 	}
 	return aggs
 }
@@ -181,24 +220,29 @@ func (c *Aggregator) SynchronizedMove(oa export.Aggregator, desc *metric.Descrip
 		return aggregator.NewInconsistentAggregatorError(c, oa)
 	}
 
+	ns := c.emptyState()
 	c.lock.Lock()
 	if o != nil {
 		o.state = c.state
 	}
-	c.state = emptyState(c.boundaries)
+	c.state = ns
 	c.lock.Unlock()
 
 	return nil
 }
 
-func emptyState(boundaries []float64) state {
-	return state{
-		bucketCounts: make([]float64, len(boundaries)+1),
+func (c *Aggregator) emptyState() state {
+	s := state{
+		bucketCounts: make([]float64, len(c.boundaries)+1),
 	}
+	if c.exemplars != 0 {
+		s.bucketExemplars = make([]context.Context, c.exemplars*(len(c.boundaries)+1))
+	}
+	return s
 }
 
 // Update adds the recorded measurement to the current data set.
-func (c *Aggregator) Update(_ context.Context, number number.Number, desc *metric.Descriptor) error {
+func (c *Aggregator) Update(ctx context.Context, number number.Number, desc *metric.Descriptor) error {
 	kind := desc.NumberKind()
 	asFloat := number.CoerceToFloat64(kind)
 
@@ -228,6 +272,32 @@ func (c *Aggregator) Update(_ context.Context, number number.Number, desc *metri
 	c.state.sum.AddNumber(kind, number)
 	c.state.bucketCounts[bucketID]++
 
+	if c.exemplars == 0 {
+		return nil
+	}
+
+	base := c.exemplars * bucketID
+	observed := c.state.bucketCounts[bucketID]
+
+	// N.B.: PR#1430 changes the counts to be uint64 (from float64
+	// and/or int64), in part b/c this sort of confusion.
+	if observed <= float64(c.exemplars) {
+		position := observed - 1
+		c.state.bucketExemplars[base+int(position)] = ctx
+	} else {
+		// TODO: avoid the global random number generator.
+		// use per-Aggregator *rand.Rand?  use global pool?
+		// Also it would be nice to move the random number
+		// generation outside of the lock, but the calculation
+		// with very small probability should repeat the
+		// random number generation, ... the Int63n() call is
+		// complex.
+		index := rand.Int63n(int64(observed))
+
+		if float64(index) < float64(c.exemplars) {
+			c.state.bucketExemplars[base+int(index)] = ctx
+		}
+	}
 	return nil
 }
 
