@@ -176,7 +176,6 @@ func New(cnt int, desc *metric.Descriptor, opts ...Option) []Aggregator {
 			exemplars:  cfg.ExemplarsPerBucket,
 		}
 		aggs[i].state = aggs[i].emptyState()
-
 	}
 	return aggs
 }
@@ -220,25 +219,21 @@ func (c *Aggregator) SynchronizedMove(oa export.Aggregator, desc *metric.Descrip
 		return aggregator.NewInconsistentAggregatorError(c, oa)
 	}
 
-	ns := c.emptyState()
+	newState := c.emptyState()
 	c.lock.Lock()
 	if o != nil {
 		o.state = c.state
 	}
-	c.state = ns
+	c.state = newState
 	c.lock.Unlock()
 
 	return nil
 }
 
 func (c *Aggregator) emptyState() state {
-	s := state{
+	return state{
 		bucketCounts: make([]float64, len(c.boundaries)+1),
 	}
-	if c.exemplars != 0 {
-		s.bucketExemplars = make([]context.Context, c.exemplars*(len(c.boundaries)+1))
-	}
-	return s
 }
 
 // Update adds the recorded measurement to the current data set.
