@@ -41,7 +41,7 @@ type (
 		exemplars  int
 		exFilter   func(ctx context.Context) bool
 		kind       number.Kind
-		state      state
+		state      *state
 	}
 
 	// Config describes how the histogram is aggregated.
@@ -175,9 +175,23 @@ func New(cnt int, desc *metric.Descriptor, opts ...Option) []Aggregator {
 			boundaries: sortedBoundaries,
 			exemplars:  cfg.ExemplarsPerBucket,
 		}
-		aggs[i].state = aggs[i].emptyState()
+		aggs[i].state = aggs[i].newState()
 	}
 	return aggs
+}
+
+func (c *Aggregator) newState() *state {
+	return &state{
+		bucketCounts: make([]float64, len(c.boundaries)+1),
+	}
+}
+
+func (c *Aggregator) clearState() {
+	for i := range c.state.bucketCounts {
+		c.state.bucketCounts[i] = 0
+	}
+	c.state.sum = 0
+	c.state.count = 0
 }
 
 // Aggregation returns an interface for reading the state of this aggregator.
@@ -219,21 +233,25 @@ func (c *Aggregator) SynchronizedMove(oa export.Aggregator, desc *metric.Descrip
 		return aggregator.NewInconsistentAggregatorError(c, oa)
 	}
 
-	newState := c.emptyState()
+	var next *state
+
+	if o != nil {
+		// Swap case.
+		o.clearState()
+		next = o.state
+	} else {
+		// No swap is available.
+		next = c.newState()
+	}
+
 	c.lock.Lock()
 	if o != nil {
 		o.state = c.state
 	}
-	c.state = newState
+	c.state = next
 	c.lock.Unlock()
 
 	return nil
-}
-
-func (c *Aggregator) emptyState() state {
-	return state{
-		bucketCounts: make([]float64, len(c.boundaries)+1),
-	}
 }
 
 // Update adds the recorded measurement to the current data set.
@@ -278,7 +296,7 @@ func (c *Aggregator) Update(ctx context.Context, number number.Number, desc *met
 	// and/or int64), in part b/c this sort of confusion.
 	if observed <= float64(c.exemplars) {
 		position := observed - 1
-		c.state.bucketExemplars[base+int(position)] = ctx
+		c.state.exState.bucketExemplars[base+int(position)] = ctx
 	} else {
 		// TODO: avoid the global random number generator.
 		// use per-Aggregator *rand.Rand?  use global pool?
@@ -290,7 +308,7 @@ func (c *Aggregator) Update(ctx context.Context, number number.Number, desc *met
 		index := rand.Int63n(int64(observed))
 
 		if float64(index) < float64(c.exemplars) {
-			c.state.bucketExemplars[base+int(index)] = ctx
+			c.state.exState.bucketExemplars[base+int(index)] = ctx
 		}
 	}
 	return nil
