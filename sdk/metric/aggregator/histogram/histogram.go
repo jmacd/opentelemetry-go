@@ -19,6 +19,7 @@ import (
 	"math/rand"
 	"sort"
 	"sync"
+	"time"
 
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/number"
@@ -36,13 +37,16 @@ type (
 	// Aggregator observe events and counts them in pre-determined buckets.
 	// It also calculates the sum and count of all events.
 	Aggregator struct {
-		lock       sync.Mutex
-		boundaries []float64
-		exemplars  int
-		exFilter   func(ctx context.Context) bool
-		kind       number.Kind
-		state      *state
+		lock           sync.Mutex
+		boundaries     []float64
+		numExemplars   int
+		exemplarFilter ExemplarFilter
+		kind           number.Kind
+		state          *state
 	}
+
+	// ExemplarFilter
+	ExemplarFilter func(ctx context.Context) bool
 
 	// Config describes how the histogram is aggregated.
 	Config struct {
@@ -52,6 +56,11 @@ type (
 
 		// ExemplarsPerBucket is the number of exemplars saved per bucket.
 		ExemplarsPerBucket int
+
+		// ExemplarFilter filters the set of updates used for
+		// generating exemplars (e.g., to ensure they are
+		// sampled for tracing).
+		ExemplarFilter ExemplarFilter
 	}
 
 	// Option configures a histogram Config.
@@ -69,20 +78,24 @@ type (
 		count        int64
 
 		// bucketExemplars are stored as
-		//   (b0, 0), ... (b0, exemplars-1),
-		//   (b1, 0), ... (b1, exemplars-1),
+		//   (b0, 0), ... (b0, numExemplars-1),
+		//   (b1, 0), ... (b1, numExemplars-1),
 		//   ...
-		//   (bN, 0), ... (bN, exemplars-1).
+		//   (bN, 0), ... (bN, numExemplars-1).
 		//
 		// Their context value may contain distributed context
 		// details that will be expanded at the end of the
 		// selection period.
-		exState *exState
+		example *exampleState
 	}
 
-	exState struct {
-		bucketExemplars []context.Context
-		bucketExCount   []uint64
+	exampleState struct {
+		// exemplars are chosen by uniform random selection
+		// (from those filtered, when filtering is configured).
+		exemplars []aggregation.Example
+
+		// filterCounts are the counts when exemplarFilter != nil.
+		filterCounts []uint64
 	}
 )
 
@@ -99,15 +112,27 @@ func (o explicitBoundariesOption) Apply(config *Config) {
 	config.ExplicitBoundaries = o.boundaries
 }
 
-// WithExemplars sets the Exemplars configuration option of a Config.
-func WithExemplars(exemplars int) Option {
-	return exemplarsOption(exemplars)
+// WithExemplars sets the ExemplarsPerBucket configuration option of a Config.
+func WithExemplars(numExemplars int) Option {
+	return numExemplarsOption(numExemplars)
 }
 
-type exemplarsOption int
+type numExemplarsOption int
 
-func (o exemplarsOption) Apply(config *Config) {
+func (o numExemplarsOption) Apply(config *Config) {
 	config.ExemplarsPerBucket = int(o)
+}
+
+// WithExemplarFilter sets an optional filter used for exemplars, typically to
+// ensure that exemplars are sampled (in case of sampling).
+func WithExemplarFilter(filter ExemplarFilter) Option {
+	return exemplarFilterOption(filter)
+}
+
+type exemplarFilterOption ExemplarFilter
+
+func (o exemplarFilterOption) Apply(config *Config) {
+	config.ExemplarFilter = ExemplarFilter(o)
 }
 
 // defaultExplicitBoundaries have been copied from prometheus.DefBuckets.
@@ -134,6 +159,7 @@ var _ export.Aggregator = &Aggregator{}
 var _ aggregation.Sum = &Aggregator{}
 var _ aggregation.Count = &Aggregator{}
 var _ aggregation.Histogram = &Aggregator{}
+var _ aggregation.Exemplars = &Aggregator{}
 
 // New returns a new aggregator for computing Histograms.
 //
@@ -171,9 +197,9 @@ func New(cnt int, desc *metric.Descriptor, opts ...Option) []Aggregator {
 
 	for i := range aggs {
 		aggs[i] = Aggregator{
-			kind:       desc.NumberKind(),
-			boundaries: sortedBoundaries,
-			exemplars:  cfg.ExemplarsPerBucket,
+			kind:         desc.NumberKind(),
+			boundaries:   sortedBoundaries,
+			numExemplars: cfg.ExemplarsPerBucket,
 		}
 		aggs[i].state = aggs[i].newState()
 	}
@@ -181,14 +207,37 @@ func New(cnt int, desc *metric.Descriptor, opts ...Option) []Aggregator {
 }
 
 func (c *Aggregator) newState() *state {
+	var exs *exampleState
+	numBuckets := len(c.boundaries) + 1
+	if c.numExemplars != 0 {
+		exs = &exampleState{
+			exemplars: make([]aggregation.Example, c.numExemplars*numBuckets),
+		}
+		if c.exemplarFilter != nil {
+			exs.filterCounts = make([]uint64, numBuckets)
+		}
+	}
 	return &state{
-		bucketCounts: make([]float64, len(c.boundaries)+1),
+		bucketCounts: make([]float64, numBuckets),
+		example:      exs,
 	}
 }
 
 func (c *Aggregator) clearState() {
 	for i := range c.state.bucketCounts {
 		c.state.bucketCounts[i] = 0
+	}
+
+	if c.state.example != nil {
+		for i := range c.state.example.exemplars {
+			c.state.example.exemplars[i] = aggregation.Example{}
+		}
+
+		if c.state.example.filterCounts != nil {
+			for i := range c.state.example.filterCounts {
+				c.state.example.filterCounts[i] = 0
+			}
+		}
 	}
 	c.state.sum = 0
 	c.state.count = 0
@@ -288,18 +337,32 @@ func (c *Aggregator) Update(ctx context.Context, number number.Number, desc *met
 	c.state.sum.AddNumber(kind, number)
 	c.state.bucketCounts[bucketID]++
 
-	if c.exemplars == 0 {
+	if c.numExemplars == 0 {
 		return nil
 	}
 
-	base := c.exemplars * bucketID
-	observed := c.state.bucketCounts[bucketID]
-
 	// N.B.: PR#1430 changes the counts to be uint64 (from float64
-	// and/or int64), in part b/c this sort of confusion.
-	if observed <= float64(c.exemplars) {
-		position := observed - 1
-		c.state.exState.bucketExemplars[base+int(position)] = ctx
+	// and/or int64) to avoid the sort of confusion seen here.
+	var observed float64
+
+	if c.exemplarFilter == nil {
+		observed = c.state.bucketCounts[bucketID]
+	} else {
+		if !c.exemplarFilter(ctx) {
+			return nil
+		}
+		c.state.example.filterCounts[bucketID]++
+		observed = float64(c.state.example.filterCounts[bucketID])
+	}
+
+	base := c.numExemplars * bucketID
+
+	if observed <= float64(c.numExemplars) {
+		c.state.example.exemplars[base+int(observed-1)] = aggregation.Example{
+			Context: ctx,
+			Number:  number,
+			Time:    time.Now(),
+		}
 	} else {
 		// TODO: avoid the global random number generator.
 		// use per-Aggregator *rand.Rand?  use global pool?
@@ -310,8 +373,12 @@ func (c *Aggregator) Update(ctx context.Context, number number.Number, desc *met
 		// complex.
 		index := rand.Int63n(int64(observed))
 
-		if float64(index) < float64(c.exemplars) {
-			c.state.exState.bucketExemplars[base+int(index)] = ctx
+		if float64(index) < float64(c.numExemplars) {
+			c.state.example.exemplars[base+int(index)] = aggregation.Example{
+				Context: ctx,
+				Number:  number,
+				Time:    time.Now(),
+			}
 		}
 	}
 	return nil
@@ -329,6 +396,34 @@ func (c *Aggregator) Merge(oa export.Aggregator, desc *metric.Descriptor) error 
 
 	for i := 0; i < len(c.state.bucketCounts); i++ {
 		c.state.bucketCounts[i] += o.state.bucketCounts[i]
+	}
+	return nil
+}
+
+// ForEachExemplar implements aggregation.Exemplars
+func (c *Aggregator) ForEachExemplar(f func(aggregation.Example)) error {
+	if c.numExemplars == 0 {
+		return nil
+	}
+	for bucket := range c.state.bucketCounts {
+		var observed float64
+		if c.exemplarFilter == nil {
+			observed = c.state.bucketCounts[bucket]
+		} else {
+			observed = float64(c.state.example.filterCounts[bucket])
+		}
+
+		var have int
+		if observed < float64(c.numExemplars) {
+			have = int(observed)
+		} else {
+			have = c.numExemplars
+		}
+
+		base := c.numExemplars * bucket
+		for i := 0; i < have; i++ {
+			f(c.state.example.exemplars[base+i])
+		}
 	}
 	return nil
 }

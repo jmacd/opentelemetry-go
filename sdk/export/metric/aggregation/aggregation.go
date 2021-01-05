@@ -15,6 +15,7 @@
 package aggregation // import "go.opentelemetry.io/otel/sdk/export/metric/aggregation"
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -75,6 +76,31 @@ type (
 	Points interface {
 		Aggregation
 		Points() ([]number.Number, error)
+	}
+
+	// Exemplars returns examples selected from the stream that
+	// characterize the metric in specific detail.
+	Exemplars interface {
+		Aggregation
+
+		// ForEachExemplar allows the caller to visit each
+		// Example that was gathered by the Aggregator.
+		ForEachExemplar(func(Example)) error
+	}
+
+	// Example records the value a raw value seen by an Aggregator
+	// while computing an another Aggregation.  Note that the
+	// instrument descriptor and label set are independent
+	// properties, not part of the Aggregation.
+	Example struct {
+		// Context is the caller's request context.
+		context.Context
+
+		// Number is the value of the metric event.
+		number.Number
+
+		// Time is when the metric event happened.
+		time.Time
 	}
 
 	// Buckets represents histogram buckets boundaries and counts.

@@ -20,17 +20,22 @@ import (
 	"math/rand"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/number"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
+	"go.opentelemetry.io/otel/sdk/export/metric/aggregation"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/aggregatortest"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/histogram"
 )
 
-const count = 100
+// teatRepeat is used throughout this test as a relatively small
+// multiplier for testing loops.  Note that some tests are O(N^2)
+// in this factor.
+const testRepeat = 100
 
 type policy struct {
 	name     string
@@ -60,6 +65,9 @@ var (
 		},
 	}
 
+	// testBoundaries is used in the tests below, sometimes
+	// hard-coded.  e.g., the values 200, 400, 600, and 800 fall
+	// into the four implied buckets.
 	testBoundaries = []float64{500, 250, 750}
 )
 
@@ -121,7 +129,7 @@ func testHistogram(t *testing.T, profile aggregatortest.Profile, policy policy) 
 	for repeat := 0; repeat < 3; repeat++ {
 		all := aggregatortest.NewNumbers(profile.NumberKind)
 
-		for i := 0; i < count; i++ {
+		for i := 0; i < testRepeat; i++ {
 			x := profile.Random(policy.sign())
 			all.Append(x)
 			aggregatortest.CheckedUpdate(t, agg, x, descriptor)
@@ -156,12 +164,12 @@ func TestHistogramMerge(t *testing.T) {
 
 		all := aggregatortest.NewNumbers(profile.NumberKind)
 
-		for i := 0; i < count; i++ {
+		for i := 0; i < testRepeat; i++ {
 			x := profile.Random(+1)
 			all.Append(x)
 			aggregatortest.CheckedUpdate(t, agg1, x, descriptor)
 		}
-		for i := 0; i < count; i++ {
+		for i := 0; i < testRepeat; i++ {
 			x := profile.Random(+1)
 			all.Append(x)
 			aggregatortest.CheckedUpdate(t, agg2, x, descriptor)
@@ -292,4 +300,121 @@ func TestHistogramDefaultBoundaries(t *testing.T) {
 		require.Equal(t, len(bounds), len(bucks.Boundaries))
 		require.EqualValues(t, expect, bucks.Counts)
 	})
+}
+
+func TestHistogramSingleExemplar(t *testing.T) {
+	aggregatortest.RunProfiles(t, func(t *testing.T, profile aggregatortest.Profile) {
+		testHistogramSingleExemplar(t, profile)
+	})
+}
+
+// TODO: Test multiple exemplars, test exemplar filter.
+
+func testHistogramSingleExemplar(t *testing.T, profile aggregatortest.Profile) {
+	const numExemplars = 1
+	descriptor := aggregatortest.NewAggregatorTest(metric.ValueRecorderInstrumentKind, profile.NumberKind)
+
+	agg, ckpt := new2(descriptor, histogram.WithExplicitBoundaries(testBoundaries), histogram.WithExemplars(numExemplars))
+
+	type local struct{}
+	bg := context.Background()
+
+	// This needs to repeat at least 3 times to uncover various
+	// failures to reset, since the third time through is the
+	// first time a `histogram.state` object is reused.
+	for repeatAggregator := 0; repeatAggregator < 3; repeatAggregator++ {
+
+		// vcounts is used to compute the sum of an N-balls in
+		// N-urns simulation (since numExemplars == 1), where
+		// vcounts[bucket][urn] is the number of balls.
+		// We expect the ratio of empty bins to be
+		// 1/e.  See for example https://math.stackexchange.com/questions/545920/expectation-of-throwing-n-balls-into-n-bins.
+
+		var vcounts [4][testRepeat]uint64
+
+		for round := 0; round < testRepeat; round++ {
+
+			all := aggregatortest.NewNumbers(profile.NumberKind)
+
+			start := time.Now()
+
+			for i := 0; i < testRepeat; i++ {
+				for _, value := range []float64{200.0, 400.0, 600.0, 800.0} {
+					var num number.Number
+
+					if descriptor.NumberKind() == number.Int64Kind {
+						num = number.NewInt64Number(int64(value))
+					} else {
+						num = number.NewFloat64Number(value)
+					}
+
+					all.Append(num)
+
+					ctx := context.WithValue(bg, local{}, i)
+
+					require.NoError(t, agg.Update(ctx, num, descriptor))
+				}
+			}
+
+			end := time.Now()
+
+			require.NoError(t, agg.SynchronizedMove(ckpt, descriptor))
+
+			checkZero(t, agg, descriptor)
+
+			checkHistogram(t, all, profile, ckpt)
+
+			require.Equal(t, 3, len(testBoundaries))
+
+			// ecounts is used to verify
+			var ecounts [4]uint64
+
+			require.NoError(t, ckpt.ForEachExemplar(func(ex aggregation.Example) {
+				require.True(t, ex.Time.Before(end))
+				require.True(t, ex.Time.After(start))
+
+				ctxVal, ok := ex.Context.Value(local{}).(int)
+				if !ok {
+					t.Fail()
+				}
+
+				numVal := ex.Number.CoerceToFloat64(profile.NumberKind)
+
+				var idx int
+				switch numVal {
+				case 200.0, 400.0, 600.0, 800.0:
+					idx = int(numVal/200.0) - 1
+				default:
+					t.Fail()
+				}
+
+				ecounts[idx]++
+				vcounts[idx][ctxVal]++
+			}))
+
+			for i := range ecounts {
+				require.Equal(t, uint64(numExemplars), ecounts[i], "expected count mismatch at %d", i)
+			}
+		}
+
+		// After N rounds, check vcount:
+		for _, byCtxNum := range vcounts {
+			sum := uint64(0)
+			zeros := 0
+			for _, vc := range byCtxNum {
+				sum += vc
+				if vc == 0 {
+					zeros++
+				}
+			}
+			require.Equal(t, uint64(testRepeat), sum)
+
+			ideal := float64(testRepeat) / math.E
+
+			require.InEpsilon(t,
+				ideal,
+				float64(zeros),
+				0.30) // tested with testRepeat fixed at 100.
+		}
+	}
 }
