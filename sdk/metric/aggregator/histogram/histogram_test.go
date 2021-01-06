@@ -16,6 +16,7 @@ package histogram_test
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"math/rand"
 	"sort"
@@ -302,16 +303,22 @@ func TestHistogramDefaultBoundaries(t *testing.T) {
 	})
 }
 
-func TestHistogramSingleExemplar(t *testing.T) {
-	aggregatortest.RunProfiles(t, func(t *testing.T, profile aggregatortest.Profile) {
-		testHistogramSingleExemplar(t, profile)
-	})
+func TestHistogramExemplar(t *testing.T) {
+	numExemplars := []int{1, 2, 3}
+	tolerances := []float64{0.4, 1.0, 1.9}
+
+	for ki, k := range numExemplars {
+		t.Run(fmt.Sprint("k", k), func(t *testing.T) {
+			aggregatortest.RunProfiles(t, func(t *testing.T, profile aggregatortest.Profile) {
+				testHistogramExemplar(t, profile, k, tolerances[ki])
+			})
+		})
+	}
 }
 
-// TODO: Test multiple exemplars, test exemplar filter.
+// TODO: Test exemplar filter.
 
-func testHistogramSingleExemplar(t *testing.T, profile aggregatortest.Profile) {
-	const numExemplars = 1
+func testHistogramExemplar(t *testing.T, profile aggregatortest.Profile, numExemplars int, tolerance float64) {
 	descriptor := aggregatortest.NewAggregatorTest(metric.ValueRecorderInstrumentKind, profile.NumberKind)
 
 	agg, ckpt := new2(descriptor, histogram.WithExplicitBoundaries(testBoundaries), histogram.WithExemplars(numExemplars))
@@ -324,11 +331,11 @@ func testHistogramSingleExemplar(t *testing.T, profile aggregatortest.Profile) {
 	// first time a `histogram.state` object is reused.
 	for repeatAggregator := 0; repeatAggregator < 3; repeatAggregator++ {
 
-		// vcounts is used to compute the sum of an N-balls in
-		// N-urns simulation (since numExemplars == 1), where
-		// vcounts[bucket][urn] is the number of balls.
-		// We expect the ratio of empty bins to be
-		// 1/e.  See for example https://math.stackexchange.com/questions/545920/expectation-of-throwing-n-balls-into-n-bins.
+		// vcounts is used to compute the sum of an M-balls in
+		// N-bins simulation, where vcounts[bucket][bin] is
+		// the number of balls.  We expect the ratio of empty
+		// bins to be 1/e when M==N, for example:
+		// https://math.stackexchange.com/questions/545920/expectation-of-throwing-n-balls-into-n-bins.
 
 		var vcounts [4][testRepeat]uint64
 
@@ -401,20 +408,27 @@ func testHistogramSingleExemplar(t *testing.T, profile aggregatortest.Profile) {
 		for _, byCtxNum := range vcounts {
 			sum := uint64(0)
 			zeros := 0
+			max := uint64(0)
 			for _, vc := range byCtxNum {
 				sum += vc
 				if vc == 0 {
 					zeros++
 				}
+				if vc > max {
+					max = vc
+				}
 			}
-			require.Equal(t, uint64(testRepeat), sum)
+			require.Equal(t, uint64(numExemplars*(testRepeat)), sum)
 
-			ideal := float64(testRepeat) / math.E
+			M := float64(testRepeat * numExemplars)
+			N := float64(testRepeat)
+			ideal := N * math.Exp(-M/N)
 
 			require.InEpsilon(t,
 				ideal,
 				float64(zeros),
-				0.30) // tested with testRepeat fixed at 100.
+				tolerance,
+				"test failed with M", M, "N", N, "ideal", ideal, "zeros", zeros)
 		}
 	}
 }
