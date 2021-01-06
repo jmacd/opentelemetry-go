@@ -73,9 +73,9 @@ type (
 	// the sum and counts for all observed values and
 	// the less than equal bucket count for the pre-determined boundaries.
 	state struct {
-		bucketCounts []float64
+		bucketCounts []uint64
 		sum          number.Number
-		count        int64
+		count        uint64
 
 		// bucketExemplars are stored as
 		//   (b0, 0), ... (b0, numExemplars-1),
@@ -206,43 +206,6 @@ func New(cnt int, desc *metric.Descriptor, opts ...Option) []Aggregator {
 	return aggs
 }
 
-func (c *Aggregator) newState() *state {
-	var exs *exampleState
-	numBuckets := len(c.boundaries) + 1
-	if c.numExemplars != 0 {
-		exs = &exampleState{
-			exemplars: make([]aggregation.Example, c.numExemplars*numBuckets),
-		}
-		if c.exemplarFilter != nil {
-			exs.filterCounts = make([]uint64, numBuckets)
-		}
-	}
-	return &state{
-		bucketCounts: make([]float64, numBuckets),
-		example:      exs,
-	}
-}
-
-func (c *Aggregator) clearState() {
-	for i := range c.state.bucketCounts {
-		c.state.bucketCounts[i] = 0
-	}
-
-	if c.state.example != nil {
-		for i := range c.state.example.exemplars {
-			c.state.example.exemplars[i] = aggregation.Example{}
-		}
-
-		if c.state.example.filterCounts != nil {
-			for i := range c.state.example.filterCounts {
-				c.state.example.filterCounts[i] = 0
-			}
-		}
-	}
-	c.state.sum = 0
-	c.state.count = 0
-}
-
 // Aggregation returns an interface for reading the state of this aggregator.
 func (c *Aggregator) Aggregation() aggregation.Aggregation {
 	return c
@@ -259,7 +222,7 @@ func (c *Aggregator) Sum() (number.Number, error) {
 }
 
 // Count returns the number of values in the checkpoint.
-func (c *Aggregator) Count() (int64, error) {
+func (c *Aggregator) Count() (uint64, error) {
 	return c.state.count, nil
 }
 
@@ -306,6 +269,43 @@ func (c *Aggregator) SynchronizedMove(oa export.Aggregator, desc *metric.Descrip
 	return nil
 }
 
+func (c *Aggregator) newState() *state {
+	var exs *exampleState
+	numBuckets := len(c.boundaries) + 1
+	if c.numExemplars != 0 {
+		exs = &exampleState{
+			exemplars: make([]aggregation.Example, c.numExemplars*numBuckets),
+		}
+		if c.exemplarFilter != nil {
+			exs.filterCounts = make([]uint64, numBuckets)
+		}
+	}
+	return &state{
+		bucketCounts: make([]uint64, numBuckets),
+		example:      exs,
+	}
+}
+
+func (c *Aggregator) clearState() {
+	for i := range c.state.bucketCounts {
+		c.state.bucketCounts[i] = 0
+	}
+
+	if c.state.example != nil {
+		for i := range c.state.example.exemplars {
+			c.state.example.exemplars[i] = aggregation.Example{}
+		}
+
+		if c.state.example.filterCounts != nil {
+			for i := range c.state.example.filterCounts {
+				c.state.example.filterCounts[i] = 0
+			}
+		}
+	}
+	c.state.sum = 0
+	c.state.count = 0
+}
+
 // Update adds the recorded measurement to the current data set.
 func (c *Aggregator) Update(ctx context.Context, number number.Number, desc *metric.Descriptor) error {
 	kind := desc.NumberKind()
@@ -341,9 +341,7 @@ func (c *Aggregator) Update(ctx context.Context, number number.Number, desc *met
 		return nil
 	}
 
-	// N.B.: PR#1430 changes the counts to be uint64 (from float64
-	// and/or int64) to avoid the sort of confusion seen here.
-	var observed float64
+	var observed uint64
 
 	if c.exemplarFilter == nil {
 		observed = c.state.bucketCounts[bucketID]
@@ -352,12 +350,12 @@ func (c *Aggregator) Update(ctx context.Context, number number.Number, desc *met
 			return nil
 		}
 		c.state.example.filterCounts[bucketID]++
-		observed = float64(c.state.example.filterCounts[bucketID])
+		observed = c.state.example.filterCounts[bucketID]
 	}
 
 	base := c.numExemplars * bucketID
 
-	if observed <= float64(c.numExemplars) {
+	if observed <= uint64(c.numExemplars) {
 		c.state.example.exemplars[base+int(observed-1)] = aggregation.Example{
 			Context: ctx,
 			Number:  number,
@@ -406,15 +404,15 @@ func (c *Aggregator) ForEachExemplar(f func(aggregation.Example)) error {
 		return nil
 	}
 	for bucket := range c.state.bucketCounts {
-		var observed float64
+		var observed uint64
 		if c.exemplarFilter == nil {
 			observed = c.state.bucketCounts[bucket]
 		} else {
-			observed = float64(c.state.example.filterCounts[bucket])
+			observed = c.state.example.filterCounts[bucket]
 		}
 
 		var have int
-		if observed < float64(c.numExemplars) {
+		if observed < uint64(c.numExemplars) {
 			have = int(observed)
 		} else {
 			have = c.numExemplars
