@@ -21,8 +21,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.opentelemetry.io/otel/api/metric"
-	ottest "go.opentelemetry.io/otel/internal/testing"
+	ottest "go.opentelemetry.io/otel/internal/internaltest"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/number"
+	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/aggregatortest"
 )
 
@@ -65,9 +67,9 @@ func TestCounterSum(t *testing.T) {
 	aggregatortest.RunProfiles(t, func(t *testing.T, profile aggregatortest.Profile) {
 		agg, ckpt := new2()
 
-		descriptor := aggregatortest.NewAggregatorTest(metric.CounterKind, profile.NumberKind)
+		descriptor := aggregatortest.NewAggregatorTest(metric.CounterInstrumentKind, profile.NumberKind)
 
-		sum := metric.Number(0)
+		sum := number.Number(0)
 		for i := 0; i < count; i++ {
 			x := profile.Random(+1)
 			sum.AddNumber(profile.NumberKind, x)
@@ -89,9 +91,9 @@ func TestValueRecorderSum(t *testing.T) {
 	aggregatortest.RunProfiles(t, func(t *testing.T, profile aggregatortest.Profile) {
 		agg, ckpt := new2()
 
-		descriptor := aggregatortest.NewAggregatorTest(metric.ValueRecorderKind, profile.NumberKind)
+		descriptor := aggregatortest.NewAggregatorTest(metric.ValueRecorderInstrumentKind, profile.NumberKind)
 
-		sum := metric.Number(0)
+		sum := number.Number(0)
 
 		for i := 0; i < count; i++ {
 			r1 := profile.Random(+1)
@@ -115,9 +117,9 @@ func TestCounterMerge(t *testing.T) {
 	aggregatortest.RunProfiles(t, func(t *testing.T, profile aggregatortest.Profile) {
 		agg1, agg2, ckpt1, ckpt2 := new4()
 
-		descriptor := aggregatortest.NewAggregatorTest(metric.CounterKind, profile.NumberKind)
+		descriptor := aggregatortest.NewAggregatorTest(metric.CounterInstrumentKind, profile.NumberKind)
 
-		sum := metric.Number(0)
+		sum := number.Number(0)
 		for i := 0; i < count; i++ {
 			x := profile.Random(+1)
 			sum.AddNumber(profile.NumberKind, x)
@@ -139,4 +141,14 @@ func TestCounterMerge(t *testing.T) {
 		require.Equal(t, sum, asum, "Same sum - monotonic")
 		require.Nil(t, err)
 	})
+}
+
+func TestSynchronizedMoveReset(t *testing.T) {
+	aggregatortest.SynchronizedMoveResetTest(
+		t,
+		metric.SumObserverInstrumentKind,
+		func(desc *metric.Descriptor) export.Aggregator {
+			return &New(1)[0]
+		},
+	)
 }

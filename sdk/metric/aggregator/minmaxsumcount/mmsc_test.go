@@ -22,7 +22,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.opentelemetry.io/otel/api/metric"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/number"
+	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/export/metric/aggregation"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/aggregatortest"
 )
@@ -95,7 +97,7 @@ func checkZero(t *testing.T, agg *Aggregator, desc *metric.Descriptor) {
 
 	count, err := agg.Count()
 	require.NoError(t, err)
-	require.Equal(t, int64(0), count)
+	require.Equal(t, uint64(0), count)
 
 	max, err := agg.Max()
 	require.True(t, errors.Is(err, aggregation.ErrNoData))
@@ -108,7 +110,7 @@ func checkZero(t *testing.T, agg *Aggregator, desc *metric.Descriptor) {
 
 // Validates min, max, sum and count for a given profile and policy
 func minMaxSumCount(t *testing.T, profile aggregatortest.Profile, policy policy) {
-	descriptor := aggregatortest.NewAggregatorTest(metric.ValueRecorderKind, profile.NumberKind)
+	descriptor := aggregatortest.NewAggregatorTest(metric.ValueRecorderInstrumentKind, profile.NumberKind)
 
 	agg, ckpt := new2(descriptor)
 
@@ -156,7 +158,7 @@ func minMaxSumCount(t *testing.T, profile aggregatortest.Profile, policy policy)
 
 func TestMinMaxSumCountMerge(t *testing.T) {
 	aggregatortest.RunProfiles(t, func(t *testing.T, profile aggregatortest.Profile) {
-		descriptor := aggregatortest.NewAggregatorTest(metric.ValueRecorderKind, profile.NumberKind)
+		descriptor := aggregatortest.NewAggregatorTest(metric.ValueRecorderInstrumentKind, profile.NumberKind)
 
 		agg1, agg2, ckpt1, ckpt2 := new4(descriptor)
 
@@ -214,7 +216,7 @@ func TestMinMaxSumCountMerge(t *testing.T) {
 
 func TestMaxSumCountNotSet(t *testing.T) {
 	aggregatortest.RunProfiles(t, func(t *testing.T, profile aggregatortest.Profile) {
-		descriptor := aggregatortest.NewAggregatorTest(metric.ValueRecorderKind, profile.NumberKind)
+		descriptor := aggregatortest.NewAggregatorTest(metric.ValueRecorderInstrumentKind, profile.NumberKind)
 
 		alloc := New(2, descriptor)
 		agg, ckpt := &alloc[0], &alloc[1]
@@ -222,15 +224,25 @@ func TestMaxSumCountNotSet(t *testing.T) {
 		require.NoError(t, agg.SynchronizedMove(ckpt, descriptor))
 
 		asum, err := ckpt.Sum()
-		require.Equal(t, metric.Number(0), asum, "Empty checkpoint sum = 0")
+		require.Equal(t, number.Number(0), asum, "Empty checkpoint sum = 0")
 		require.Nil(t, err)
 
 		count, err := ckpt.Count()
-		require.Equal(t, int64(0), count, "Empty checkpoint count = 0")
+		require.Equal(t, uint64(0), count, "Empty checkpoint count = 0")
 		require.Nil(t, err)
 
 		max, err := ckpt.Max()
 		require.Equal(t, aggregation.ErrNoData, err)
-		require.Equal(t, metric.Number(0), max)
+		require.Equal(t, number.Number(0), max)
 	})
+}
+
+func TestSynchronizedMoveReset(t *testing.T) {
+	aggregatortest.SynchronizedMoveResetTest(
+		t,
+		metric.ValueRecorderInstrumentKind,
+		func(desc *metric.Descriptor) export.Aggregator {
+			return &New(1, desc)[0]
+		},
+	)
 }

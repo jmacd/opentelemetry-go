@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trace
+package trace // import "go.opentelemetry.io/otel/sdk/trace"
 
 import (
 	"encoding/binary"
 	"fmt"
 
-	api "go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Sampler decides whether a trace should be sampled and exported.
@@ -30,13 +30,13 @@ type Sampler interface {
 
 // SamplingParameters contains the values passed to a Sampler.
 type SamplingParameters struct {
-	ParentContext   api.SpanContext
-	TraceID         api.ID
+	ParentContext   trace.SpanContext
+	TraceID         trace.TraceID
 	Name            string
 	HasRemoteParent bool
-	Kind            api.SpanKind
+	Kind            trace.SpanKind
 	Attributes      []label.KeyValue
-	Links           []api.Link
+	Links           []trace.Link
 }
 
 // SamplingDecision indicates whether a span is dropped, recorded and/or sampled.
@@ -56,10 +56,11 @@ const (
 	RecordAndSample
 )
 
-// SamplingResult conveys a SamplingDecision and a set of Attributes.
+// SamplingResult conveys a SamplingDecision, set of Attributes and a Tracestate.
 type SamplingResult struct {
 	Decision   SamplingDecision
 	Attributes []label.KeyValue
+	Tracestate trace.TraceState
 }
 
 type traceIDRatioSampler struct {
@@ -70,9 +71,15 @@ type traceIDRatioSampler struct {
 func (ts traceIDRatioSampler) ShouldSample(p SamplingParameters) SamplingResult {
 	x := binary.BigEndian.Uint64(p.TraceID[0:8]) >> 1
 	if x < ts.traceIDUpperBound {
-		return SamplingResult{Decision: RecordAndSample}
+		return SamplingResult{
+			Decision:   RecordAndSample,
+			Tracestate: p.ParentContext.TraceState,
+		}
 	}
-	return SamplingResult{Decision: Drop}
+	return SamplingResult{
+		Decision:   Drop,
+		Tracestate: p.ParentContext.TraceState,
+	}
 }
 
 func (ts traceIDRatioSampler) Description() string {
@@ -102,7 +109,10 @@ func TraceIDRatioBased(fraction float64) Sampler {
 type alwaysOnSampler struct{}
 
 func (as alwaysOnSampler) ShouldSample(p SamplingParameters) SamplingResult {
-	return SamplingResult{Decision: RecordAndSample}
+	return SamplingResult{
+		Decision:   RecordAndSample,
+		Tracestate: p.ParentContext.TraceState,
+	}
 }
 
 func (as alwaysOnSampler) Description() string {
@@ -120,7 +130,10 @@ func AlwaysSample() Sampler {
 type alwaysOffSampler struct{}
 
 func (as alwaysOffSampler) ShouldSample(p SamplingParameters) SamplingResult {
-	return SamplingResult{Decision: Drop}
+	return SamplingResult{
+		Decision:   Drop,
+		Tracestate: p.ParentContext.TraceState,
+	}
 }
 
 func (as alwaysOffSampler) Description() string {

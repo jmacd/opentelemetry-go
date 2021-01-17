@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otlp
+package otlp_test
 
 import (
 	"context"
@@ -20,74 +20,47 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 
-	coltracepb "go.opentelemetry.io/otel/exporters/otlp/internal/opentelemetry-proto-gen/collector/trace/v1"
+	"go.opentelemetry.io/otel/codes"
 	commonpb "go.opentelemetry.io/otel/exporters/otlp/internal/opentelemetry-proto-gen/common/v1"
 	resourcepb "go.opentelemetry.io/otel/exporters/otlp/internal/opentelemetry-proto-gen/resource/v1"
 	tracepb "go.opentelemetry.io/otel/exporters/otlp/internal/opentelemetry-proto-gen/trace/v1"
 	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/trace"
 
-	apitrace "go.opentelemetry.io/otel/api/trace"
 	tracesdk "go.opentelemetry.io/otel/sdk/export/trace"
 	"go.opentelemetry.io/otel/sdk/instrumentation"
 	"go.opentelemetry.io/otel/sdk/resource"
 )
 
-type traceServiceClientStub struct {
-	rs []tracepb.ResourceSpans
-}
-
-func (t *traceServiceClientStub) Export(ctx context.Context, in *coltracepb.ExportTraceServiceRequest, opts ...grpc.CallOption) (*coltracepb.ExportTraceServiceResponse, error) {
-	for _, rs := range in.GetResourceSpans() {
-		if rs == nil {
-			continue
-		}
-		t.rs = append(t.rs, *rs)
-	}
-	return &coltracepb.ExportTraceServiceResponse{}, nil
-}
-
-func (t *traceServiceClientStub) ResourceSpans() []tracepb.ResourceSpans {
-	return t.rs
-}
-
-func (t *traceServiceClientStub) Reset() {
-	t.rs = nil
-}
-
 func TestExportSpans(t *testing.T) {
-	tsc := &traceServiceClientStub{}
-	exp := NewUnstartedExporter()
-	exp.traceExporter = tsc
-	exp.started = true
+	exp, driver := newExporter(t)
 
 	// March 31, 2020 5:01:26 1234nanos (UTC)
 	startTime := time.Unix(1585674086, 1234)
 	endTime := startTime.Add(10 * time.Second)
 
 	for _, test := range []struct {
-		sd   []*tracesdk.SpanData
+		sd   []*tracesdk.SpanSnapshot
 		want []tracepb.ResourceSpans
 	}{
 		{
-			[]*tracesdk.SpanData(nil),
+			[]*tracesdk.SpanSnapshot(nil),
 			[]tracepb.ResourceSpans(nil),
 		},
 		{
-			[]*tracesdk.SpanData{},
+			[]*tracesdk.SpanSnapshot{},
 			[]tracepb.ResourceSpans(nil),
 		},
 		{
-			[]*tracesdk.SpanData{
+			[]*tracesdk.SpanSnapshot{
 				{
-					SpanContext: apitrace.SpanContext{
-						TraceID:    apitrace.ID([16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}),
-						SpanID:     apitrace.SpanID([8]byte{0, 0, 0, 0, 0, 0, 0, 1}),
+					SpanContext: trace.SpanContext{
+						TraceID:    trace.TraceID([16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}),
+						SpanID:     trace.SpanID([8]byte{0, 0, 0, 0, 0, 0, 0, 1}),
 						TraceFlags: byte(1),
 					},
-					SpanKind:  apitrace.SpanKindServer,
+					SpanKind:  trace.SpanKindServer,
 					Name:      "parent process",
 					StartTime: startTime,
 					EndTime:   endTime,
@@ -95,21 +68,21 @@ func TestExportSpans(t *testing.T) {
 						label.String("user", "alice"),
 						label.Bool("authenticated", true),
 					},
-					StatusCode:    codes.OK,
+					StatusCode:    codes.Ok,
 					StatusMessage: "Ok",
-					Resource:      resource.New(label.String("instance", "tester-a")),
+					Resource:      resource.NewWithAttributes(label.String("instance", "tester-a")),
 					InstrumentationLibrary: instrumentation.Library{
 						Name:    "lib-a",
 						Version: "v0.1.0",
 					},
 				},
 				{
-					SpanContext: apitrace.SpanContext{
-						TraceID:    apitrace.ID([16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}),
-						SpanID:     apitrace.SpanID([8]byte{0, 0, 0, 0, 0, 0, 0, 1}),
+					SpanContext: trace.SpanContext{
+						TraceID:    trace.TraceID([16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}),
+						SpanID:     trace.SpanID([8]byte{0, 0, 0, 0, 0, 0, 0, 1}),
 						TraceFlags: byte(1),
 					},
-					SpanKind:  apitrace.SpanKindServer,
+					SpanKind:  trace.SpanKindServer,
 					Name:      "secondary parent process",
 					StartTime: startTime,
 					EndTime:   endTime,
@@ -117,22 +90,22 @@ func TestExportSpans(t *testing.T) {
 						label.String("user", "alice"),
 						label.Bool("authenticated", true),
 					},
-					StatusCode:    codes.OK,
+					StatusCode:    codes.Ok,
 					StatusMessage: "Ok",
-					Resource:      resource.New(label.String("instance", "tester-a")),
+					Resource:      resource.NewWithAttributes(label.String("instance", "tester-a")),
 					InstrumentationLibrary: instrumentation.Library{
 						Name:    "lib-b",
 						Version: "v0.1.0",
 					},
 				},
 				{
-					SpanContext: apitrace.SpanContext{
-						TraceID:    apitrace.ID([16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}),
-						SpanID:     apitrace.SpanID([8]byte{0, 0, 0, 0, 0, 0, 0, 2}),
+					SpanContext: trace.SpanContext{
+						TraceID:    trace.TraceID([16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}),
+						SpanID:     trace.SpanID([8]byte{0, 0, 0, 0, 0, 0, 0, 2}),
 						TraceFlags: byte(1),
 					},
-					ParentSpanID: apitrace.SpanID([8]byte{0, 0, 0, 0, 0, 0, 0, 1}),
-					SpanKind:     apitrace.SpanKindInternal,
+					ParentSpanID: trace.SpanID([8]byte{0, 0, 0, 0, 0, 0, 0, 1}),
+					SpanKind:     trace.SpanKindInternal,
 					Name:         "internal process",
 					StartTime:    startTime,
 					EndTime:      endTime,
@@ -140,21 +113,21 @@ func TestExportSpans(t *testing.T) {
 						label.String("user", "alice"),
 						label.Bool("authenticated", true),
 					},
-					StatusCode:    codes.OK,
+					StatusCode:    codes.Ok,
 					StatusMessage: "Ok",
-					Resource:      resource.New(label.String("instance", "tester-a")),
+					Resource:      resource.NewWithAttributes(label.String("instance", "tester-a")),
 					InstrumentationLibrary: instrumentation.Library{
 						Name:    "lib-a",
 						Version: "v0.1.0",
 					},
 				},
 				{
-					SpanContext: apitrace.SpanContext{
-						TraceID:    apitrace.ID([16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}),
-						SpanID:     apitrace.SpanID([8]byte{0, 0, 0, 0, 0, 0, 0, 1}),
+					SpanContext: trace.SpanContext{
+						TraceID:    trace.TraceID([16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}),
+						SpanID:     trace.SpanID([8]byte{0, 0, 0, 0, 0, 0, 0, 1}),
 						TraceFlags: byte(1),
 					},
-					SpanKind:  apitrace.SpanKindServer,
+					SpanKind:  trace.SpanKindServer,
 					Name:      "parent process",
 					StartTime: startTime,
 					EndTime:   endTime,
@@ -162,9 +135,9 @@ func TestExportSpans(t *testing.T) {
 						label.String("user", "bob"),
 						label.Bool("authenticated", false),
 					},
-					StatusCode:    codes.Unauthenticated,
+					StatusCode:    codes.Error,
 					StatusMessage: "Unauthenticated",
-					Resource:      resource.New(label.String("instance", "tester-b")),
+					Resource:      resource.NewWithAttributes(label.String("instance", "tester-b")),
 					InstrumentationLibrary: instrumentation.Library{
 						Name:    "lib-a",
 						Version: "v1.1.0",
@@ -196,7 +169,7 @@ func TestExportSpans(t *testing.T) {
 									TraceId:           []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 									SpanId:            []byte{0, 0, 0, 0, 0, 0, 0, 1},
 									Name:              "parent process",
-									Kind:              tracepb.Span_SERVER,
+									Kind:              tracepb.Span_SPAN_KIND_SERVER,
 									StartTimeUnixNano: uint64(startTime.UnixNano()),
 									EndTimeUnixNano:   uint64(endTime.UnixNano()),
 									Attributes: []*commonpb.KeyValue{
@@ -218,7 +191,7 @@ func TestExportSpans(t *testing.T) {
 										},
 									},
 									Status: &tracepb.Status{
-										Code:    tracepb.Status_Ok,
+										Code:    tracepb.Status_STATUS_CODE_OK,
 										Message: "Ok",
 									},
 								},
@@ -227,7 +200,7 @@ func TestExportSpans(t *testing.T) {
 									SpanId:            []byte{0, 0, 0, 0, 0, 0, 0, 2},
 									ParentSpanId:      []byte{0, 0, 0, 0, 0, 0, 0, 1},
 									Name:              "internal process",
-									Kind:              tracepb.Span_INTERNAL,
+									Kind:              tracepb.Span_SPAN_KIND_INTERNAL,
 									StartTimeUnixNano: uint64(startTime.UnixNano()),
 									EndTimeUnixNano:   uint64(endTime.UnixNano()),
 									Attributes: []*commonpb.KeyValue{
@@ -249,7 +222,7 @@ func TestExportSpans(t *testing.T) {
 										},
 									},
 									Status: &tracepb.Status{
-										Code:    tracepb.Status_Ok,
+										Code:    tracepb.Status_STATUS_CODE_OK,
 										Message: "Ok",
 									},
 								},
@@ -265,7 +238,7 @@ func TestExportSpans(t *testing.T) {
 									TraceId:           []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
 									SpanId:            []byte{0, 0, 0, 0, 0, 0, 0, 1},
 									Name:              "secondary parent process",
-									Kind:              tracepb.Span_SERVER,
+									Kind:              tracepb.Span_SPAN_KIND_SERVER,
 									StartTimeUnixNano: uint64(startTime.UnixNano()),
 									EndTimeUnixNano:   uint64(endTime.UnixNano()),
 									Attributes: []*commonpb.KeyValue{
@@ -287,7 +260,7 @@ func TestExportSpans(t *testing.T) {
 										},
 									},
 									Status: &tracepb.Status{
-										Code:    tracepb.Status_Ok,
+										Code:    tracepb.Status_STATUS_CODE_OK,
 										Message: "Ok",
 									},
 								},
@@ -319,7 +292,7 @@ func TestExportSpans(t *testing.T) {
 									TraceId:           []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
 									SpanId:            []byte{0, 0, 0, 0, 0, 0, 0, 1},
 									Name:              "parent process",
-									Kind:              tracepb.Span_SERVER,
+									Kind:              tracepb.Span_SPAN_KIND_SERVER,
 									StartTimeUnixNano: uint64(startTime.UnixNano()),
 									EndTimeUnixNano:   uint64(endTime.UnixNano()),
 									Attributes: []*commonpb.KeyValue{
@@ -341,7 +314,7 @@ func TestExportSpans(t *testing.T) {
 										},
 									},
 									Status: &tracepb.Status{
-										Code:    tracepb.Status_Unauthenticated,
+										Code:    tracepb.Status_STATUS_CODE_ERROR,
 										Message: "Unauthenticated",
 									},
 								},
@@ -352,8 +325,8 @@ func TestExportSpans(t *testing.T) {
 			},
 		},
 	} {
-		tsc.Reset()
+		driver.Reset()
 		assert.NoError(t, exp.ExportSpans(context.Background(), test.sd))
-		assert.ElementsMatch(t, test.want, tsc.ResourceSpans())
+		assert.ElementsMatch(t, test.want, driver.rs)
 	}
 }

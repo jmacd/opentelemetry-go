@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package opentracing
+package opentracing // import "go.opentelemetry.io/otel/bridge/opentracing"
 
 import (
 	"context"
@@ -25,28 +25,27 @@ import (
 	otext "github.com/opentracing/opentracing-go/ext"
 	otlog "github.com/opentracing/opentracing-go/log"
 
-	otelbaggage "go.opentelemetry.io/otel/api/baggage"
-	otelglobal "go.opentelemetry.io/otel/api/global"
-	otelpropagation "go.opentelemetry.io/otel/api/propagation"
-	oteltrace "go.opentelemetry.io/otel/api/trace"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/bridge/opentracing/migration"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/internal/baggage"
 	"go.opentelemetry.io/otel/internal/trace/noop"
 	otelparent "go.opentelemetry.io/otel/internal/trace/parent"
 	"go.opentelemetry.io/otel/label"
-
-	"go.opentelemetry.io/otel/bridge/opentracing/migration"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type bridgeSpanContext struct {
-	baggageItems    otelbaggage.Map
-	otelSpanContext oteltrace.SpanContext
+	baggageItems    baggage.Map
+	otelSpanContext trace.SpanContext
 }
 
 var _ ot.SpanContext = &bridgeSpanContext{}
 
-func newBridgeSpanContext(otelSpanContext oteltrace.SpanContext, parentOtSpanContext ot.SpanContext) *bridgeSpanContext {
+func newBridgeSpanContext(otelSpanContext trace.SpanContext, parentOtSpanContext ot.SpanContext) *bridgeSpanContext {
 	bCtx := &bridgeSpanContext{
-		baggageItems:    otelbaggage.NewEmptyMap(),
+		baggageItems:    baggage.NewEmptyMap(),
 		otelSpanContext: otelSpanContext,
 	}
 	if parentOtSpanContext != nil {
@@ -66,7 +65,7 @@ func (c *bridgeSpanContext) ForeachBaggageItem(handler func(k, v string) bool) {
 
 func (c *bridgeSpanContext) setBaggageItem(restrictedKey, value string) {
 	crk := http.CanonicalHeaderKey(restrictedKey)
-	c.baggageItems = c.baggageItems.Apply(otelbaggage.MapUpdate{SingleKV: label.String(crk, value)})
+	c.baggageItems = c.baggageItems.Apply(baggage.MapUpdate{SingleKV: label.String(crk, value)})
 }
 
 func (c *bridgeSpanContext) baggageItem(restrictedKey string) string {
@@ -76,7 +75,7 @@ func (c *bridgeSpanContext) baggageItem(restrictedKey string) string {
 }
 
 type bridgeSpan struct {
-	otelSpan          oteltrace.Span
+	otelSpan          trace.Span
 	ctx               *bridgeSpanContext
 	tracer            *BridgeTracer
 	skipDeferHook     bool
@@ -85,7 +84,7 @@ type bridgeSpan struct {
 
 var _ ot.Span = &bridgeSpan{}
 
-func newBridgeSpan(otelSpan oteltrace.Span, bridgeSC *bridgeSpanContext, tracer *BridgeTracer) *bridgeSpan {
+func newBridgeSpan(otelSpan trace.Span, bridgeSC *bridgeSpanContext, tracer *BridgeTracer) *bridgeSpan {
 	return &bridgeSpan{
 		otelSpan:          otelSpan,
 		ctx:               bridgeSC,
@@ -100,10 +99,10 @@ func (s *bridgeSpan) Finish() {
 }
 
 func (s *bridgeSpan) FinishWithOptions(opts ot.FinishOptions) {
-	var otelOpts []oteltrace.SpanOption
+	var otelOpts []trace.SpanOption
 
 	if !opts.FinishTime.IsZero() {
-		otelOpts = append(otelOpts, oteltrace.WithTimestamp(opts.FinishTime))
+		otelOpts = append(otelOpts, trace.WithTimestamp(opts.FinishTime))
 	}
 	for _, record := range opts.LogRecords {
 		s.logRecord(record)
@@ -115,7 +114,11 @@ func (s *bridgeSpan) FinishWithOptions(opts ot.FinishOptions) {
 }
 
 func (s *bridgeSpan) logRecord(record ot.LogRecord) {
-	s.otelSpan.AddEventWithTimestamp(context.Background(), record.Timestamp, "", otLogFieldsToOTelLabels(record.Fields)...)
+	s.otelSpan.AddEvent(
+		"",
+		trace.WithTimestamp(record.Timestamp),
+		trace.WithAttributes(otLogFieldsToOTelLabels(record.Fields)...),
+	)
 }
 
 func (s *bridgeSpan) Context() ot.SpanContext {
@@ -133,7 +136,7 @@ func (s *bridgeSpan) SetTag(key string, value interface{}) ot.Span {
 		// TODO: Should we ignore it?
 	case string(otext.Error):
 		if b, ok := value.(bool); ok && b {
-			s.otelSpan.SetStatus(codes.Unknown, "")
+			s.otelSpan.SetStatus(codes.Error, "")
 		}
 	default:
 		s.otelSpan.SetAttributes(otTagToOTelLabel(key, value))
@@ -142,7 +145,10 @@ func (s *bridgeSpan) SetTag(key string, value interface{}) ot.Span {
 }
 
 func (s *bridgeSpan) LogFields(fields ...otlog.Field) {
-	s.otelSpan.AddEvent(context.Background(), "", otLogFieldsToOTelLabels(fields)...)
+	s.otelSpan.AddEvent(
+		"",
+		trace.WithAttributes(otLogFieldsToOTelLabels(fields)...),
+	)
 }
 
 type bridgeFieldEncoder struct {
@@ -259,13 +265,13 @@ func (s *bridgeSpan) Log(data ot.LogData) {
 
 type bridgeSetTracer struct {
 	isSet      bool
-	otelTracer oteltrace.Tracer
+	otelTracer trace.Tracer
 
 	warningHandler BridgeWarningHandler
 	warnOnce       sync.Once
 }
 
-func (s *bridgeSetTracer) tracer() oteltrace.Tracer {
+func (s *bridgeSetTracer) tracer() trace.Tracer {
 	if !s.isSet {
 		s.warnOnce.Do(func() {
 			s.warningHandler("The OpenTelemetry tracer is not set, default no-op tracer is used! Call SetOpenTelemetryTracer to set it up.\n")
@@ -287,7 +293,7 @@ type BridgeTracer struct {
 	warningHandler BridgeWarningHandler
 	warnOnce       sync.Once
 
-	propagators otelpropagation.Propagators
+	propagator propagation.TextMapPropagator
 }
 
 var _ ot.Tracer = &BridgeTracer{}
@@ -304,7 +310,7 @@ func NewBridgeTracer() *BridgeTracer {
 			otelTracer: noop.Tracer,
 		},
 		warningHandler: func(msg string) {},
-		propagators:    nil,
+		propagator:     nil,
 	}
 }
 
@@ -314,21 +320,21 @@ func (t *BridgeTracer) SetWarningHandler(handler BridgeWarningHandler) {
 	t.warningHandler = handler
 }
 
-// SetWarningHandler overrides the underlying OpenTelemetry
+// SetOpenTelemetryTracer overrides the underlying OpenTelemetry
 // tracer. The passed tracer should know how to operate in the
 // environment that uses OpenTracing API.
-func (t *BridgeTracer) SetOpenTelemetryTracer(tracer oteltrace.Tracer) {
+func (t *BridgeTracer) SetOpenTelemetryTracer(tracer trace.Tracer) {
 	t.setTracer.otelTracer = tracer
 	t.setTracer.isSet = true
 }
 
-func (t *BridgeTracer) SetPropagators(propagators otelpropagation.Propagators) {
-	t.propagators = propagators
+func (t *BridgeTracer) SetTextMapPropagator(propagator propagation.TextMapPropagator) {
+	t.propagator = propagator
 }
 
 func (t *BridgeTracer) NewHookedContext(ctx context.Context) context.Context {
-	ctx = otelbaggage.ContextWithSetHook(ctx, t.baggageSetHook)
-	ctx = otelbaggage.ContextWithGetHook(ctx, t.baggageGetHook)
+	ctx = baggage.ContextWithSetHook(ctx, t.baggageSetHook)
+	ctx = baggage.ContextWithGetHook(ctx, t.baggageGetHook)
 	return ctx
 }
 
@@ -346,8 +352,8 @@ func (t *BridgeTracer) baggageSetHook(ctx context.Context) context.Context {
 	// we clear the context only to avoid calling a get hook
 	// during MapFromContext, but otherwise we don't change the
 	// context, so we don't care about the old hooks.
-	clearCtx, _, _ := otelbaggage.ContextWithNoHooks(ctx)
-	m := otelbaggage.MapFromContext(clearCtx)
+	clearCtx, _, _ := baggage.ContextWithNoHooks(ctx)
+	m := baggage.MapFromContext(clearCtx)
 	m.Foreach(func(kv label.KeyValue) bool {
 		bSpan.setBaggageItemOnly(string(kv.Key), kv.Value.Emit())
 		return true
@@ -355,7 +361,7 @@ func (t *BridgeTracer) baggageSetHook(ctx context.Context) context.Context {
 	return ctx
 }
 
-func (t *BridgeTracer) baggageGetHook(ctx context.Context, m otelbaggage.Map) otelbaggage.Map {
+func (t *BridgeTracer) baggageGetHook(ctx context.Context, m baggage.Map) baggage.Map {
 	span := ot.SpanFromContext(ctx)
 	if span == nil {
 		t.warningHandler("No active OpenTracing span, can not propagate the baggage items from OpenTracing span context\n")
@@ -374,7 +380,7 @@ func (t *BridgeTracer) baggageGetHook(ctx context.Context, m otelbaggage.Map) ot
 	for k, v := range items {
 		kv = append(kv, label.String(k, v))
 	}
-	return m.Apply(otelbaggage.MapUpdate{MultiKV: kv})
+	return m.Apply(baggage.MapUpdate{MultiKV: kv})
 }
 
 // StartSpan is a part of the implementation of the OpenTracing Tracer
@@ -388,16 +394,16 @@ func (t *BridgeTracer) StartSpan(operationName string, opts ...ot.StartSpanOptio
 	attributes, kind, hadTrueErrorTag := otTagsToOTelAttributesKindAndError(sso.Tags)
 	checkCtx := migration.WithDeferredSetup(context.Background())
 	if parentBridgeSC != nil {
-		checkCtx = oteltrace.ContextWithRemoteSpanContext(checkCtx, parentBridgeSC.otelSpanContext)
+		checkCtx = trace.ContextWithRemoteSpanContext(checkCtx, parentBridgeSC.otelSpanContext)
 	}
 	checkCtx2, otelSpan := t.setTracer.tracer().Start(
 		checkCtx,
 		operationName,
-		oteltrace.WithAttributes(attributes...),
-		oteltrace.WithTimestamp(sso.StartTime),
-		oteltrace.WithLinks(links...),
-		oteltrace.WithRecord(),
-		oteltrace.WithSpanKind(kind),
+		trace.WithAttributes(attributes...),
+		trace.WithTimestamp(sso.StartTime),
+		trace.WithLinks(links...),
+		trace.WithRecord(),
+		trace.WithSpanKind(kind),
 	)
 	if checkCtx != checkCtx2 {
 		t.warnOnce.Do(func() {
@@ -405,7 +411,7 @@ func (t *BridgeTracer) StartSpan(operationName string, opts ...ot.StartSpanOptio
 		})
 	}
 	if hadTrueErrorTag {
-		otelSpan.SetStatus(codes.Unknown, "")
+		otelSpan.SetStatus(codes.Error, "")
 	}
 	// One does not simply pass a concrete pointer to function
 	// that takes some interface. In case of passing nil concrete
@@ -429,7 +435,7 @@ func (t *BridgeTracer) StartSpan(operationName string, opts ...ot.StartSpanOptio
 // This function should be used by the OpenTelemetry tracers that want
 // to be aware how to operate in the environment using OpenTracing
 // API.
-func (t *BridgeTracer) ContextWithBridgeSpan(ctx context.Context, span oteltrace.Span) context.Context {
+func (t *BridgeTracer) ContextWithBridgeSpan(ctx context.Context, span trace.Span) context.Context {
 	var otSpanContext ot.SpanContext
 	if parentSpan := ot.SpanFromContext(ctx); parentSpan != nil {
 		otSpanContext = parentSpan.Context()
@@ -459,8 +465,8 @@ func (t *BridgeTracer) ContextWithSpanHook(ctx context.Context, span ot.Span) co
 	return ctx
 }
 
-func otTagsToOTelAttributesKindAndError(tags map[string]interface{}) ([]label.KeyValue, oteltrace.SpanKind, bool) {
-	kind := oteltrace.SpanKindInternal
+func otTagsToOTelAttributesKindAndError(tags map[string]interface{}) ([]label.KeyValue, trace.SpanKind, bool) {
+	kind := trace.SpanKindInternal
 	err := false
 	var pairs []label.KeyValue
 	for k, v := range tags {
@@ -469,13 +475,13 @@ func otTagsToOTelAttributesKindAndError(tags map[string]interface{}) ([]label.Ke
 			if s, ok := v.(string); ok {
 				switch strings.ToLower(s) {
 				case "client":
-					kind = oteltrace.SpanKindClient
+					kind = trace.SpanKindClient
 				case "server":
-					kind = oteltrace.SpanKindServer
+					kind = trace.SpanKindServer
 				case "producer":
-					kind = oteltrace.SpanKindProducer
+					kind = trace.SpanKindProducer
 				case "consumer":
-					kind = oteltrace.SpanKindConsumer
+					kind = trace.SpanKindConsumer
 				}
 			}
 		case string(otext.Error):
@@ -521,10 +527,10 @@ func otTagToOTelLabelKey(k string) label.Key {
 	return label.Key(k)
 }
 
-func otSpanReferencesToParentAndLinks(references []ot.SpanReference) (*bridgeSpanContext, []oteltrace.Link) {
+func otSpanReferencesToParentAndLinks(references []ot.SpanReference) (*bridgeSpanContext, []trace.Link) {
 	var (
 		parent *bridgeSpanContext
-		links  []oteltrace.Link
+		links  []trace.Link
 	)
 	for _, reference := range references {
 		bridgeSC, ok := reference.ReferencedContext.(*bridgeSpanContext)
@@ -550,8 +556,8 @@ func otSpanReferencesToParentAndLinks(references []ot.SpanReference) (*bridgeSpa
 	return parent, links
 }
 
-func otSpanReferenceToOTelLink(bridgeSC *bridgeSpanContext, refType ot.SpanReferenceType) oteltrace.Link {
-	return oteltrace.Link{
+func otSpanReferenceToOTelLink(bridgeSC *bridgeSpanContext, refType ot.SpanReferenceType) trace.Link {
+	return trace.Link{
 		SpanContext: bridgeSC.otelSpanContext,
 		Attributes:  otSpanReferenceTypeToOTelLinkAttributes(refType),
 	}
@@ -580,11 +586,11 @@ func otSpanReferenceTypeToString(refType ot.SpanReferenceType) string {
 // fakeSpan is just a holder of span context, nothing more. It's for
 // propagators, so they can get the span context from Go context.
 type fakeSpan struct {
-	oteltrace.Span
-	sc oteltrace.SpanContext
+	trace.Span
+	sc trace.SpanContext
 }
 
-func (s fakeSpan) SpanContext() oteltrace.SpanContext {
+func (s fakeSpan) SpanContext() trace.SpanContext {
 	return s.sc
 }
 
@@ -612,9 +618,9 @@ func (t *BridgeTracer) Inject(sm ot.SpanContext, format interface{}, carrier int
 		Span: noop.Span,
 		sc:   bridgeSC.otelSpanContext,
 	}
-	ctx := oteltrace.ContextWithSpan(context.Background(), fs)
-	ctx = otelbaggage.ContextWithMap(ctx, bridgeSC.baggageItems)
-	otelpropagation.InjectHTTP(ctx, t.getPropagators(), header)
+	ctx := trace.ContextWithSpan(context.Background(), fs)
+	ctx = baggage.ContextWithMap(ctx, bridgeSC.baggageItems)
+	t.getPropagator().Inject(ctx, header)
 	return nil
 }
 
@@ -631,8 +637,8 @@ func (t *BridgeTracer) Extract(format interface{}, carrier interface{}) (ot.Span
 		return nil, ot.ErrInvalidCarrier
 	}
 	header := http.Header(hhcarrier)
-	ctx := otelpropagation.ExtractHTTP(context.Background(), t.getPropagators(), header)
-	baggage := otelbaggage.MapFromContext(ctx)
+	ctx := t.getPropagator().Extract(context.Background(), header)
+	baggage := baggage.MapFromContext(ctx)
 	otelSC, _, _ := otelparent.GetSpanContextAndLinks(ctx, false)
 	bridgeSC := &bridgeSpanContext{
 		baggageItems:    baggage,
@@ -644,9 +650,9 @@ func (t *BridgeTracer) Extract(format interface{}, carrier interface{}) (ot.Span
 	return bridgeSC, nil
 }
 
-func (t *BridgeTracer) getPropagators() otelpropagation.Propagators {
-	if t.propagators != nil {
-		return t.propagators
+func (t *BridgeTracer) getPropagator() propagation.TextMapPropagator {
+	if t.propagator != nil {
+		return t.propagator
 	}
-	return otelglobal.Propagators()
+	return otel.GetTextMapPropagator()
 }

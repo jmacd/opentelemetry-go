@@ -23,20 +23,20 @@ import (
 	"github.com/google/go-cmp/cmp"
 	zkmodel "github.com/openzipkin/zipkin-go/model"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/codes"
 
-	"go.opentelemetry.io/otel/api/trace"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/label"
 	export "go.opentelemetry.io/otel/sdk/export/trace"
 	"go.opentelemetry.io/otel/sdk/instrumentation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func TestModelConversion(t *testing.T) {
-	inputBatch := []*export.SpanData{
+	inputBatch := []*export.SpanSnapshot{
 		// typical span data
 		{
 			SpanContext: trace.SpanContext{
-				TraceID: trace.ID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+				TraceID: trace.TraceID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
 				SpanID:  trace.SpanID{0xFF, 0xFE, 0xFD, 0xFC, 0xFB, 0xFA, 0xF9, 0xF8},
 			},
 			ParentSpanID: trace.SpanID{0x3F, 0x3E, 0x3D, 0x3C, 0x3B, 0x3A, 0x39, 0x38},
@@ -48,7 +48,7 @@ func TestModelConversion(t *testing.T) {
 				label.Uint64("attr1", 42),
 				label.String("attr2", "bar"),
 			},
-			MessageEvents: []export.Event{
+			MessageEvents: []trace.Event{
 				{
 					Time: time.Date(2020, time.March, 11, 19, 24, 30, 0, time.UTC),
 					Name: "ev1",
@@ -62,14 +62,14 @@ func TestModelConversion(t *testing.T) {
 					Attributes: nil,
 				},
 			},
-			StatusCode:    codes.NotFound,
+			StatusCode:    codes.Error,
 			StatusMessage: "404, file not found",
 		},
 		// span data with no parent (same as typical, but has
 		// invalid parent)
 		{
 			SpanContext: trace.SpanContext{
-				TraceID: trace.ID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+				TraceID: trace.TraceID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
 				SpanID:  trace.SpanID{0xFF, 0xFE, 0xFD, 0xFC, 0xFB, 0xFA, 0xF9, 0xF8},
 			},
 			ParentSpanID: trace.SpanID{},
@@ -81,7 +81,7 @@ func TestModelConversion(t *testing.T) {
 				label.Uint64("attr1", 42),
 				label.String("attr2", "bar"),
 			},
-			MessageEvents: []export.Event{
+			MessageEvents: []trace.Event{
 				{
 					Time: time.Date(2020, time.March, 11, 19, 24, 30, 0, time.UTC),
 					Name: "ev1",
@@ -95,13 +95,13 @@ func TestModelConversion(t *testing.T) {
 					Attributes: nil,
 				},
 			},
-			StatusCode:    codes.NotFound,
+			StatusCode:    codes.Error,
 			StatusMessage: "404, file not found",
 		},
 		// span data of unspecified kind
 		{
 			SpanContext: trace.SpanContext{
-				TraceID: trace.ID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+				TraceID: trace.TraceID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
 				SpanID:  trace.SpanID{0xFF, 0xFE, 0xFD, 0xFC, 0xFB, 0xFA, 0xF9, 0xF8},
 			},
 			ParentSpanID: trace.SpanID{0x3F, 0x3E, 0x3D, 0x3C, 0x3B, 0x3A, 0x39, 0x38},
@@ -113,7 +113,7 @@ func TestModelConversion(t *testing.T) {
 				label.Uint64("attr1", 42),
 				label.String("attr2", "bar"),
 			},
-			MessageEvents: []export.Event{
+			MessageEvents: []trace.Event{
 				{
 					Time: time.Date(2020, time.March, 11, 19, 24, 30, 0, time.UTC),
 					Name: "ev1",
@@ -127,13 +127,13 @@ func TestModelConversion(t *testing.T) {
 					Attributes: nil,
 				},
 			},
-			StatusCode:    codes.NotFound,
+			StatusCode:    codes.Error,
 			StatusMessage: "404, file not found",
 		},
 		// span data of internal kind
 		{
 			SpanContext: trace.SpanContext{
-				TraceID: trace.ID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+				TraceID: trace.TraceID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
 				SpanID:  trace.SpanID{0xFF, 0xFE, 0xFD, 0xFC, 0xFB, 0xFA, 0xF9, 0xF8},
 			},
 			ParentSpanID: trace.SpanID{0x3F, 0x3E, 0x3D, 0x3C, 0x3B, 0x3A, 0x39, 0x38},
@@ -145,7 +145,7 @@ func TestModelConversion(t *testing.T) {
 				label.Uint64("attr1", 42),
 				label.String("attr2", "bar"),
 			},
-			MessageEvents: []export.Event{
+			MessageEvents: []trace.Event{
 				{
 					Time: time.Date(2020, time.March, 11, 19, 24, 30, 0, time.UTC),
 					Name: "ev1",
@@ -159,13 +159,13 @@ func TestModelConversion(t *testing.T) {
 					Attributes: nil,
 				},
 			},
-			StatusCode:    codes.NotFound,
+			StatusCode:    codes.Error,
 			StatusMessage: "404, file not found",
 		},
 		// span data of client kind
 		{
 			SpanContext: trace.SpanContext{
-				TraceID: trace.ID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+				TraceID: trace.TraceID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
 				SpanID:  trace.SpanID{0xFF, 0xFE, 0xFD, 0xFC, 0xFB, 0xFA, 0xF9, 0xF8},
 			},
 			ParentSpanID: trace.SpanID{0x3F, 0x3E, 0x3D, 0x3C, 0x3B, 0x3A, 0x39, 0x38},
@@ -177,7 +177,7 @@ func TestModelConversion(t *testing.T) {
 				label.Uint64("attr1", 42),
 				label.String("attr2", "bar"),
 			},
-			MessageEvents: []export.Event{
+			MessageEvents: []trace.Event{
 				{
 					Time: time.Date(2020, time.March, 11, 19, 24, 30, 0, time.UTC),
 					Name: "ev1",
@@ -191,13 +191,13 @@ func TestModelConversion(t *testing.T) {
 					Attributes: nil,
 				},
 			},
-			StatusCode:    codes.NotFound,
+			StatusCode:    codes.Error,
 			StatusMessage: "404, file not found",
 		},
 		// span data of producer kind
 		{
 			SpanContext: trace.SpanContext{
-				TraceID: trace.ID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+				TraceID: trace.TraceID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
 				SpanID:  trace.SpanID{0xFF, 0xFE, 0xFD, 0xFC, 0xFB, 0xFA, 0xF9, 0xF8},
 			},
 			ParentSpanID: trace.SpanID{0x3F, 0x3E, 0x3D, 0x3C, 0x3B, 0x3A, 0x39, 0x38},
@@ -209,7 +209,7 @@ func TestModelConversion(t *testing.T) {
 				label.Uint64("attr1", 42),
 				label.String("attr2", "bar"),
 			},
-			MessageEvents: []export.Event{
+			MessageEvents: []trace.Event{
 				{
 					Time: time.Date(2020, time.March, 11, 19, 24, 30, 0, time.UTC),
 					Name: "ev1",
@@ -223,13 +223,13 @@ func TestModelConversion(t *testing.T) {
 					Attributes: nil,
 				},
 			},
-			StatusCode:    codes.NotFound,
+			StatusCode:    codes.Error,
 			StatusMessage: "404, file not found",
 		},
 		// span data of consumer kind
 		{
 			SpanContext: trace.SpanContext{
-				TraceID: trace.ID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+				TraceID: trace.TraceID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
 				SpanID:  trace.SpanID{0xFF, 0xFE, 0xFD, 0xFC, 0xFB, 0xFA, 0xF9, 0xF8},
 			},
 			ParentSpanID: trace.SpanID{0x3F, 0x3E, 0x3D, 0x3C, 0x3B, 0x3A, 0x39, 0x38},
@@ -241,7 +241,7 @@ func TestModelConversion(t *testing.T) {
 				label.Uint64("attr1", 42),
 				label.String("attr2", "bar"),
 			},
-			MessageEvents: []export.Event{
+			MessageEvents: []trace.Event{
 				{
 					Time: time.Date(2020, time.March, 11, 19, 24, 30, 0, time.UTC),
 					Name: "ev1",
@@ -255,13 +255,13 @@ func TestModelConversion(t *testing.T) {
 					Attributes: nil,
 				},
 			},
-			StatusCode:    codes.NotFound,
+			StatusCode:    codes.Error,
 			StatusMessage: "404, file not found",
 		},
 		// span data with no events
 		{
 			SpanContext: trace.SpanContext{
-				TraceID: trace.ID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+				TraceID: trace.TraceID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
 				SpanID:  trace.SpanID{0xFF, 0xFE, 0xFD, 0xFC, 0xFB, 0xFA, 0xF9, 0xF8},
 			},
 			ParentSpanID: trace.SpanID{0x3F, 0x3E, 0x3D, 0x3C, 0x3B, 0x3A, 0x39, 0x38},
@@ -274,13 +274,13 @@ func TestModelConversion(t *testing.T) {
 				label.String("attr2", "bar"),
 			},
 			MessageEvents: nil,
-			StatusCode:    codes.NotFound,
+			StatusCode:    codes.Error,
 			StatusMessage: "404, file not found",
 		},
 		// span data with an "error" attribute set to "false"
 		{
 			SpanContext: trace.SpanContext{
-				TraceID: trace.ID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+				TraceID: trace.TraceID{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
 				SpanID:  trace.SpanID{0xFF, 0xFE, 0xFD, 0xFC, 0xFB, 0xFA, 0xF9, 0xF8},
 			},
 			ParentSpanID: trace.SpanID{0x3F, 0x3E, 0x3D, 0x3C, 0x3B, 0x3A, 0x39, 0x38},
@@ -291,7 +291,7 @@ func TestModelConversion(t *testing.T) {
 			Attributes: []label.KeyValue{
 				label.String("error", "false"),
 			},
-			MessageEvents: []export.Event{
+			MessageEvents: []trace.Event{
 				{
 					Time: time.Date(2020, time.March, 11, 19, 24, 30, 0, time.UTC),
 					Name: "ev1",
@@ -305,7 +305,7 @@ func TestModelConversion(t *testing.T) {
 					Attributes: nil,
 				},
 			},
-			StatusCode:    codes.NotFound,
+			StatusCode:    codes.Error,
 			StatusMessage: "404, file not found",
 		},
 	}
@@ -346,7 +346,7 @@ func TestModelConversion(t *testing.T) {
 			Tags: map[string]string{
 				"attr1":                   "42",
 				"attr2":                   "bar",
-				"otel.status_code":        "NotFound",
+				"otel.status_code":        "Error",
 				"otel.status_description": "404, file not found",
 			},
 		},
@@ -385,7 +385,7 @@ func TestModelConversion(t *testing.T) {
 			Tags: map[string]string{
 				"attr1":                   "42",
 				"attr2":                   "bar",
-				"otel.status_code":        "NotFound",
+				"otel.status_code":        "Error",
 				"otel.status_description": "404, file not found",
 			},
 		},
@@ -424,7 +424,7 @@ func TestModelConversion(t *testing.T) {
 			Tags: map[string]string{
 				"attr1":                   "42",
 				"attr2":                   "bar",
-				"otel.status_code":        "NotFound",
+				"otel.status_code":        "Error",
 				"otel.status_description": "404, file not found",
 			},
 		},
@@ -463,7 +463,7 @@ func TestModelConversion(t *testing.T) {
 			Tags: map[string]string{
 				"attr1":                   "42",
 				"attr2":                   "bar",
-				"otel.status_code":        "NotFound",
+				"otel.status_code":        "Error",
 				"otel.status_description": "404, file not found",
 			},
 		},
@@ -502,7 +502,7 @@ func TestModelConversion(t *testing.T) {
 			Tags: map[string]string{
 				"attr1":                   "42",
 				"attr2":                   "bar",
-				"otel.status_code":        "NotFound",
+				"otel.status_code":        "Error",
 				"otel.status_description": "404, file not found",
 			},
 		},
@@ -541,7 +541,7 @@ func TestModelConversion(t *testing.T) {
 			Tags: map[string]string{
 				"attr1":                   "42",
 				"attr2":                   "bar",
-				"otel.status_code":        "NotFound",
+				"otel.status_code":        "Error",
 				"otel.status_description": "404, file not found",
 			},
 		},
@@ -580,7 +580,7 @@ func TestModelConversion(t *testing.T) {
 			Tags: map[string]string{
 				"attr1":                   "42",
 				"attr2":                   "bar",
-				"otel.status_code":        "NotFound",
+				"otel.status_code":        "Error",
 				"otel.status_description": "404, file not found",
 			},
 		},
@@ -610,7 +610,7 @@ func TestModelConversion(t *testing.T) {
 			Tags: map[string]string{
 				"attr1":                   "42",
 				"attr2":                   "bar",
-				"otel.status_code":        "NotFound",
+				"otel.status_code":        "Error",
 				"otel.status_description": "404, file not found",
 			},
 		},
@@ -647,7 +647,7 @@ func TestModelConversion(t *testing.T) {
 				},
 			},
 			Tags: map[string]string{
-				"otel.status_code":        "NotFound",
+				"otel.status_code":        "Error",
 				"otel.status_description": "404, file not found",
 			},
 		},
@@ -671,12 +671,12 @@ func Test_toZipkinTags(t *testing.T) {
 
 	tests := []struct {
 		name string
-		data *export.SpanData
+		data *export.SpanSnapshot
 		want map[string]string
 	}{
 		{
 			name: "attributes",
-			data: &export.SpanData{
+			data: &export.SpanSnapshot{
 				Attributes: []label.KeyValue{
 					label.String("key", keyValue),
 					label.Float64("double", doubleValue),
@@ -689,60 +689,60 @@ func Test_toZipkinTags(t *testing.T) {
 				"key":                     keyValue,
 				"ok":                      "true",
 				"uint":                    strconv.FormatInt(uintValue, 10),
-				"otel.status_code":        codes.OK.String(),
+				"otel.status_code":        codes.Unset.String(),
 				"otel.status_description": "",
 			},
 		},
 		{
 			name: "no attributes",
-			data: &export.SpanData{},
+			data: &export.SpanSnapshot{},
 			want: map[string]string{
-				"otel.status_code":        codes.OK.String(),
+				"otel.status_code":        codes.Unset.String(),
 				"otel.status_description": "",
 			},
 		},
 		{
 			name: "omit-noerror",
-			data: &export.SpanData{
+			data: &export.SpanSnapshot{
 				Attributes: []label.KeyValue{
 					label.Bool("error", false),
 				},
 			},
 			want: map[string]string{
-				"otel.status_code":        codes.OK.String(),
+				"otel.status_code":        codes.Unset.String(),
 				"otel.status_description": "",
 			},
 		},
 		{
 			name: "statusCode",
-			data: &export.SpanData{
+			data: &export.SpanSnapshot{
 				Attributes: []label.KeyValue{
 					label.String("key", keyValue),
 					label.Bool("error", true),
 				},
-				StatusCode:    codes.Unknown,
+				StatusCode:    codes.Error,
 				StatusMessage: statusMessage,
 			},
 			want: map[string]string{
 				"error":                   "true",
 				"key":                     keyValue,
-				"otel.status_code":        codes.Unknown.String(),
+				"otel.status_code":        codes.Error.String(),
 				"otel.status_description": statusMessage,
 			},
 		},
 		{
 			name: "instrLib-empty",
-			data: &export.SpanData{
+			data: &export.SpanSnapshot{
 				InstrumentationLibrary: instrumentation.Library{},
 			},
 			want: map[string]string{
-				"otel.status_code":        codes.OK.String(),
+				"otel.status_code":        codes.Unset.String(),
 				"otel.status_description": "",
 			},
 		},
 		{
 			name: "instrLib-noversion",
-			data: &export.SpanData{
+			data: &export.SpanSnapshot{
 				Attributes: []label.KeyValue{},
 				InstrumentationLibrary: instrumentation.Library{
 					Name: instrLibName,
@@ -750,13 +750,13 @@ func Test_toZipkinTags(t *testing.T) {
 			},
 			want: map[string]string{
 				"otel.instrumentation_library.name": instrLibName,
-				"otel.status_code":                  codes.OK.String(),
+				"otel.status_code":                  codes.Unset.String(),
 				"otel.status_description":           "",
 			},
 		},
 		{
 			name: "instrLib-with-version",
-			data: &export.SpanData{
+			data: &export.SpanSnapshot{
 				Attributes: []label.KeyValue{},
 				InstrumentationLibrary: instrumentation.Library{
 					Name:    instrLibName,
@@ -766,7 +766,7 @@ func Test_toZipkinTags(t *testing.T) {
 			want: map[string]string{
 				"otel.instrumentation_library.name":    instrLibName,
 				"otel.instrumentation_library.version": instrLibVersion,
-				"otel.status_code":                     codes.OK.String(),
+				"otel.status_code":                     codes.Unset.String(),
 				"otel.status_description":              "",
 			},
 		},

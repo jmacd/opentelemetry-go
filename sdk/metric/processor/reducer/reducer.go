@@ -15,8 +15,8 @@
 package reducer // import "go.opentelemetry.io/otel/sdk/metric/processor/reducer"
 
 import (
-	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/metric"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 )
 

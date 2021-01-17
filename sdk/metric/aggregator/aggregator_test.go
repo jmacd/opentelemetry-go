@@ -21,7 +21,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.opentelemetry.io/otel/api/metric"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/number"
 	"go.opentelemetry.io/otel/sdk/export/metric/aggregation"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/lastvalue"
@@ -40,10 +41,10 @@ func TestInconsistentAggregatorErr(t *testing.T) {
 
 func testRangeNaN(t *testing.T, desc *metric.Descriptor) {
 	// If the descriptor uses int64 numbers, this won't register as NaN
-	nan := metric.NewFloat64Number(math.NaN())
+	nan := number.NewFloat64Number(math.NaN())
 	err := aggregator.RangeTest(nan, desc)
 
-	if desc.NumberKind() == metric.Float64NumberKind {
+	if desc.NumberKind() == number.Float64Kind {
 		require.Equal(t, aggregation.ErrNaNInput, err)
 	} else {
 		require.Nil(t, err)
@@ -51,14 +52,14 @@ func testRangeNaN(t *testing.T, desc *metric.Descriptor) {
 }
 
 func testRangeNegative(t *testing.T, desc *metric.Descriptor) {
-	var neg, pos metric.Number
+	var neg, pos number.Number
 
-	if desc.NumberKind() == metric.Float64NumberKind {
-		pos = metric.NewFloat64Number(+1)
-		neg = metric.NewFloat64Number(-1)
+	if desc.NumberKind() == number.Float64Kind {
+		pos = number.NewFloat64Number(+1)
+		neg = number.NewFloat64Number(-1)
 	} else {
-		pos = metric.NewInt64Number(+1)
-		neg = metric.NewInt64Number(-1)
+		pos = number.NewInt64Number(+1)
+		neg = number.NewInt64Number(-1)
 	}
 
 	posErr := aggregator.RangeTest(pos, desc)
@@ -70,11 +71,11 @@ func testRangeNegative(t *testing.T, desc *metric.Descriptor) {
 
 func TestRangeTest(t *testing.T) {
 	// Only Counters implement a range test.
-	for _, nkind := range []metric.NumberKind{metric.Float64NumberKind, metric.Int64NumberKind} {
+	for _, nkind := range []number.Kind{number.Float64Kind, number.Int64Kind} {
 		t.Run(nkind.String(), func(t *testing.T) {
 			desc := metric.NewDescriptor(
 				"name",
-				metric.CounterKind,
+				metric.CounterInstrumentKind,
 				nkind,
 			)
 			testRangeNegative(t, &desc)
@@ -83,12 +84,12 @@ func TestRangeTest(t *testing.T) {
 }
 
 func TestNaNTest(t *testing.T) {
-	for _, nkind := range []metric.NumberKind{metric.Float64NumberKind, metric.Int64NumberKind} {
+	for _, nkind := range []number.Kind{number.Float64Kind, number.Int64Kind} {
 		t.Run(nkind.String(), func(t *testing.T) {
-			for _, mkind := range []metric.Kind{
-				metric.CounterKind,
-				metric.ValueRecorderKind,
-				metric.ValueObserverKind,
+			for _, mkind := range []metric.InstrumentKind{
+				metric.CounterInstrumentKind,
+				metric.ValueRecorderInstrumentKind,
+				metric.ValueObserverInstrumentKind,
 			} {
 				desc := metric.NewDescriptor(
 					"name",

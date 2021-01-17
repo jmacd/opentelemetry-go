@@ -18,44 +18,74 @@ import (
 	"context"
 	"testing"
 
-	export "go.opentelemetry.io/otel/sdk/export/trace"
+	"go.opentelemetry.io/otel/label"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
-type testSpanProcesor struct {
-	spansStarted  []*export.SpanData
-	spansEnded    []*export.SpanData
+type testSpanProcessor struct {
+	name          string
+	spansStarted  []sdktrace.ReadWriteSpan
+	spansEnded    []sdktrace.ReadOnlySpan
 	shutdownCount int
 }
 
-func (t *testSpanProcesor) OnStart(s *export.SpanData) {
+func (t *testSpanProcessor) OnStart(parent context.Context, s sdktrace.ReadWriteSpan) {
+	psc := trace.RemoteSpanContextFromContext(parent)
+	kv := []label.KeyValue{
+		{
+			Key:   "SpanProcessorName",
+			Value: label.StringValue(t.name),
+		},
+		// Store parent trace ID and span ID as attributes to be read later in
+		// tests so that we "do something" with the parent argument. Real
+		// SpanProcessor implementations will likely use the parent argument in
+		// a more meaningful way.
+		{
+			Key:   "ParentTraceID",
+			Value: label.StringValue(psc.TraceID.String()),
+		},
+		{
+			Key:   "ParentSpanID",
+			Value: label.StringValue(psc.SpanID.String()),
+		},
+	}
+	s.AddEvent("OnStart", trace.WithAttributes(kv...))
 	t.spansStarted = append(t.spansStarted, s)
 }
 
-func (t *testSpanProcesor) OnEnd(s *export.SpanData) {
+func (t *testSpanProcessor) OnEnd(s sdktrace.ReadOnlySpan) {
 	t.spansEnded = append(t.spansEnded, s)
 }
 
-func (t *testSpanProcesor) Shutdown() {
+func (t *testSpanProcessor) Shutdown(_ context.Context) error {
 	t.shutdownCount++
+	return nil
 }
 
-func (t *testSpanProcesor) ForceFlush() {
+func (t *testSpanProcessor) ForceFlush() {
 }
 
-func TestRegisterSpanProcessort(t *testing.T) {
+func TestRegisterSpanProcessor(t *testing.T) {
 	name := "Register span processor before span starts"
 	tp := basicTracerProvider(t)
-	sps := []*testSpanProcesor{
-		NewTestSpanProcessor(),
-		NewTestSpanProcessor(),
-	}
+	spNames := []string{"sp1", "sp2", "sp3"}
+	sps := NewNamedTestSpanProcessors(spNames)
 
 	for _, sp := range sps {
 		tp.RegisterSpanProcessor(sp)
 	}
 
+	tid, _ := trace.TraceIDFromHex("01020304050607080102040810203040")
+	sid, _ := trace.SpanIDFromHex("0102040810203040")
+	parent := trace.SpanContext{
+		TraceID: tid,
+		SpanID:  sid,
+	}
+	ctx := trace.ContextWithRemoteSpanContext(context.Background(), parent)
+
 	tr := tp.Tracer("SpanProcessor")
-	_, span := tr.Start(context.Background(), "OnStart")
+	_, span := tr.Start(ctx, "OnStart")
 	span.End()
 	wantCount := 1
 
@@ -68,16 +98,53 @@ func TestRegisterSpanProcessort(t *testing.T) {
 		if gotCount != wantCount {
 			t.Errorf("%s: ended count: got %d, want %d\n", name, gotCount, wantCount)
 		}
+
+		c := 0
+		tidOK := false
+		sidOK := false
+		for _, e := range sp.spansStarted[0].Events() {
+			for _, kv := range e.Attributes {
+				switch kv.Key {
+				case "SpanProcessorName":
+					gotValue := kv.Value.AsString()
+					if gotValue != spNames[c] {
+						t.Errorf("%s: attributes: got %s, want %s\n", name, gotValue, spNames[c])
+					}
+					c++
+				case "ParentTraceID":
+					gotValue := kv.Value.AsString()
+					if gotValue != parent.TraceID.String() {
+						t.Errorf("%s: attributes: got %s, want %s\n", name, gotValue, parent.TraceID)
+					}
+					tidOK = true
+				case "ParentSpanID":
+					gotValue := kv.Value.AsString()
+					if gotValue != parent.SpanID.String() {
+						t.Errorf("%s: attributes: got %s, want %s\n", name, gotValue, parent.SpanID)
+					}
+					sidOK = true
+				default:
+					continue
+				}
+			}
+		}
+		if c != len(spNames) {
+			t.Errorf("%s: expected attributes(SpanProcessorName): got %d, want %d\n", name, c, len(spNames))
+		}
+		if !tidOK {
+			t.Errorf("%s: expected attributes(ParentTraceID)\n", name)
+		}
+		if !sidOK {
+			t.Errorf("%s: expected attributes(ParentSpanID)\n", name)
+		}
 	}
 }
 
 func TestUnregisterSpanProcessor(t *testing.T) {
 	name := "Start span after unregistering span processor"
 	tp := basicTracerProvider(t)
-	sps := []*testSpanProcesor{
-		NewTestSpanProcessor(),
-		NewTestSpanProcessor(),
-	}
+	spNames := []string{"sp1", "sp2", "sp3"}
+	sps := NewNamedTestSpanProcessors(spNames)
 
 	for _, sp := range sps {
 		tp.RegisterSpanProcessor(sp)
@@ -111,7 +178,7 @@ func TestUnregisterSpanProcessor(t *testing.T) {
 func TestUnregisterSpanProcessorWhileSpanIsActive(t *testing.T) {
 	name := "Unregister span processor while span is active"
 	tp := basicTracerProvider(t)
-	sp := NewTestSpanProcessor()
+	sp := NewTestSpanProcessor("sp")
 	tp.RegisterSpanProcessor(sp)
 
 	tr := tp.Tracer("SpanProcessor")
@@ -136,14 +203,17 @@ func TestUnregisterSpanProcessorWhileSpanIsActive(t *testing.T) {
 func TestSpanProcessorShutdown(t *testing.T) {
 	name := "Increment shutdown counter of a span processor"
 	tp := basicTracerProvider(t)
-	sp := NewTestSpanProcessor()
+	sp := NewTestSpanProcessor("sp")
 	if sp == nil {
 		t.Fatalf("Error creating new instance of TestSpanProcessor\n")
 	}
 	tp.RegisterSpanProcessor(sp)
 
 	wantCount := 1
-	sp.Shutdown()
+	err := sp.Shutdown(context.Background())
+	if err != nil {
+		t.Error("Error shutting the testSpanProcessor down\n")
+	}
 
 	gotCount := sp.shutdownCount
 	if wantCount != gotCount {
@@ -154,7 +224,7 @@ func TestSpanProcessorShutdown(t *testing.T) {
 func TestMultipleUnregisterSpanProcessorCalls(t *testing.T) {
 	name := "Increment shutdown counter after first UnregisterSpanProcessor call"
 	tp := basicTracerProvider(t)
-	sp := NewTestSpanProcessor()
+	sp := NewTestSpanProcessor("sp")
 	if sp == nil {
 		t.Fatalf("Error creating new instance of TestSpanProcessor\n")
 	}
@@ -178,6 +248,14 @@ func TestMultipleUnregisterSpanProcessorCalls(t *testing.T) {
 	}
 }
 
-func NewTestSpanProcessor() *testSpanProcesor {
-	return &testSpanProcesor{}
+func NewTestSpanProcessor(name string) *testSpanProcessor {
+	return &testSpanProcessor{name: name}
+}
+
+func NewNamedTestSpanProcessors(names []string) []*testSpanProcessor {
+	tsp := []*testSpanProcessor{}
+	for _, n := range names {
+		tsp = append(tsp, NewTestSpanProcessor(n))
+	}
+	return tsp
 }

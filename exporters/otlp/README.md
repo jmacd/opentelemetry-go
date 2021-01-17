@@ -1,7 +1,6 @@
 # OpenTelemetry Collector Go Exporter
 
-[![GoDoc](https://godoc.org/go.opentelemetry.io/otel?status.svg)](https://pkg.go.dev/go.opentelemetry.io/otel/exporters/otlp)
-
+[![PkgGoDev](https://pkg.go.dev/badge/go.opentelemetry.io/otel/exporters/otlp)](https://pkg.go.dev/go.opentelemetry.io/otel/exporters/otlp)
 
 This exporter exports OpenTelemetry spans and metrics to the OpenTelemetry Collector.
 
@@ -20,21 +19,25 @@ A new exporter can be created using the `NewExporter` function.
 package main
 
 import (
+	"context"
 	"log"
 
-	"go.opentelemetry.io/otel/exporters/otlp"
 	"go.opentelemetry.io/otel/sdk/metric/controller/push"
+	"go.opentelemetry.io/otel/exporters/otlp"
+	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
 	"go.opentelemetry.io/otel/sdk/metric/selector/simple"
+	metricsdk "go.opentelemetry.io/otel/sdk/export/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 func main() {
-	exporter, err := otlp.NewExporter() // Configure as needed.
+	ctx := context.Background()
+	exporter, err := otlp.NewExporter(ctx) // Configure as needed.
 	if err != nil {
 		log.Fatalf("failed to create exporter: %v", err)
 	}
 	defer func() {
-		err := exporter.Stop()
+		err := exporter.Shutdown(ctx)
 		if err != nil {
 			log.Fatalf("failed to stop exporter: %v", err)
 		}
@@ -48,7 +51,8 @@ func main() {
 	//   	),
 	//   )
 	tracerProvider := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
-	pusher := push.New(simple.NewWithInexpensiveDistribution(), exporter)
+	processor := processor.New(simple.NewWithInexpensiveDistribution(), metricsdk.StatelessExportKindSelector())
+	pusher := push.New(processor, exporter)
 	pusher.Start()
 	metricProvider := pusher.MeterProvider()
 

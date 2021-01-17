@@ -19,10 +19,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.opentelemetry.io/otel/api/metric"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/number"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
-	"go.opentelemetry.io/otel/sdk/metric/aggregator/array"
-	"go.opentelemetry.io/otel/sdk/metric/aggregator/ddsketch"
+	"go.opentelemetry.io/otel/sdk/metric/aggregator/exact"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/histogram"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/lastvalue"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/minmaxsumcount"
@@ -31,12 +31,12 @@ import (
 )
 
 var (
-	testCounterDesc           = metric.NewDescriptor("counter", metric.CounterKind, metric.Int64NumberKind)
-	testUpDownCounterDesc     = metric.NewDescriptor("updowncounter", metric.UpDownCounterKind, metric.Int64NumberKind)
-	testSumObserverDesc       = metric.NewDescriptor("sumobserver", metric.SumObserverKind, metric.Int64NumberKind)
-	testUpDownSumObserverDesc = metric.NewDescriptor("updownsumobserver", metric.UpDownSumObserverKind, metric.Int64NumberKind)
-	testValueRecorderDesc     = metric.NewDescriptor("valuerecorder", metric.ValueRecorderKind, metric.Int64NumberKind)
-	testValueObserverDesc     = metric.NewDescriptor("valueobserver", metric.ValueObserverKind, metric.Int64NumberKind)
+	testCounterDesc           = metric.NewDescriptor("counter", metric.CounterInstrumentKind, number.Int64Kind)
+	testUpDownCounterDesc     = metric.NewDescriptor("updowncounter", metric.UpDownCounterInstrumentKind, number.Int64Kind)
+	testSumObserverDesc       = metric.NewDescriptor("sumobserver", metric.SumObserverInstrumentKind, number.Int64Kind)
+	testUpDownSumObserverDesc = metric.NewDescriptor("updownsumobserver", metric.UpDownSumObserverInstrumentKind, number.Int64Kind)
+	testValueRecorderDesc     = metric.NewDescriptor("valuerecorder", metric.ValueRecorderInstrumentKind, number.Int64Kind)
+	testValueObserverDesc     = metric.NewDescriptor("valueobserver", metric.ValueObserverInstrumentKind, number.Int64Kind)
 )
 
 func oneAgg(sel export.AggregatorSelector, desc *metric.Descriptor) export.Aggregator {
@@ -59,20 +59,14 @@ func TestInexpensiveDistribution(t *testing.T) {
 	testFixedSelectors(t, inex)
 }
 
-func TestSketchDistribution(t *testing.T) {
-	sk := simple.NewWithSketchDistribution(ddsketch.NewDefaultConfig())
-	require.IsType(t, (*ddsketch.Aggregator)(nil), oneAgg(sk, &testValueRecorderDesc))
-	testFixedSelectors(t, sk)
-}
-
 func TestExactDistribution(t *testing.T) {
 	ex := simple.NewWithExactDistribution()
-	require.IsType(t, (*array.Aggregator)(nil), oneAgg(ex, &testValueRecorderDesc))
+	require.IsType(t, (*exact.Aggregator)(nil), oneAgg(ex, &testValueRecorderDesc))
 	testFixedSelectors(t, ex)
 }
 
 func TestHistogramDistribution(t *testing.T) {
-	hist := simple.NewWithHistogramDistribution(nil)
+	hist := simple.NewWithHistogramDistribution()
 	require.IsType(t, (*histogram.Aggregator)(nil), oneAgg(hist, &testValueRecorderDesc))
 	testFixedSelectors(t, hist)
 }

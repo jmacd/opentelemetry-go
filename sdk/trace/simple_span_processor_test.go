@@ -18,17 +18,18 @@ import (
 	"context"
 	"testing"
 
-	apitrace "go.opentelemetry.io/otel/api/trace"
+	"go.opentelemetry.io/otel/trace"
+
 	export "go.opentelemetry.io/otel/sdk/export/trace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 type testExporter struct {
-	spans []*export.SpanData
+	spans []*export.SpanSnapshot
 }
 
-func (t *testExporter) ExportSpans(ctx context.Context, spans []*export.SpanData) error {
-	t.spans = append(t.spans, spans...)
+func (t *testExporter) ExportSpans(ctx context.Context, ss []*export.SpanSnapshot) error {
+	t.spans = append(t.spans, ss...)
 	return nil
 }
 
@@ -60,14 +61,14 @@ func TestSimpleSpanProcessorOnEnd(t *testing.T) {
 
 	tp.RegisterSpanProcessor(ssp)
 	tr := tp.Tracer("SimpleSpanProcessor")
-	tid, _ := apitrace.IDFromHex("01020304050607080102040810203040")
-	sid, _ := apitrace.SpanIDFromHex("0102040810203040")
-	sc := apitrace.SpanContext{
+	tid, _ := trace.TraceIDFromHex("01020304050607080102040810203040")
+	sid, _ := trace.SpanIDFromHex("0102040810203040")
+	sc := trace.SpanContext{
 		TraceID:    tid,
 		SpanID:     sid,
 		TraceFlags: 0x1,
 	}
-	ctx := apitrace.ContextWithRemoteSpanContext(context.Background(), sc)
+	ctx := trace.ContextWithRemoteSpanContext(context.Background(), sc)
 	_, span := tr.Start(ctx, "OnEnd")
 	span.End()
 
@@ -82,7 +83,11 @@ func TestSimpleSpanProcessorShutdown(t *testing.T) {
 	ssp := sdktrace.NewSimpleSpanProcessor(&testExporter{})
 	if ssp == nil {
 		t.Errorf("Error creating new instance of SimpleSpanProcessor\n")
+		return
 	}
 
-	ssp.Shutdown()
+	err := ssp.Shutdown(context.Background())
+	if err != nil {
+		t.Error("Error shutting the SimpleSpanProcessor down\n")
+	}
 }

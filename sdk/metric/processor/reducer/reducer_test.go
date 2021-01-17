@@ -20,8 +20,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/metric"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	metricsdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/processor/basic"
@@ -75,9 +75,7 @@ func TestFilterProcessor(t *testing.T) {
 	)
 	accum := metricsdk.NewAccumulator(
 		reducer.New(testFilter{}, processorTest.Checkpointer(testProc)),
-		metricsdk.WithResource(
-			resource.New(label.String("R", "V")),
-		),
+		resource.NewWithAttributes(label.String("R", "V")),
 	)
 	generateData(accum)
 
@@ -91,12 +89,10 @@ func TestFilterProcessor(t *testing.T) {
 
 // Test a filter with the ../basic Processor.
 func TestFilterBasicProcessor(t *testing.T) {
-	basicProc := basic.New(processorTest.AggregatorSelector(), export.CumulativeExporter)
+	basicProc := basic.New(processorTest.AggregatorSelector(), export.CumulativeExportKindSelector())
 	accum := metricsdk.NewAccumulator(
 		reducer.New(testFilter{}, basicProc),
-		metricsdk.WithResource(
-			resource.New(label.String("R", "V")),
-		),
+		resource.NewWithAttributes(label.String("R", "V")),
 	)
 	exporter := processorTest.NewExporter(basicProc, label.DefaultEncoder())
 

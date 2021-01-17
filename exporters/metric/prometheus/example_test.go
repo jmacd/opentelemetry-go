@@ -22,25 +22,35 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
 	"go.opentelemetry.io/otel/label"
-	"go.opentelemetry.io/otel/sdk/metric/controller/pull"
+	"go.opentelemetry.io/otel/metric"
+	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
 	"go.opentelemetry.io/otel/sdk/resource"
 )
 
 // This test demonstrates that it is relatively difficult to setup a
 // Prometheus export pipeline:
 //
-//   1. The default boundaries are difficult to pass, should be []float instead of []metric.Number
+//   1. The default boundaries are difficult to pass, should be []float instead of []number.Number
 //
 // TODO: Address this issue.
 
 func ExampleNewExportPipeline() {
+	// Create a resource, with builtin attributes plus R=V.
+	res, err := resource.New(
+		context.Background(),
+		resource.WithoutBuiltin(), // Test-only!
+		resource.WithAttributes(label.String("R", "V")),
+	)
+	if err != nil {
+		panic(err)
+	}
+
 	// Create a meter
 	exporter, err := prometheus.NewExportPipeline(
 		prometheus.Config{},
-		pull.WithResource(resource.New(label.String("R", "V"))),
+		controller.WithResource(res),
 	)
 	if err != nil {
 		panic(err)

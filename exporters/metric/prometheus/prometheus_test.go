@@ -26,25 +26,29 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
 	"go.opentelemetry.io/otel/label"
-	"go.opentelemetry.io/otel/sdk/metric/controller/pull"
+	"go.opentelemetry.io/otel/metric"
+	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
 	"go.opentelemetry.io/otel/sdk/resource"
 )
 
 func TestPrometheusExporter(t *testing.T) {
+	// #TODO: This test does not adequately verify the type of
+	// prometheus metric exported for all types - for example,
+	// it does not verify that an UpDown- counter is exported
+	// as a gauge. To be improved.
 	exporter, err := prometheus.NewExportPipeline(
 		prometheus.Config{
 			DefaultHistogramBoundaries: []float64{-0.5, 1},
 		},
-		pull.WithCachePeriod(0),
-		pull.WithResource(resource.New(label.String("R", "V"))),
+		controller.WithCollectPeriod(0),
+		controller.WithResource(resource.NewWithAttributes(label.String("R", "V"))),
 	)
 	require.NoError(t, err)
 
 	meter := exporter.MeterProvider().Meter("test")
-
+	upDownCounter := metric.Must(meter).NewFloat64UpDownCounter("updowncounter")
 	counter := metric.Must(meter).NewFloat64Counter("counter")
 	valuerecorder := metric.Must(meter).NewFloat64ValueRecorder("valuerecorder")
 
@@ -61,6 +65,12 @@ func TestPrometheusExporter(t *testing.T) {
 
 	expected = append(expected, `counter{A="B",C="D",R="V"} 15.3`)
 
+	_ = metric.Must(meter).NewInt64ValueObserver("intobserver", func(_ context.Context, result metric.Int64ObserverResult) {
+		result.Observe(1, labels...)
+	})
+
+	expected = append(expected, `intobserver{A="B",C="D",R="V"} 1`)
+
 	valuerecorder.Record(ctx, -0.6, labels...)
 	valuerecorder.Record(ctx, -0.4, labels...)
 	valuerecorder.Record(ctx, 0.6, labels...)
@@ -71,6 +81,11 @@ func TestPrometheusExporter(t *testing.T) {
 	expected = append(expected, `valuerecorder_bucket{A="B",C="D",R="V",le="1"} 3`)
 	expected = append(expected, `valuerecorder_count{A="B",C="D",R="V"} 4`)
 	expected = append(expected, `valuerecorder_sum{A="B",C="D",R="V"} 19.6`)
+
+	upDownCounter.Add(ctx, 10, labels...)
+	upDownCounter.Add(ctx, -3.2, labels...)
+
+	expected = append(expected, `updowncounter{A="B",C="D",R="V"} 6.8`)
 
 	compareExport(t, exporter, expected)
 	compareExport(t, exporter, expected)
@@ -101,7 +116,7 @@ func TestPrometheusStatefulness(t *testing.T) {
 	// Create a meter
 	exporter, err := prometheus.NewExportPipeline(
 		prometheus.Config{},
-		pull.WithCachePeriod(0),
+		controller.WithCollectPeriod(0),
 	)
 	require.NoError(t, err)
 

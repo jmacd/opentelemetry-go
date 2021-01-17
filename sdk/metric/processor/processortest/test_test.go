@@ -20,8 +20,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/metric"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	metricsdk "go.opentelemetry.io/otel/sdk/metric"
 	processorTest "go.opentelemetry.io/otel/sdk/metric/processor/processortest"
@@ -32,9 +32,7 @@ func generateTestData(proc export.Processor) {
 	ctx := context.Background()
 	accum := metricsdk.NewAccumulator(
 		proc,
-		metricsdk.WithResource(
-			resource.New(label.String("R", "V")),
-		),
+		resource.NewWithAttributes(label.String("R", "V")),
 	)
 	meter := metric.WrapMeterImpl(accum, "testing")
 
@@ -76,7 +74,7 @@ func TestProcessorTesting(t *testing.T) {
 
 	// Export the data and validate it again.
 	exporter := processorTest.NewExporter(
-		export.PassThroughExporter,
+		export.StatelessExportKindSelector(),
 		label.DefaultEncoder(),
 	)
 

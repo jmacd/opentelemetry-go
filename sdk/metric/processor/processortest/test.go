@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package processortest
+package processortest // import "go.opentelemetry.io/otel/sdk/metric/processor/processortest"
 
 import (
 	"context"
@@ -21,12 +21,12 @@ import (
 	"sync"
 	"time"
 
-	"go.opentelemetry.io/otel/api/metric"
 	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/number"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/export/metric/aggregation"
-	"go.opentelemetry.io/otel/sdk/metric/aggregator/array"
-	"go.opentelemetry.io/otel/sdk/metric/aggregator/ddsketch"
+	"go.opentelemetry.io/otel/sdk/metric/aggregator/exact"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/histogram"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/lastvalue"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/minmaxsumcount"
@@ -183,18 +183,13 @@ func (testAggregatorSelector) AggregatorFor(desc *metric.Descriptor, aggPtrs ...
 		for i := range aggPtrs {
 			*aggPtrs[i] = &aggs[i]
 		}
-	case strings.HasSuffix(desc.Name(), ".sketch"):
-		aggs := ddsketch.New(len(aggPtrs), desc, ddsketch.NewDefaultConfig())
-		for i := range aggPtrs {
-			*aggPtrs[i] = &aggs[i]
-		}
 	case strings.HasSuffix(desc.Name(), ".histogram"):
-		aggs := histogram.New(len(aggPtrs), desc, nil)
+		aggs := histogram.New(len(aggPtrs), desc)
 		for i := range aggPtrs {
 			*aggPtrs[i] = &aggs[i]
 		}
 	case strings.HasSuffix(desc.Name(), ".exact"):
-		aggs := array.New(len(aggPtrs))
+		aggs := exact.New(len(aggPtrs))
 		for i := range aggPtrs {
 			*aggPtrs[i] = &aggs[i]
 		}
@@ -259,22 +254,29 @@ func (o *Output) AddRecord(rec export.Record) error {
 // is chosen, whichever is implemented by the underlying Aggregator.
 func (o *Output) Map() map[string]float64 {
 	r := make(map[string]float64)
-	err := o.ForEach(export.PassThroughExporter, func(record export.Record) error {
-		for key, value := range o.m {
-			encoded := value.labels.Encoded(o.labelEncoder)
-			rencoded := value.resource.Encoded(o.labelEncoder)
-			number := 0.0
-			if s, ok := value.aggregator.(aggregation.Sum); ok {
+	err := o.ForEach(export.StatelessExportKindSelector(), func(record export.Record) error {
+		for key, entry := range o.m {
+			encoded := entry.labels.Encoded(o.labelEncoder)
+			rencoded := entry.resource.Encoded(o.labelEncoder)
+			value := 0.0
+			if s, ok := entry.aggregator.(aggregation.Sum); ok {
 				sum, _ := s.Sum()
-				number = sum.CoerceToFloat64(key.desc.NumberKind())
-			} else if l, ok := value.aggregator.(aggregation.LastValue); ok {
+				value = sum.CoerceToFloat64(key.desc.NumberKind())
+			} else if l, ok := entry.aggregator.(aggregation.LastValue); ok {
 				last, _, _ := l.LastValue()
-				number = last.CoerceToFloat64(key.desc.NumberKind())
+				value = last.CoerceToFloat64(key.desc.NumberKind())
+			} else if l, ok := entry.aggregator.(aggregation.Points); ok {
+				pts, _ := l.Points()
+				var sum number.Number
+				for _, s := range pts {
+					sum.AddNumber(key.desc.NumberKind(), s.Number)
+				}
+				value = sum.CoerceToFloat64(key.desc.NumberKind())
 			} else {
-				panic(fmt.Sprintf("Unhandled aggregator type: %T", value.aggregator))
+				panic(fmt.Sprintf("Unhandled aggregator type: %T", entry.aggregator))
 			}
 			name := fmt.Sprint(key.desc.Name(), "/", encoded, "/", rencoded)
-			r[name] = number
+			r[name] = value
 		}
 		return nil
 	})

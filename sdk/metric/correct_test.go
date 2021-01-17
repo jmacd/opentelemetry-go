@@ -23,9 +23,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.opentelemetry.io/otel/api/global"
-	"go.opentelemetry.io/otel/api/metric"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/number"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/export/metric/aggregation"
 	metricsdk "go.opentelemetry.io/otel/sdk/metric"
@@ -34,7 +35,7 @@ import (
 )
 
 var Must = metric.Must
-var testResource = resource.New(label.String("R", "V"))
+var testResource = resource.NewWithAttributes(label.String("R", "V"))
 
 type handler struct {
 	sync.Mutex
@@ -65,7 +66,7 @@ var testHandler *handler
 
 func init() {
 	testHandler = new(handler)
-	global.SetErrorHandler(testHandler)
+	otel.SetErrorHandler(testHandler)
 }
 
 // correctnessProcessor could be replaced with processortest.Processor
@@ -96,7 +97,7 @@ func newSDK(t *testing.T) (metric.Meter, *metricsdk.Accumulator, *correctnessPro
 	}
 	accum := metricsdk.NewAccumulator(
 		processor,
-		metricsdk.WithResource(testResource),
+		testResource,
 	)
 	meter := metric.WrapMeterImpl(accum, "test")
 	return meter, accum, processor
@@ -166,8 +167,8 @@ func TestInputRangeValueRecorder(t *testing.T) {
 	processor.accumulations = nil
 	checkpointed = sdk.Collect(ctx)
 
-	count, err := processor.accumulations[0].Aggregator().(aggregation.Distribution).Count()
-	require.Equal(t, int64(2), count)
+	count, err := processor.accumulations[0].Aggregator().(aggregation.Count).Count()
+	require.Equal(t, uint64(2), count)
 	require.Equal(t, 1, checkpointed)
 	require.Nil(t, testHandler.Flush())
 	require.Nil(t, err)
@@ -253,7 +254,7 @@ func TestSDKLabelsDeduplication(t *testing.T) {
 	var actual [][]label.KeyValue
 	for _, rec := range processor.accumulations {
 		sum, _ := rec.Aggregator().(aggregation.Sum).Sum()
-		require.Equal(t, sum, metric.NewInt64Number(2))
+		require.Equal(t, sum, number.NewInt64Number(2))
 
 		kvs := rec.Labels().ToSlice()
 		actual = append(actual, kvs)
@@ -299,74 +300,79 @@ func TestDefaultLabelEncoder(t *testing.T) {
 func TestObserverCollection(t *testing.T) {
 	ctx := context.Background()
 	meter, sdk, processor := newSDK(t)
+	mult := 1
 
 	_ = Must(meter).NewFloat64ValueObserver("float.valueobserver.lastvalue", func(_ context.Context, result metric.Float64ObserverResult) {
-		result.Observe(1, label.String("A", "B"))
+		result.Observe(float64(mult), label.String("A", "B"))
 		// last value wins
-		result.Observe(-1, label.String("A", "B"))
-		result.Observe(-1, label.String("C", "D"))
+		result.Observe(float64(-mult), label.String("A", "B"))
+		result.Observe(float64(-mult), label.String("C", "D"))
 	})
 	_ = Must(meter).NewInt64ValueObserver("int.valueobserver.lastvalue", func(_ context.Context, result metric.Int64ObserverResult) {
-		result.Observe(-1, label.String("A", "B"))
-		result.Observe(1)
+		result.Observe(int64(-mult), label.String("A", "B"))
+		result.Observe(int64(mult))
 		// last value wins
-		result.Observe(1, label.String("A", "B"))
-		result.Observe(1)
+		result.Observe(int64(mult), label.String("A", "B"))
+		result.Observe(int64(mult))
 	})
 
 	_ = Must(meter).NewFloat64SumObserver("float.sumobserver.sum", func(_ context.Context, result metric.Float64ObserverResult) {
-		result.Observe(1, label.String("A", "B"))
-		result.Observe(2, label.String("A", "B"))
-		result.Observe(1, label.String("C", "D"))
+		result.Observe(float64(mult), label.String("A", "B"))
+		result.Observe(float64(2*mult), label.String("A", "B"))
+		result.Observe(float64(mult), label.String("C", "D"))
 	})
 	_ = Must(meter).NewInt64SumObserver("int.sumobserver.sum", func(_ context.Context, result metric.Int64ObserverResult) {
-		result.Observe(2, label.String("A", "B"))
-		result.Observe(1)
+		result.Observe(int64(2*mult), label.String("A", "B"))
+		result.Observe(int64(mult))
 		// last value wins
-		result.Observe(1, label.String("A", "B"))
-		result.Observe(1)
+		result.Observe(int64(mult), label.String("A", "B"))
+		result.Observe(int64(mult))
 	})
 
 	_ = Must(meter).NewFloat64UpDownSumObserver("float.updownsumobserver.sum", func(_ context.Context, result metric.Float64ObserverResult) {
-		result.Observe(1, label.String("A", "B"))
-		result.Observe(-2, label.String("A", "B"))
-		result.Observe(1, label.String("C", "D"))
+		result.Observe(float64(mult), label.String("A", "B"))
+		result.Observe(float64(-2*mult), label.String("A", "B"))
+		result.Observe(float64(mult), label.String("C", "D"))
 	})
 	_ = Must(meter).NewInt64UpDownSumObserver("int.updownsumobserver.sum", func(_ context.Context, result metric.Int64ObserverResult) {
-		result.Observe(2, label.String("A", "B"))
-		result.Observe(1)
+		result.Observe(int64(2*mult), label.String("A", "B"))
+		result.Observe(int64(mult))
 		// last value wins
-		result.Observe(1, label.String("A", "B"))
-		result.Observe(-1)
+		result.Observe(int64(mult), label.String("A", "B"))
+		result.Observe(int64(-mult))
 	})
 
 	_ = Must(meter).NewInt64ValueObserver("empty.valueobserver.sum", func(_ context.Context, result metric.Int64ObserverResult) {
 	})
 
-	collected := sdk.Collect(ctx)
+	for mult = 0; mult < 3; mult++ {
+		processor.accumulations = nil
 
-	require.Equal(t, collected, len(processor.accumulations))
+		collected := sdk.Collect(ctx)
+		require.Equal(t, collected, len(processor.accumulations))
 
-	out := processortest.NewOutput(label.DefaultEncoder())
-	for _, rec := range processor.accumulations {
-		require.NoError(t, out.AddAccumulation(rec))
+		out := processortest.NewOutput(label.DefaultEncoder())
+		for _, rec := range processor.accumulations {
+			require.NoError(t, out.AddAccumulation(rec))
+		}
+		mult := float64(mult)
+		require.EqualValues(t, map[string]float64{
+			"float.valueobserver.lastvalue/A=B/R=V": -mult,
+			"float.valueobserver.lastvalue/C=D/R=V": -mult,
+			"int.valueobserver.lastvalue//R=V":      mult,
+			"int.valueobserver.lastvalue/A=B/R=V":   mult,
+
+			"float.sumobserver.sum/A=B/R=V": 2 * mult,
+			"float.sumobserver.sum/C=D/R=V": mult,
+			"int.sumobserver.sum//R=V":      mult,
+			"int.sumobserver.sum/A=B/R=V":   mult,
+
+			"float.updownsumobserver.sum/A=B/R=V": -2 * mult,
+			"float.updownsumobserver.sum/C=D/R=V": mult,
+			"int.updownsumobserver.sum//R=V":      -mult,
+			"int.updownsumobserver.sum/A=B/R=V":   mult,
+		}, out.Map())
 	}
-	require.EqualValues(t, map[string]float64{
-		"float.valueobserver.lastvalue/A=B/R=V": -1,
-		"float.valueobserver.lastvalue/C=D/R=V": -1,
-		"int.valueobserver.lastvalue//R=V":      1,
-		"int.valueobserver.lastvalue/A=B/R=V":   1,
-
-		"float.sumobserver.sum/A=B/R=V": 2,
-		"float.sumobserver.sum/C=D/R=V": 1,
-		"int.sumobserver.sum//R=V":      1,
-		"int.sumobserver.sum/A=B/R=V":   1,
-
-		"float.updownsumobserver.sum/A=B/R=V": -2,
-		"float.updownsumobserver.sum/C=D/R=V": 1,
-		"int.updownsumobserver.sum//R=V":      -1,
-		"int.updownsumobserver.sum/A=B/R=V":   1,
-	}, out.Map())
 }
 
 func TestSumObserverInputRange(t *testing.T) {

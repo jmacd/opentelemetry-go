@@ -38,7 +38,17 @@ updates:
       interval: weekly
   -
     package-ecosystem: gomod
-    directory: /example/basic
+    directory: /bridge/opencensus
+    labels:
+      - dependencies
+      - go
+      - "Skip Changelog"
+    schedule:
+      day: sunday
+      interval: weekly
+  -
+    package-ecosystem: gomod
+    directory: /example/prom-collector
     labels:
       - dependencies
       - go
@@ -59,6 +69,16 @@ updates:
   -
     package-ecosystem: gomod
     directory: /example/namedtracer
+    labels:
+      - dependencies
+      - go
+      - "Skip Changelog"
+    schedule:
+      day: sunday
+      interval: weekly
+  -
+    package-ecosystem: gomod
+    directory: /example/opencensus
     labels:
       - dependencies
       - go

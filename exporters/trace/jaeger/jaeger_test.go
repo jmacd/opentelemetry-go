@@ -27,18 +27,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/support/bundler"
-	"google.golang.org/grpc/codes"
 
-	"go.opentelemetry.io/otel/api/global"
-	"go.opentelemetry.io/otel/api/trace"
-	apitrace "go.opentelemetry.io/otel/api/trace"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	gen "go.opentelemetry.io/otel/exporters/trace/jaeger/internal/gen-go/jaeger"
-	ottest "go.opentelemetry.io/otel/internal/testing"
+	ottest "go.opentelemetry.io/otel/internal/internaltest"
 	"go.opentelemetry.io/otel/label"
 	export "go.opentelemetry.io/otel/sdk/export/trace"
 	"go.opentelemetry.io/otel/sdk/instrumentation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -69,7 +68,7 @@ func TestInstallNewPipeline(t *testing.T) {
 			options: []Option{
 				WithDisabled(true),
 			},
-			expectedProvider: apitrace.NoopTracerProvider(),
+			expectedProvider: trace.NewNoopTracerProvider(),
 		},
 	}
 
@@ -82,9 +81,9 @@ func TestInstallNewPipeline(t *testing.T) {
 			defer fn()
 
 			assert.NoError(t, err)
-			assert.IsType(t, tc.expectedProvider, global.TracerProvider())
+			assert.IsType(t, tc.expectedProvider, otel.GetTracerProvider())
 
-			global.SetTracerProvider(nil)
+			otel.SetTracerProvider(nil)
 		})
 	}
 }
@@ -108,7 +107,7 @@ func TestNewExportPipeline(t *testing.T) {
 			options: []Option{
 				WithDisabled(true),
 			},
-			expectedProviderType: apitrace.NoopTracerProvider(),
+			expectedProviderType: trace.NewNoopTracerProvider(),
 		},
 		{
 			name:     "always on",
@@ -145,7 +144,7 @@ func TestNewExportPipeline(t *testing.T) {
 			defer fn()
 
 			assert.NoError(t, err)
-			assert.NotEqual(t, tp, global.TracerProvider())
+			assert.NotEqual(t, tp, otel.GetTracerProvider())
 			assert.IsType(t, tc.expectedProviderType, tp)
 
 			if tc.testSpanSampling {
@@ -173,7 +172,7 @@ func TestNewExportPipelineWithDisabledFromEnv(t *testing.T) {
 	)
 	defer fn()
 	assert.NoError(t, err)
-	assert.IsType(t, apitrace.NoopTracerProvider(), tp)
+	assert.IsType(t, trace.NewNoopTracerProvider(), tp)
 }
 
 func TestNewRawExporter(t *testing.T) {
@@ -343,8 +342,8 @@ func TestExporter_ExportSpan(t *testing.T) {
 		sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
 		sdktrace.WithSyncer(exp),
 	)
-	global.SetTracerProvider(tp)
-	_, span := global.Tracer("test-tracer").Start(context.Background(), "test-span")
+	otel.SetTracerProvider(tp)
+	_, span := otel.Tracer("test-tracer").Start(context.Background(), "test-span")
 	span.End()
 
 	assert.True(t, span.SpanContext().IsValid())
@@ -354,17 +353,17 @@ func TestExporter_ExportSpan(t *testing.T) {
 	assert.True(t, len(tc.spansUploaded) == 1)
 }
 
-func Test_spanDataToThrift(t *testing.T) {
+func Test_spanSnapshotToThrift(t *testing.T) {
 	now := time.Now()
-	traceID, _ := apitrace.IDFromHex("0102030405060708090a0b0c0d0e0f10")
-	spanID, _ := apitrace.SpanIDFromHex("0102030405060708")
+	traceID, _ := trace.TraceIDFromHex("0102030405060708090a0b0c0d0e0f10")
+	spanID, _ := trace.SpanIDFromHex("0102030405060708")
 
-	linkTraceID, _ := apitrace.IDFromHex("0102030405060709090a0b0c0d0e0f11")
-	linkSpanID, _ := apitrace.SpanIDFromHex("0102030405060709")
+	linkTraceID, _ := trace.TraceIDFromHex("0102030405060709090a0b0c0d0e0f11")
+	linkSpanID, _ := trace.SpanIDFromHex("0102030405060709")
 
 	eventNameValue := "event-test"
 	keyValue := "value"
-	statusCodeValue := int64(2)
+	statusCodeValue := int64(1)
 	doubleValue := 123.456
 	uintValue := int64(123)
 	boolTrue := true
@@ -377,22 +376,22 @@ func Test_spanDataToThrift(t *testing.T) {
 
 	tests := []struct {
 		name string
-		data *export.SpanData
+		data *export.SpanSnapshot
 		want *gen.Span
 	}{
 		{
 			name: "no parent",
-			data: &export.SpanData{
-				SpanContext: apitrace.SpanContext{
+			data: &export.SpanSnapshot{
+				SpanContext: trace.SpanContext{
 					TraceID: traceID,
 					SpanID:  spanID,
 				},
 				Name:      "/foo",
 				StartTime: now,
 				EndTime:   now,
-				Links: []apitrace.Link{
+				Links: []trace.Link{
 					{
-						SpanContext: apitrace.SpanContext{
+						SpanContext: trace.SpanContext{
 							TraceID: linkTraceID,
 							SpanID:  linkSpanID,
 						},
@@ -404,13 +403,13 @@ func Test_spanDataToThrift(t *testing.T) {
 					label.Uint64("uint", uint64(uintValue)),
 					label.Uint64("overflows", math.MaxUint64),
 				},
-				MessageEvents: []export.Event{
+				MessageEvents: []trace.Event{
 					{Name: eventNameValue, Attributes: []label.KeyValue{label.String("k1", keyValue)}, Time: now},
 				},
-				StatusCode:    codes.Unknown,
+				StatusCode:    codes.Error,
 				StatusMessage: statusMessage,
-				SpanKind:      apitrace.SpanKindClient,
-				Resource:      resource.New(label.String("rk1", rv1), label.Int64("rk2", rv2)),
+				SpanKind:      trace.SpanKindClient,
+				Resource:      resource.NewWithAttributes(label.String("rk1", rv1), label.Int64("rk2", rv2)),
 				InstrumentationLibrary: instrumentation.Library{
 					Name:    instrLibName,
 					Version: instrLibVersion,
@@ -466,7 +465,7 @@ func Test_spanDataToThrift(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := spanDataToThrift(tt.data)
+			got := spanSnapshotToThrift(tt.data)
 			sort.Slice(got.Tags, func(i, j int) bool {
 				return got.Tags[i].Key < got.Tags[j].Key
 			})

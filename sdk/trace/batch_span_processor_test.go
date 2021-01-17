@@ -21,29 +21,36 @@ import (
 	"testing"
 	"time"
 
-	apitrace "go.opentelemetry.io/otel/api/trace"
+	"github.com/stretchr/testify/assert"
+
+	"go.opentelemetry.io/otel/trace"
+
 	export "go.opentelemetry.io/otel/sdk/export/trace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 type testBatchExporter struct {
-	mu         sync.Mutex
-	spans      []*export.SpanData
-	sizes      []int
-	batchCount int
+	mu            sync.Mutex
+	spans         []*export.SpanSnapshot
+	sizes         []int
+	batchCount    int
+	shutdownCount int
 }
 
-func (t *testBatchExporter) ExportSpans(ctx context.Context, sds []*export.SpanData) error {
+func (t *testBatchExporter) ExportSpans(ctx context.Context, ss []*export.SpanSnapshot) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.spans = append(t.spans, sds...)
-	t.sizes = append(t.sizes, len(sds))
+	t.spans = append(t.spans, ss...)
+	t.sizes = append(t.sizes, len(ss))
 	t.batchCount++
 	return nil
 }
 
-func (t *testBatchExporter) Shutdown(context.Context) error { return nil }
+func (t *testBatchExporter) Shutdown(context.Context) error {
+	t.shutdownCount++
+	return nil
+}
 
 func (t *testBatchExporter) len() int {
 	t.mu.Lock()
@@ -60,12 +67,22 @@ func (t *testBatchExporter) getBatchCount() int {
 var _ export.SpanExporter = (*testBatchExporter)(nil)
 
 func TestNewBatchSpanProcessorWithNilExporter(t *testing.T) {
+	tp := basicTracerProvider(t)
 	bsp := sdktrace.NewBatchSpanProcessor(nil)
+	tp.RegisterSpanProcessor(bsp)
+	tr := tp.Tracer("NilExporter")
+
+	_, span := tr.Start(context.Background(), "foo")
+	span.End()
+
 	// These should not panic.
-	bsp.OnStart(&export.SpanData{})
-	bsp.OnEnd(&export.SpanData{})
+	bsp.OnStart(context.Background(), span.(sdktrace.ReadWriteSpan))
+	bsp.OnEnd(span.(sdktrace.ReadOnlySpan))
 	bsp.ForceFlush()
-	bsp.Shutdown()
+	err := bsp.Shutdown(context.Background())
+	if err != nil {
+		t.Error("Error shutting the BatchSpanProcessor down\n")
+	}
 }
 
 type testOption struct {
@@ -187,15 +204,15 @@ func createAndRegisterBatchSP(option testOption, te *testBatchExporter) *sdktrac
 	return sdktrace.NewBatchSpanProcessor(te, options...)
 }
 
-func generateSpan(t *testing.T, parallel bool, tr apitrace.Tracer, option testOption) {
+func generateSpan(t *testing.T, parallel bool, tr trace.Tracer, option testOption) {
 	sc := getSpanContext()
 
 	wg := &sync.WaitGroup{}
 	for i := 0; i < option.genNumSpans; i++ {
 		binary.BigEndian.PutUint64(sc.TraceID[0:8], uint64(i+1))
 		wg.Add(1)
-		f := func(sc apitrace.SpanContext) {
-			ctx := apitrace.ContextWithRemoteSpanContext(context.Background(), sc)
+		f := func(sc trace.SpanContext) {
+			ctx := trace.ContextWithRemoteSpanContext(context.Background(), sc)
 			_, span := tr.Start(ctx, option.name)
 			span.End()
 			wg.Done()
@@ -209,10 +226,10 @@ func generateSpan(t *testing.T, parallel bool, tr apitrace.Tracer, option testOp
 	wg.Wait()
 }
 
-func getSpanContext() apitrace.SpanContext {
-	tid, _ := apitrace.IDFromHex("01020304050607080102040810203040")
-	sid, _ := apitrace.SpanIDFromHex("0102040810203040")
-	return apitrace.SpanContext{
+func getSpanContext() trace.SpanContext {
+	tid, _ := trace.TraceIDFromHex("01020304050607080102040810203040")
+	sid, _ := trace.SpanIDFromHex("0102040810203040")
+	return trace.SpanContext{
 		TraceID:    tid,
 		SpanID:     sid,
 		TraceFlags: 0x1,
@@ -220,10 +237,19 @@ func getSpanContext() apitrace.SpanContext {
 }
 
 func TestBatchSpanProcessorShutdown(t *testing.T) {
-	bsp := sdktrace.NewBatchSpanProcessor(&testBatchExporter{})
+	var bp testBatchExporter
+	bsp := sdktrace.NewBatchSpanProcessor(&bp)
 
-	bsp.Shutdown()
+	err := bsp.Shutdown(context.Background())
+	if err != nil {
+		t.Error("Error shutting the BatchSpanProcessor down\n")
+	}
+	assert.Equal(t, 1, bp.shutdownCount, "shutdown from span exporter not called")
 
 	// Multiple call to Shutdown() should not panic.
-	bsp.Shutdown()
+	err = bsp.Shutdown(context.Background())
+	if err != nil {
+		t.Error("Error shutting the BatchSpanProcessor down\n")
+	}
+	assert.Equal(t, 1, bp.shutdownCount)
 }

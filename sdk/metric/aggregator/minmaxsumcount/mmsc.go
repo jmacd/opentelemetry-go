@@ -18,7 +18,8 @@ import (
 	"context"
 	"sync"
 
-	"go.opentelemetry.io/otel/api/metric"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/number"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/export/metric/aggregation"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator"
@@ -29,15 +30,15 @@ type (
 	// keeping only the min, max, sum, and count.
 	Aggregator struct {
 		lock sync.Mutex
-		kind metric.NumberKind
+		kind number.Kind
 		state
 	}
 
 	state struct {
-		sum   metric.Number
-		min   metric.Number
-		max   metric.Number
-		count int64
+		sum   number.Number
+		min   number.Number
+		max   number.Number
+		count uint64
 	}
 )
 
@@ -45,8 +46,7 @@ var _ export.Aggregator = &Aggregator{}
 var _ aggregation.MinMaxSumCount = &Aggregator{}
 
 // New returns a new aggregator for computing the min, max, sum, and
-// count.  It does not compute quantile information other than Min and
-// Max.
+// count.
 //
 // This type uses a mutex for Update() and SynchronizedMove() concurrency.
 func New(cnt int, desc *metric.Descriptor) []Aggregator {
@@ -72,19 +72,19 @@ func (c *Aggregator) Kind() aggregation.Kind {
 }
 
 // Sum returns the sum of values in the checkpoint.
-func (c *Aggregator) Sum() (metric.Number, error) {
+func (c *Aggregator) Sum() (number.Number, error) {
 	return c.sum, nil
 }
 
 // Count returns the number of values in the checkpoint.
-func (c *Aggregator) Count() (int64, error) {
+func (c *Aggregator) Count() (uint64, error) {
 	return c.count, nil
 }
 
 // Min returns the minimum value in the checkpoint.
 // The error value aggregation.ErrNoData will be returned
 // if there were no measurements recorded during the checkpoint.
-func (c *Aggregator) Min() (metric.Number, error) {
+func (c *Aggregator) Min() (number.Number, error) {
 	if c.count == 0 {
 		return 0, aggregation.ErrNoData
 	}
@@ -94,7 +94,7 @@ func (c *Aggregator) Min() (metric.Number, error) {
 // Max returns the maximum value in the checkpoint.
 // The error value aggregation.ErrNoData will be returned
 // if there were no measurements recorded during the checkpoint.
-func (c *Aggregator) Max() (metric.Number, error) {
+func (c *Aggregator) Max() (number.Number, error) {
 	if c.count == 0 {
 		return 0, aggregation.ErrNoData
 	}
@@ -105,21 +105,21 @@ func (c *Aggregator) Max() (metric.Number, error) {
 // the empty set.
 func (c *Aggregator) SynchronizedMove(oa export.Aggregator, desc *metric.Descriptor) error {
 	o, _ := oa.(*Aggregator)
-	if o == nil {
+
+	if oa != nil && o == nil {
 		return aggregator.NewInconsistentAggregatorError(c, oa)
 	}
-
-	// TODO: It is incorrect to use an Aggregator of different
-	// kind. Should we test that o.kind == c.kind?  (The same question
-	// occurs for several of the other aggregators in ../*.)
 	c.lock.Lock()
-	o.state, c.state = c.state, emptyState(c.kind)
+	if o != nil {
+		o.state = c.state
+	}
+	c.state = emptyState(c.kind)
 	c.lock.Unlock()
 
 	return nil
 }
 
-func emptyState(kind metric.NumberKind) state {
+func emptyState(kind number.Kind) state {
 	return state{
 		count: 0,
 		sum:   0,
@@ -129,7 +129,7 @@ func emptyState(kind metric.NumberKind) state {
 }
 
 // Update adds the recorded measurement to the current data set.
-func (c *Aggregator) Update(_ context.Context, number metric.Number, desc *metric.Descriptor) error {
+func (c *Aggregator) Update(_ context.Context, number number.Number, desc *metric.Descriptor) error {
 	kind := desc.NumberKind()
 
 	c.lock.Lock()

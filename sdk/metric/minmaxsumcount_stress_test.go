@@ -20,12 +20,13 @@ import (
 	"testing"
 	"time"
 
-	"go.opentelemetry.io/otel/api/metric"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/number"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/minmaxsumcount"
 )
 
 func TestStressInt64MinMaxSumCount(t *testing.T) {
-	desc := metric.NewDescriptor("some_metric", metric.ValueRecorderKind, metric.Int64NumberKind)
+	desc := metric.NewDescriptor("some_metric", metric.ValueRecorderInstrumentKind, number.Int64Kind)
 	alloc := minmaxsumcount.New(2, &desc)
 	mmsc, ckpt := &alloc[0], &alloc[1]
 
@@ -39,7 +40,7 @@ func TestStressInt64MinMaxSumCount(t *testing.T) {
 			case <-ctx.Done():
 				return
 			default:
-				_ = mmsc.Update(ctx, metric.NewInt64Number(v), &desc)
+				_ = mmsc.Update(ctx, number.NewInt64Number(v), &desc)
 			}
 			v++
 		}
@@ -62,7 +63,7 @@ func TestStressInt64MinMaxSumCount(t *testing.T) {
 			}
 			lo, hi, sum := min.AsInt64(), max.AsInt64(), s.AsInt64()
 
-			if hi-lo+1 != c {
+			if uint64(hi-lo)+1 != c {
 				t.Fail()
 			}
 			if c == 1 {
