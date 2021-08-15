@@ -8,7 +8,7 @@ require (
 	github.com/golangci/golangci-lint v1.41.1
 	github.com/itchyny/gojq v0.12.4
 	github.com/spf13/pflag v1.0.5
-	golang.org/x/mod v0.4.2
+	golang.org/x/mod v0.5.0
 	golang.org/x/tools v0.1.5
 )
 
