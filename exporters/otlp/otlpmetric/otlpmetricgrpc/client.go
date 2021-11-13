@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"google.golang.org/grpc"
+	grpcMetadata "google.golang.org/grpc/metadata"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/internal/connection"
@@ -95,9 +96,11 @@ func (c *client) UploadMetrics(ctx context.Context, protoMetrics []*metricpb.Res
 		}
 
 		return c.connection.DoRequest(ctx, func(ctx context.Context) error {
+			var md grpcMetadata.MD
 			_, err := c.metricsClient.Export(ctx, &colmetricpb.ExportMetricsServiceRequest{
 				ResourceMetrics: protoMetrics,
-			})
+			}, grpc.Trailer(&md))
+			fmt.Println("OTel-Go response trailers:", md)
 			return err
 		})
 	}()
