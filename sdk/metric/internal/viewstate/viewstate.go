@@ -13,7 +13,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/lastvalue"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/sum"
 	"go.opentelemetry.io/otel/sdk/metric/number"
-	"go.opentelemetry.io/otel/sdk/metric/number/traits"
 	"go.opentelemetry.io/otel/sdk/metric/reader"
 	"go.opentelemetry.io/otel/sdk/metric/sdkapi"
 	"go.opentelemetry.io/otel/sdk/metric/views"
@@ -233,9 +232,9 @@ func (v *Compiler) Compile(instrument sdkapi.Descriptor) Instrument {
 			var one Instrument
 			switch config.desc.NumberKind() {
 			case number.Int64Kind:
-				one = buildView[int64, traits.Int64](config)
+				one = buildView[int64](config)
 			case number.Float64Kind:
-				one = buildView[float64, traits.Float64](config)
+				one = buildView[float64](config)
 			}
 
 			compiled[r] = append(compiled[r], one)
@@ -290,11 +289,11 @@ func histogramDefaultsFor(kind number.Kind) histogram.Defaults {
 	return histogram.Float64Defaults{}
 }
 
-func buildView[N number.Any, Traits traits.Any[N]](config configuredBehavior) Instrument {
+func buildView[N number.Any](config configuredBehavior) Instrument {
 	if config.desc.InstrumentKind().Synchronous() {
-		return compileSync[N, Traits](config)
+		return compileSync[N](config)
 	}
-	return compileAsync[N, Traits](config)
+	return compileAsync[N](config)
 }
 
 func newSyncView[
@@ -354,54 +353,54 @@ func newAsyncView[
 	}
 }
 
-func compileSync[N number.Any, Traits traits.Any[N]](config configuredBehavior) Instrument {
+func compileSync[N number.Any](config configuredBehavior) Instrument {
 	switch config.settings.kind {
 	case aggregation.LastValueKind:
 		return newSyncView[
 			N,
-			lastvalue.State[N, Traits],
+			lastvalue.State[N],
 			lastvalue.Config,
-			lastvalue.Methods[N, Traits, lastvalue.State[N, Traits]],
+			lastvalue.Methods[N, lastvalue.State[N]],
 		](config, &config.settings.lvcfg)
 	case aggregation.HistogramKind:
 		return newSyncView[
 			N,
-			histogram.State[N, Traits],
+			histogram.State[N],
 			histogram.Config,
-			histogram.Methods[N, Traits, histogram.State[N, Traits]],
+			histogram.Methods[N, histogram.State[N]],
 		](config, &config.settings.hcfg)
 	default:
 		return newSyncView[
 			N,
-			sum.State[N, Traits],
+			sum.State[N],
 			sum.Config,
-			sum.Methods[N, Traits, sum.State[N, Traits]],
+			sum.Methods[N, sum.State[N]],
 		](config, &config.settings.scfg)
 	}
 }
 
-func compileAsync[N number.Any, Traits traits.Any[N]](config configuredBehavior) Instrument {
+func compileAsync[N number.Any](config configuredBehavior) Instrument {
 	switch config.settings.kind {
 	case aggregation.LastValueKind:
 		return newAsyncView[
 			N,
-			lastvalue.State[N, Traits],
+			lastvalue.State[N],
 			lastvalue.Config,
-			lastvalue.Methods[N, Traits, lastvalue.State[N, Traits]],
+			lastvalue.Methods[N, lastvalue.State[N]],
 		](config, &config.settings.lvcfg)
 	case aggregation.HistogramKind:
 		return newAsyncView[
 			N,
-			histogram.State[N, Traits],
+			histogram.State[N],
 			histogram.Config,
-			histogram.Methods[N, Traits, histogram.State[N, Traits]],
+			histogram.Methods[N, histogram.State[N]],
 		](config, &config.settings.hcfg)
 	default:
 		return newAsyncView[
 			N,
-			sum.State[N, Traits],
+			sum.State[N],
 			sum.Config,
-			sum.Methods[N, Traits, sum.State[N, Traits]],
+			sum.Methods[N, sum.State[N]],
 		](config, &config.settings.scfg)
 	}
 }

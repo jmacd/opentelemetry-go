@@ -19,10 +19,9 @@ import (
 	"sort"
 	"sync"
 
-	"go.opentelemetry.io/otel/sdk/metric/aggregator"
 	"go.opentelemetry.io/otel/sdk/metric/aggregation"
+	"go.opentelemetry.io/otel/sdk/metric/aggregator"
 	"go.opentelemetry.io/otel/sdk/metric/number"
-	"go.opentelemetry.io/otel/sdk/metric/number/traits"
 )
 
 var ErrNoSubtract = fmt.Errorf("histogram subtract not implemented")
@@ -40,8 +39,8 @@ type (
 	Int64Defaults   struct{}
 	Float64Defaults struct{}
 
-	State[N number.Any, Traits traits.Any[N]] struct {
-		boundaries   []float64
+	State[N number.Any] struct {
+		boundaries []float64
 
 		lock         sync.Mutex
 		bucketCounts []uint64
@@ -60,15 +59,15 @@ type (
 		apply(*Config)
 	}
 
-	Methods[N number.Any, Traits traits.Any[N], Storage State[N, Traits]] struct{}
+	Methods[N number.Any, Storage State[N]] struct{}
 )
 
 var (
-	_ aggregator.Methods[int64, State[int64, traits.Int64], Config] = Methods[int64, traits.Int64, State[int64, traits.Int64]]{}
-	_ aggregator.Methods[float64, State[float64, traits.Float64], Config] = Methods[float64, traits.Float64, State[float64, traits.Float64]]{}
+	_ aggregator.Methods[int64, State[int64], Config]     = Methods[int64, State[int64]]{}
+	_ aggregator.Methods[float64, State[float64], Config] = Methods[float64, State[float64]]{}
 
-	_ aggregation.Histogram = &State[int64, traits.Int64]{}
-	_ aggregation.Histogram = &State[float64, traits.Float64]{}
+	_ aggregation.Histogram = &State[int64]{}
+	_ aggregation.Histogram = &State[float64]{}
 )
 
 // WithExplicitBoundaries sets the ExplicitBoundaries configuration option of a config.
@@ -131,20 +130,19 @@ func NewConfig(def Defaults, opts ...Option) Config {
 	return cfg
 }
 
-func (h *State[N, Traits]) Sum() (number.Number, error) {
+func (h *State[N]) Sum() (number.Number, error) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	var traits Traits
-	return traits.ToNumber(h.sum), nil
+	return number.ToNumber(h.sum), nil
 }
 
-func (h *State[N, Traits]) Count() (uint64, error) {
+func (h *State[N]) Count() (uint64, error) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	return h.count, nil
 }
 
-func (h *State[N, Traits]) Histogram() (aggregation.Buckets, error) {
+func (h *State[N]) Histogram() (aggregation.Buckets, error) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	return aggregation.Buckets{
@@ -153,12 +151,11 @@ func (h *State[N, Traits]) Histogram() (aggregation.Buckets, error) {
 	}, nil
 }
 
-func (h *State[N, Traits]) Kind() aggregation.Kind {
+func (h *State[N]) Kind() aggregation.Kind {
 	return aggregation.LastValueKind
 }
 
-
-func (h *State[N, Traits]) clearState() {
+func (h *State[N]) clearState() {
 	for i := range h.bucketCounts {
 		h.bucketCounts[i] = 0
 	}
@@ -166,12 +163,12 @@ func (h *State[N, Traits]) clearState() {
 	h.count = 0
 }
 
-func (Methods[N, Traits, Storage]) Init(state *State[N, Traits], cfg Config) {
+func (Methods[N, Storage]) Init(state *State[N], cfg Config) {
 	state.boundaries = cfg.explicitBoundaries
 	state.bucketCounts = make([]uint64, len(state.boundaries)+1)
 }
 
-func (Methods[N, Traits, Storage]) SynchronizedMove(resetSrc, dest *State[N, Traits]) {
+func (Methods[N, Storage]) SynchronizedMove(resetSrc, dest *State[N]) {
 	if dest != nil {
 		// Swap case: This is the ordinary case for a
 		// synchronous instrument, where the SDK allocates two
@@ -180,7 +177,7 @@ func (Methods[N, Traits, Storage]) SynchronizedMove(resetSrc, dest *State[N, Tra
 		// lock below.
 		dest.clearState()
 	}
-	
+
 	resetSrc.lock.Lock()
 	defer resetSrc.lock.Unlock()
 	if dest != nil {
@@ -197,7 +194,7 @@ func (Methods[N, Traits, Storage]) SynchronizedMove(resetSrc, dest *State[N, Tra
 }
 
 // Update adds the recorded measurement to the current data set.
-func (Methods[N, Traits, Storage]) Update(state *State[N, Traits], number N) {
+func (Methods[N, Storage]) Update(state *State[N], number N) {
 	asFloat := float64(number)
 
 	bucketID := len(state.boundaries)
@@ -228,7 +225,7 @@ func (Methods[N, Traits, Storage]) Update(state *State[N, Traits], number N) {
 }
 
 // Merge combines two histograms that have the same buckets into a single one.
-func (Methods[N, Traits, Storage]) Merge(to, from *State[N, Traits]) {
+func (Methods[N, Storage]) Merge(to, from *State[N]) {
 	to.sum += from.sum
 	to.count += from.count
 
@@ -237,15 +234,15 @@ func (Methods[N, Traits, Storage]) Merge(to, from *State[N, Traits]) {
 	}
 }
 
-func (Methods[N, Traits, Storage]) Aggregation(state *State[N, Traits]) aggregation.Aggregation {
+func (Methods[N, Storage]) Aggregation(state *State[N]) aggregation.Aggregation {
 	return state
 }
 
-func (Methods[N, Traits, Storage]) Storage(aggr aggregation.Aggregation) *State[N, Traits] {
-	return aggr.(*State[N, Traits])
+func (Methods[N, Storage]) Storage(aggr aggregation.Aggregation) *State[N] {
+	return aggr.(*State[N])
 }
 
-func (Methods[N, Traits, Storage]) Subtract(valueToModify, operand *State[N, Traits]) error {
+func (Methods[N, Storage]) Subtract(valueToModify, operand *State[N]) error {
 	// This is because asynchronous histograms are not included in the data model.
 	return ErrNoSubtract
 }

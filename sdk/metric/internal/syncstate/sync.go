@@ -29,7 +29,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/aggregator"
 	"go.opentelemetry.io/otel/sdk/metric/internal/viewstate"
 	"go.opentelemetry.io/otel/sdk/metric/number"
-	"go.opentelemetry.io/otel/sdk/metric/number/traits"
 	"go.opentelemetry.io/otel/sdk/metric/sdkapi"
 )
 
@@ -66,22 +65,22 @@ type (
 		accumulator viewstate.Accumulator
 	}
 
-	counter[N number.Any, Traits traits.Any[N]] struct {
+	counter[N number.Any] struct {
 		*Instrument
 	}
 
-	histogram[N number.Any, Traits traits.Any[N]] struct {
+	histogram[N number.Any] struct {
 		*Instrument
 	}
 )
 
 var (
-	_ syncint64.Counter         = counter[int64, traits.Int64]{}
-	_ syncint64.UpDownCounter   = counter[int64, traits.Int64]{}
-	_ syncint64.Histogram       = histogram[int64, traits.Int64]{}
-	_ syncfloat64.Counter       = counter[float64, traits.Float64]{}
-	_ syncfloat64.UpDownCounter = counter[float64, traits.Float64]{}
-	_ syncfloat64.Histogram     = histogram[float64, traits.Float64]{}
+	_ syncint64.Counter         = counter[int64]{}
+	_ syncint64.UpDownCounter   = counter[int64]{}
+	_ syncint64.Histogram       = histogram[int64]{}
+	_ syncfloat64.Counter       = counter[float64]{}
+	_ syncfloat64.UpDownCounter = counter[float64]{}
+	_ syncfloat64.Histogram     = histogram[float64]{}
 )
 
 func NewInstrument(desc sdkapi.Descriptor, compiled viewstate.Instrument) *Instrument {
@@ -95,23 +94,23 @@ func (inst *Instrument) Descriptor() sdkapi.Descriptor {
 	return inst.descriptor
 }
 
-func NewCounter[N number.Any, Traits traits.Any[N]](inst *Instrument) counter[N, Traits] {
-	return counter[N, Traits]{Instrument: inst}
+func NewCounter[N number.Any](inst *Instrument) counter[N] {
+	return counter[N]{Instrument: inst}
 }
 
-func NewHistogram[N number.Any, Traits traits.Any[N]](inst *Instrument) histogram[N, Traits] {
-	return histogram[N, Traits]{Instrument: inst}
+func NewHistogram[N number.Any](inst *Instrument) histogram[N] {
+	return histogram[N]{Instrument: inst}
 }
 
-func (c counter[N, Traits]) Add(ctx context.Context, incr N, attrs ...attribute.KeyValue) {
+func (c counter[N]) Add(ctx context.Context, incr N, attrs ...attribute.KeyValue) {
 	if c.Instrument != nil {
-		capture[N, Traits](ctx, c.Instrument, incr, attrs)
+		capture(ctx, c.Instrument, incr, attrs)
 	}
 }
 
-func (h histogram[N, Traits]) Record(ctx context.Context, incr N, attrs ...attribute.KeyValue) {
+func (h histogram[N]) Record(ctx context.Context, incr N, attrs ...attribute.KeyValue) {
 	if h.Instrument != nil {
-		capture[N, Traits](ctx, h.Instrument, incr, attrs)
+		capture(ctx, h.Instrument, incr, attrs)
 	}
 }
 
@@ -186,13 +185,13 @@ func (h histogram[N, Traits]) Record(ctx context.Context, incr N, attrs ...attri
 // 	return 1
 // }
 
-func capture[N number.Any, Traits traits.Any[N]](_ context.Context, inst *Instrument, num N, attrs []attribute.KeyValue) {
+func capture[N number.Any](_ context.Context, inst *Instrument, num N, attrs []attribute.KeyValue) {
 	// TODO: Here, this is the place to use context, extract baggage.
 
 	rec, updater := acquireRecord[N](inst, attrs)
 	defer rec.refMapped.unref()
 
-	if err := aggregator.RangeTest[N, Traits](num, &rec.instrument.descriptor); err != nil {
+	if err := aggregator.RangeTest(num, &rec.instrument.descriptor); err != nil {
 		otel.Handle(err)
 		return
 	}

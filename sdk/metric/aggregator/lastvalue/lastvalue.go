@@ -19,20 +19,19 @@ import (
 	"sync"
 	"time"
 
-	"go.opentelemetry.io/otel/sdk/metric/aggregator"
 	"go.opentelemetry.io/otel/sdk/metric/aggregation"
+	"go.opentelemetry.io/otel/sdk/metric/aggregator"
 	"go.opentelemetry.io/otel/sdk/metric/number"
-	"go.opentelemetry.io/otel/sdk/metric/number/traits"
 )
 
 var ErrNoSubtract = fmt.Errorf("lastvalue subtract not implemented")
 
 type (
-	Config struct {}
+	Config struct{}
 
-	Methods[N number.Any, Traits traits.Any[N], Storage State[N, Traits]] struct {}
+	Methods[N number.Any, Storage State[N]] struct{}
 
-	State[N number.Any, Traits traits.Any[N]] struct {
+	State[N number.Any] struct {
 		lock      sync.Mutex
 		value     N
 		timestamp time.Time
@@ -40,36 +39,35 @@ type (
 )
 
 var (
-	_ aggregator.Methods[int64, State[int64, traits.Int64], Config] = Methods[int64, traits.Int64, State[int64, traits.Int64]]{}
-	_ aggregator.Methods[float64, State[float64, traits.Float64], Config] = Methods[float64, traits.Float64, State[float64, traits.Float64]]{}
+	_ aggregator.Methods[int64, State[int64], Config]     = Methods[int64, State[int64]]{}
+	_ aggregator.Methods[float64, State[float64], Config] = Methods[float64, State[float64]]{}
 
-	_ aggregation.LastValue = &State[int64, traits.Int64]{}
-	_ aggregation.LastValue = &State[float64, traits.Float64]{}
+	_ aggregation.LastValue = &State[int64]{}
+	_ aggregation.LastValue = &State[float64]{}
 )
 
 // LastValue returns the last-recorded lastValue value and the
 // corresponding timestamp.  The error value aggregation.ErrNoData
 // will be returned if (due to a race condition) the checkpoint was
 // computed before the first value was set.
-func (lv *State[N, Traits]) LastValue() (number.Number, time.Time, error) {
-	var traits Traits
+func (lv *State[N]) LastValue() (number.Number, time.Time, error) {
 	lv.lock.Lock()
 	defer lv.lock.Unlock()
 	if lv.timestamp.IsZero() {
 		return 0, time.Time{}, aggregation.ErrNoData
 	}
-	return traits.ToNumber(lv.value), lv.timestamp, nil
+	return number.ToNumber(lv.value), lv.timestamp, nil
 }
 
-func (lv *State[N, Traits]) Kind() aggregation.Kind {
+func (lv *State[N]) Kind() aggregation.Kind {
 	return aggregation.LastValueKind
 }
 
-func (Methods[N, Traits, Storage]) Init(state *State[N, Traits], _ Config) {
+func (Methods[N, Storage]) Init(state *State[N], _ Config) {
 	// Note: storage is zero to start
 }
 
-func (Methods[N, Traits, Storage]) SynchronizedMove(resetSrc, dest *State[N, Traits]) {
+func (Methods[N, Storage]) SynchronizedMove(resetSrc, dest *State[N]) {
 	resetSrc.lock.Lock()
 	defer resetSrc.lock.Unlock()
 
@@ -81,7 +79,7 @@ func (Methods[N, Traits, Storage]) SynchronizedMove(resetSrc, dest *State[N, Tra
 	resetSrc.timestamp = time.Time{}
 }
 
-func (Methods[N, Traits, Storage]) Update(state *State[N, Traits], number N) {
+func (Methods[N, Storage]) Update(state *State[N], number N) {
 	now := time.Now()
 
 	state.lock.Lock()
@@ -91,7 +89,7 @@ func (Methods[N, Traits, Storage]) Update(state *State[N, Traits], number N) {
 	state.timestamp = now
 }
 
-func (Methods[N, Traits, Storage]) Merge(to, from *State[N, Traits]) {
+func (Methods[N, Storage]) Merge(to, from *State[N]) {
 	if to.timestamp.After(from.timestamp) {
 		return
 	}
@@ -100,14 +98,14 @@ func (Methods[N, Traits, Storage]) Merge(to, from *State[N, Traits]) {
 	to.timestamp = from.timestamp
 }
 
-func (Methods[N, Traits, Storage]) Aggregation(state *State[N, Traits]) aggregation.Aggregation {
+func (Methods[N, Storage]) Aggregation(state *State[N]) aggregation.Aggregation {
 	return state
 }
 
-func (Methods[N, Traits, Storage]) Storage(aggr aggregation.Aggregation) *State[N, Traits] {
-	return aggr.(*State[N, Traits])
+func (Methods[N, Storage]) Storage(aggr aggregation.Aggregation) *State[N] {
+	return aggr.(*State[N])
 }
 
-func (Methods[N, Traits, Storage]) Subtract(valueToModify, operand *State[N, Traits]) error {
+func (Methods[N, Storage]) Subtract(valueToModify, operand *State[N]) error {
 	return ErrNoSubtract
 }

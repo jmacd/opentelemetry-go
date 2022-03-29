@@ -11,7 +11,6 @@ import (
 	apiInstrument "go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/sdk/metric/internal/viewstate"
 	"go.opentelemetry.io/otel/sdk/metric/number"
-	"go.opentelemetry.io/otel/sdk/metric/number/traits"
 	"go.opentelemetry.io/otel/sdk/metric/reader"
 	"go.opentelemetry.io/otel/sdk/metric/sdkapi"
 )
@@ -40,7 +39,7 @@ type (
 		*Callback
 	}
 
-	observer[N number.Any, Traits traits.Any[N]] struct {
+	observer[N number.Any] struct {
 		instrument.Asynchronous
 
 		inst *Instrument
@@ -57,8 +56,8 @@ func NewInstrument(desc sdkapi.Descriptor, compiled viewstate.Instrument) *Instr
 	}
 }
 
-func NewObserver[N number.Any, Traits traits.Any[N]](inst *Instrument) observer[N, Traits] {
-	return observer[N, Traits]{inst: inst}
+func NewObserver[N number.Any](inst *Instrument) observer[N] {
+	return observer[N]{inst: inst}
 }
 
 func (inst *Instrument) Descriptor() sdkapi.Descriptor {
@@ -101,7 +100,7 @@ func (inst *Instrument) Collect(r *reader.Reader, sequence reader.Sequence, outp
 	inst.compiled.Collect(r, sequence, output)
 }
 
-func (o observer[N, Traits]) Observe(ctx context.Context, value N, attrs ...attribute.KeyValue) {
+func (o observer[N]) Observe(ctx context.Context, value N, attrs ...attribute.KeyValue) {
 	if o.inst == nil {
 		return
 	}

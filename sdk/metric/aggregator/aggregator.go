@@ -17,7 +17,6 @@ package aggregator // import "go.opentelemetry.io/otel/sdk/metric/aggregator"
 import (
 	"go.opentelemetry.io/otel/sdk/metric/aggregation"
 	"go.opentelemetry.io/otel/sdk/metric/number"
-	"go.opentelemetry.io/otel/sdk/metric/number/traits"
 	"go.opentelemetry.io/otel/sdk/metric/sdkapi"
 )
 
@@ -25,14 +24,13 @@ import (
 // This rejects NaN and Inf values.  This rejects negative values when the
 // metric instrument does not support negative values, including
 // monotonic counter metrics and absolute Histogram metrics.
-func RangeTest[N number.Any, Traits traits.Any[N]](num N, desc *sdkapi.Descriptor) error {
-	var traits Traits
+func RangeTest[N number.Any](num N, desc *sdkapi.Descriptor) error {
 
-	if traits.IsInf(num) {
+	if number.IsInf(num) {
 		return aggregation.ErrInfInput
 	}
 
-	if traits.IsNaN(num) {
+	if number.IsNaN(num) {
 		return aggregation.ErrNaNInput
 	}
 

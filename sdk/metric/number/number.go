@@ -14,6 +14,12 @@
 
 package number
 
+import (
+	"math"
+	"sync/atomic"
+	"unsafe"
+)
+
 //go:generate stringer -type=Kind
 
 // Kind describes the data type of the Number.
@@ -33,4 +39,52 @@ type Number uint64
 // Any is any of the supported generic Number types.
 type Any interface {
 	int64 | float64
+}
+
+func ToNumber[N Any](value N) Number {
+	switch n := any(value).(type) {
+	case int64:
+		return Number(n)
+	case float64:
+		return Number(math.Float64bits(n))
+	}
+	return Number(0)
+}
+
+func SetAtomic[N Any](ptr *N, value N) {
+	switch v := any(value).(type) {
+	case int64:
+		p := any(ptr).(*int64)
+		atomic.StoreInt64(p, v)
+	case float64:
+		atomic.StoreUint64((*uint64)(unsafe.Pointer(ptr)), math.Float64bits(v))
+	}
+}
+func AddAtomic[N Any](ptr *N, value N) {
+	panic("here")
+}
+
+func SwapAtomic[N Any](ptr *N, value N) N {
+	switch v := any(value).(type) {
+	case int64:
+		p := any(ptr).(*int64)
+		return N(atomic.SwapInt64(p, v))
+	case float64:
+		return N(math.Float64frombits(atomic.SwapUint64((*uint64)(unsafe.Pointer(ptr)), math.Float64bits(v))))
+	}
+	return N(0)
+}
+func IsNaN[N Any](value N) bool {
+	switch n := any(value).(type) {
+	case float64:
+		return math.IsNaN(n)
+	}
+	return false
+}
+func IsInf[N Any](value N) bool {
+	switch n := any(value).(type) {
+	case float64:
+		return math.IsInf(n, 0)
+	}
+	return false
 }
