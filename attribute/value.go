@@ -17,6 +17,7 @@ package attribute // import "go.opentelemetry.io/otel/attribute"
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"go.opentelemetry.io/otel/internal"
@@ -66,11 +67,11 @@ func BoolValue(v bool) Value {
 
 // BoolSliceValue creates a BOOLSLICE Value.
 func BoolSliceValue(v []bool) Value {
-	cp := make([]bool, len(v))
-	copy(cp, v)
+	cp := reflect.New(reflect.ArrayOf(len(v), reflect.TypeOf(false)))
+	copy(cp.Elem().Slice(0, len(v)).Interface().([]bool), v)
 	return Value{
 		vtype: BOOLSLICE,
-		slice: &cp,
+		slice: cp.Elem().Interface(), // No longer a pointer
 	}
 }
 
@@ -159,10 +160,22 @@ func (v Value) AsBool() bool {
 // AsBoolSlice returns the []bool value. Make sure that the Value's type is
 // BOOLSLICE.
 func (v Value) AsBoolSlice() []bool {
-	if s, ok := v.slice.(*[]bool); ok {
-		return *s
+	rv := reflect.ValueOf(v.slice)
+	if rv.Type().Kind() != reflect.Array {
+		// it's not a slice
+		return nil
 	}
-	return nil
+	correctLen := rv.Len()
+	correctType := reflect.ArrayOf(correctLen, reflect.TypeOf(false))
+	if rv.Type() != correctType {
+		// it's a slice of the wrong kind
+		return nil
+	}
+	// we can't slice it yet, it's not addressable (by design,
+	// otherwise it wouldn't satisfy the requirements of Set).
+	cpy := reflect.New(correctType)
+	_ = reflect.Copy(cpy.Elem(), rv)
+	return cpy.Elem().Slice(0, correctLen).Interface().([]bool)
 }
 
 // AsInt64 returns the int64 value. Make sure that the Value's type is
