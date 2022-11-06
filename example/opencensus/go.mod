@@ -9,7 +9,7 @@ replace (
 )
 
 require (
-	go.opencensus.io v0.23.0
+	go.opencensus.io v0.24.0
 	go.opentelemetry.io/otel v1.10.0
 	go.opentelemetry.io/otel/bridge/opencensus v0.32.1
 	go.opentelemetry.io/otel/exporters/stdout/stdoutmetric v0.32.1
