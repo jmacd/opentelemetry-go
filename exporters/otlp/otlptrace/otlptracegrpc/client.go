@@ -210,7 +210,8 @@ func (c *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 			}
 		}
 		// nil is converted to OK.
-		if status.Code(err) == codes.OK {
+		code := status.Code(err)
+		if code == codes.OK {
 			// Success.
 			return nil
 		}
