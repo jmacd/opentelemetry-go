@@ -26,10 +26,10 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -60,9 +60,10 @@ func initProvider() (func(context.Context) error, error) {
 	// probably connect directly to the service through dns.
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
-	conn, err := grpc.DialContext(ctx, "localhost:30080",
+	conn, err := grpc.DialContext(ctx, "127.0.0.1:4317",
 		// Note the use of insecure transport here. TLS is recommended in production.
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		// grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithInsecure(),
 		grpc.WithBlock(),
 	)
 	if err != nil {
@@ -129,6 +130,7 @@ func main() {
 		log.Printf("Doing really hard work (%d / 10)\n", i+1)
 
 		<-time.After(time.Second)
+		iSpan.SetStatus(codes.Error, "This has gone badly, let's hope it prints")
 		iSpan.End()
 	}
 

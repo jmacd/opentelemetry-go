@@ -177,7 +177,8 @@ type AddOption interface {
 
 // AddConfig contains options for an addition measurement.
 type AddConfig struct {
-	attrs attribute.Set
+	kvlist []attribute.KeyValue
+	attrs  attribute.Set
 }
 
 // NewAddConfig returns a new [AddConfig] with all opts applied.
@@ -191,7 +192,28 @@ func NewAddConfig(opts []AddOption) AddConfig {
 
 // Attributes returns the configured attribute set.
 func (c AddConfig) Attributes() attribute.Set {
+	if c.kvlist != nil {
+		c.attrs = attribute.NewSet(c.kvlist...)
+		c.kvlist = nil
+	}
 	return c.attrs
+}
+
+// KeyValues returns the original list of KeyValues supplied by the
+// user when a single []attribute.KeyValue slice was supplied through
+// a single WithKeyValues(...) option.  This presents an opportunity
+// for SDKs to optimize the allocation of an attribute.Set.
+//
+// This result is only meaningful when it is non-nil, otherwise
+// Attributes() should be used.
+func (c AddConfig) KeyValues() []attribute.KeyValue {
+	return c.kvlist
+}
+
+// HasKeyValues returns true if a single, original key-value list is
+// available as a potential optimization for the SDK.
+func (c AddConfig) HasKeyValues() bool {
+	return c.kvlist != nil
 }
 
 // RecordOption applies options to an addition measurement. See
@@ -202,7 +224,8 @@ type RecordOption interface {
 
 // RecordConfig contains options for a recorded measurement.
 type RecordConfig struct {
-	attrs attribute.Set
+	attrs  attribute.Set
+	kvlist []attribute.KeyValue
 }
 
 // NewRecordConfig returns a new [RecordConfig] with all opts applied.
@@ -216,7 +239,28 @@ func NewRecordConfig(opts []RecordOption) RecordConfig {
 
 // Attributes returns the configured attribute set.
 func (c RecordConfig) Attributes() attribute.Set {
+	if c.kvlist != nil {
+		c.attrs = attribute.NewSet(c.kvlist...)
+		c.kvlist = nil
+	}
 	return c.attrs
+}
+
+// KeyValues returns the original list of KeyValues supplied by the
+// user when a single []attribute.KeyValue slice was supplied through
+// a single WithKeyValues(...) option.  This presents an opportunity
+// for SDKs to optimize the allocation of an attribute.Set.
+//
+// This result is only meaningful when it is non-nil, otherwise
+// Attributes() should be used.
+func (c RecordConfig) KeyValues() []attribute.KeyValue {
+	return c.kvlist
+}
+
+// HasKeyValues returns true if a single, original key-value list is
+// available as a potential optimization for the SDK.
+func (c RecordConfig) HasKeyValues() bool {
+	return c.kvlist != nil
 }
 
 // ObserveOption applies options to an addition measurement. See
@@ -227,7 +271,8 @@ type ObserveOption interface {
 
 // ObserveConfig contains options for an observed measurement.
 type ObserveConfig struct {
-	attrs attribute.Set
+	attrs  attribute.Set
+	kvlist []attribute.KeyValue
 }
 
 // NewObserveConfig returns a new [ObserveConfig] with all opts applied.
@@ -241,7 +286,28 @@ func NewObserveConfig(opts []ObserveOption) ObserveConfig {
 
 // Attributes returns the configured attribute set.
 func (c ObserveConfig) Attributes() attribute.Set {
+	if c.kvlist != nil {
+		c.attrs = attribute.NewSet(c.kvlist...)
+		c.kvlist = nil
+	}
 	return c.attrs
+}
+
+// KeyValues returns the original list of KeyValues supplied by the
+// user when a single []attribute.KeyValue slice was supplied through
+// a single WithKeyValues(...) option.  This presents an opportunity
+// for SDKs to optimize the allocation of an attribute.Set.
+//
+// This result is only meaningful when it is non-nil, otherwise
+// Attributes() should be used.
+func (c ObserveConfig) KeyValues() []attribute.KeyValue {
+	return c.kvlist
+}
+
+// HasKeyValues returns true if a single, original key-value list is
+// available as a potential optimization for the SDK.
+func (c ObserveConfig) HasKeyValues() bool {
+	return c.kvlist != nil
 }
 
 // MeasurementOption applies options to all instrument measurement.
@@ -251,7 +317,7 @@ type MeasurementOption interface {
 	ObserveOption
 }
 
-type attrOpt struct {
+type attrSetOpt struct {
 	set attribute.Set
 }
 
@@ -267,35 +333,114 @@ func mergeSets(a, b attribute.Set) attribute.Set {
 	return attribute.NewSet(merged...)
 }
 
-func (o attrOpt) applyAdd(c AddConfig) AddConfig {
+func (o attrSetOpt) applyAdd(c AddConfig) AddConfig {
 	switch {
 	case o.set.Len() == 0:
-	case c.attrs.Len() == 0:
+		// No new attributes
+	case c.kvlist == nil && c.attrs.Len() == 0:
+		// No existing attributes
 		c.attrs = o.set
-	default:
+	case c.kvlist == nil:
+		// Combine two sets
 		c.attrs = mergeSets(c.attrs, o.set)
+	default:
+		// Replace the initial kvlist w/ the combined set.
+		c.attrs = mergeSets(attribute.NewSet(c.kvlist...), o.set)
+		c.kvlist = nil
 	}
 	return c
 }
 
-func (o attrOpt) applyRecord(c RecordConfig) RecordConfig {
+func (o attrSetOpt) applyRecord(c RecordConfig) RecordConfig {
 	switch {
 	case o.set.Len() == 0:
-	case c.attrs.Len() == 0:
+		// No new attributes
+	case c.kvlist == nil && c.attrs.Len() == 0:
+		// No existing attributes
 		c.attrs = o.set
-	default:
+	case c.kvlist == nil:
+		// Combine two sets
 		c.attrs = mergeSets(c.attrs, o.set)
+	default:
+		// Replace the initial kvlist w/ the combined set.
+		c.attrs = mergeSets(attribute.NewSet(c.kvlist...), o.set)
+		c.kvlist = nil
 	}
 	return c
 }
 
-func (o attrOpt) applyObserve(c ObserveConfig) ObserveConfig {
+func (o attrSetOpt) applyObserve(c ObserveConfig) ObserveConfig {
 	switch {
 	case o.set.Len() == 0:
-	case c.attrs.Len() == 0:
+		// No new attributes
+	case c.kvlist == nil && c.attrs.Len() == 0:
+		// No existing attributes
 		c.attrs = o.set
-	default:
+	case c.kvlist == nil:
+		// Combine two sets
 		c.attrs = mergeSets(c.attrs, o.set)
+	default:
+		// Replace the initial kvlist w/ the combined set.
+		c.attrs = mergeSets(attribute.NewSet(c.kvlist...), o.set)
+		c.kvlist = nil
+	}
+	return c
+}
+
+type attrListOpt struct {
+	kvlist []attribute.KeyValue
+}
+
+func (o attrListOpt) applyAdd(c AddConfig) AddConfig {
+	switch {
+	case len(o.kvlist) == 0:
+		// No new attributes
+	case c.kvlist == nil && c.attrs.Len() == 0:
+		// No existing attributes
+		c.kvlist = o.kvlist
+	case c.kvlist == nil:
+		// Combine existing set and new kvlist.
+		c.attrs = mergeSets(c.attrs, attribute.NewSet(o.kvlist...))
+	default:
+		// Replace the initial kvlist w/ the combined set.
+		c.attrs = mergeSets(attribute.NewSet(c.kvlist...), attribute.NewSet(o.kvlist...))
+		c.kvlist = nil
+	}
+	return c
+}
+
+func (o attrListOpt) applyRecord(c RecordConfig) RecordConfig {
+	switch {
+	case len(o.kvlist) == 0:
+		// No new attributes
+	case c.kvlist == nil && c.attrs.Len() == 0:
+		// No existing attributes
+		c.kvlist = o.kvlist
+	case c.kvlist == nil:
+		// Combine existing set and new kvlist.
+		c.attrs = mergeSets(c.attrs, attribute.NewSet(o.kvlist...))
+	default:
+		// Replace the initial kvlist w/ the combined set.
+		c.attrs = mergeSets(attribute.NewSet(c.kvlist...), attribute.NewSet(o.kvlist...))
+		c.kvlist = nil
+	}
+	return c
+}
+
+func (o attrListOpt) applyObserve(c ObserveConfig) ObserveConfig {
+	switch {
+	case len(o.kvlist) == 0:
+		// No new attributes
+	case c.kvlist == nil && c.attrs.Len() == 0:
+		// No existing attributes
+		c.kvlist = o.kvlist
+	case c.kvlist == nil:
+		// Combine existing set and new kvlist.
+		c.attrs = mergeSets(c.attrs, attribute.NewSet(o.kvlist...))
+	default:
+		// Replace the initial kvlist w/ the combined set.
+		c.attrs = mergeSets(attribute.NewSet(c.kvlist...), attribute.NewSet(o.kvlist...))
+		c.kvlist = nil
 	}
 	return c
 }
@@ -307,7 +452,7 @@ func (o attrOpt) applyObserve(c ObserveConfig) ObserveConfig {
 // attributes will be merged together in the order they are passed. Attributes
 // with duplicate keys will use the last value passed.
 func WithAttributeSet(attributes attribute.Set) MeasurementOption {
-	return attrOpt{set: attributes}
+	return attrSetOpt{set: attributes}
 }
 
 // WithAttributes converts attributes into an attribute Set and sets the Set to
@@ -326,7 +471,5 @@ func WithAttributeSet(attributes attribute.Set) MeasurementOption {
 // See [WithAttributeSet] for information about how multiple WithAttributes are
 // merged.
 func WithAttributes(attributes ...attribute.KeyValue) MeasurementOption {
-	cp := make([]attribute.KeyValue, len(attributes))
-	copy(cp, attributes)
-	return attrOpt{set: attribute.NewSet(cp...)}
+	return attrListOpt{kvlist: attributes}
 }
