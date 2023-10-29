@@ -10,7 +10,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.17.0
 	go.opentelemetry.io/otel/trace v1.17.0
 	go.opentelemetry.io/proto/otlp v1.0.0
-	go.uber.org/goleak v1.2.1
+	go.uber.org/goleak v1.3.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230530153820-e85fd2cbaebc
 	google.golang.org/grpc v1.57.0
 	google.golang.org/protobuf v1.31.0
