@@ -5,7 +5,7 @@ go 1.20
 retract v0.32.2 // Contains unresolvable dependencies.
 
 require (
-	github.com/cenkalti/backoff/v4 v4.2.1
+	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/google/go-cmp v0.6.0
 	github.com/stretchr/testify v1.8.4
 	go.opentelemetry.io/otel v1.23.1
