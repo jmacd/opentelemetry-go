@@ -166,7 +166,7 @@ func (p *TracerProvider) Tracer(name string, opts ...trace.TracerOption) trace.T
 
 // RegisterSpanProcessor adds the given SpanProcessor to the list of SpanProcessors.
 func (p *TracerProvider) RegisterSpanProcessor(sp SpanProcessor) {
-	p.RegisterSpanReader(processorToReader(sp))
+	p.RegisterSpanReader(NewSpanReader(nil, sp))
 }
 
 func (p *TracerProvider) RegisterSpanReader(sr SpanReader) {
@@ -188,7 +188,7 @@ func (p *TracerProvider) RegisterSpanReader(sr SpanReader) {
 // UnregisterSpanProcessor removes the given SpanProcessor from the list of SpanProcessors.
 func (p *TracerProvider) UnregisterSpanProcessor(sp SpanProcessor) {
 	p.unregisterPipeline(func(r SpanReader) bool {
-		if pr, ok := r.(*processorReader); ok {
+		if pr, ok := r.(*spanReader); ok {
 			return pr.processor == sp
 		}
 		return false
@@ -320,7 +320,7 @@ func WithBatcher(e SpanExporter, opts ...BatchSpanProcessorOption) TracerProvide
 
 // WithSpanProcessor registers the SpanProcessor with a TracerProvider.
 func WithSpanProcessor(sp SpanProcessor) TracerProviderOption {
-	return WithSpanReader(processorToReader(sp))
+	return WithSpanReader(NewSpanReader(nil, sp))
 }
 
 // WithResource returns a TracerProviderOption that will configure the

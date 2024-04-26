@@ -9,6 +9,8 @@ import (
 	"fmt"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/sdk/instrumentation"
+	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -29,6 +31,19 @@ type Sampler interface {
 	// must never be done outside of a new major release.
 }
 
+// @@@
+type ComposableSampler interface {
+	Description() string
+	Register(*resource.Resource)
+	Bind(instrumentation.Scope) ScopeSampler
+}
+
+type Threshold uint64
+
+type ScopeSampler interface {
+	ViewSample(SamplingParameters2) (SamplingDecision, Threshold, SpanViewer)
+}
+
 // SamplingParameters contains the values passed to a Sampler.
 type SamplingParameters struct {
 	ParentContext context.Context
@@ -37,6 +52,14 @@ type SamplingParameters struct {
 	Kind          trace.SpanKind
 	Attributes    []attribute.KeyValue
 	Links         []trace.Link
+}
+
+type SamplingParameters2 struct {
+	parameters SamplingParameters
+	spanID     trace.SpanID
+	tValue     uint64
+	rValue     uint64
+	traceState trace.TraceState
 }
 
 // SamplingDecision indicates whether a span is dropped, recorded and/or sampled.
@@ -54,6 +77,10 @@ const (
 	// RecordAndSample has span's `IsRecording() == true` and `Sampled` flag
 	// *must* be set.
 	RecordAndSample
+
+	SampleUnrecorded
+	SampleUnexported
+	ExportUnsampled
 )
 
 // SamplingResult conveys a SamplingDecision, set of Attributes and a Tracestate.
