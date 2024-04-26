@@ -43,9 +43,9 @@ func (tr *tracer) Start(ctx context.Context, name string, options ...trace.SpanS
 
 	s := tr.newSpan(ctx, name, &config)
 	if rw, ok := s.(ReadWriteSpan); ok && s.IsRecording() {
-		sps := tr.provider.getSpanProcessors()
-		for _, sp := range sps {
-			sp.sp.OnStart(ctx, rw)
+		pipes := tr.provider.getPipelines()
+		for _, r := range pipes.readers {
+			r.OnStart(ctx, rw)
 		}
 	}
 	if rtt, ok := s.(runtimeTracer); ok {
@@ -84,7 +84,7 @@ func (tr *tracer) newSpan(ctx context.Context, name string, config *trace.SpanCo
 		sid = tr.provider.idGenerator.NewSpanID(ctx, tid)
 	}
 
-	samplingResult := tr.provider.sampler.ShouldSample(SamplingParameters{
+	samplingResult := tr.provider.getPipelines().getSampler().ShouldSample(SamplingParameters{
 		ParentContext: ctx,
 		TraceID:       tid,
 		Name:          name,

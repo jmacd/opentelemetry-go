@@ -24,15 +24,12 @@ const (
 
 // tracerProviderConfig.
 type tracerProviderConfig struct {
-	// processors contains collection of SpanProcessors that are processing pipeline
-	// for spans in the trace signal.
-	// SpanProcessors registered with a TracerProvider and are called at the start
-	// and end of a Span's lifecycle, and are called in the order they are
-	// registered.
-	processors []SpanProcessor
-
-	// sampler is the default sampler used when creating new spans.
+	// sampler is the TraceProvider-wide Sampler; attributes and
+	// tracestate modifications apply to all span pipelines.
 	sampler Sampler
+
+	// readers are {V2 sampler, write-on-end processor, span processor/exporter}
+	readers []SpanReader
 
 	// idGenerator is used to generate all Span and Trace IDs when needed.
 	idGenerator IDGenerator
@@ -47,14 +44,12 @@ type tracerProviderConfig struct {
 // MarshalLog is the marshaling function used by the logging system to represent this Provider.
 func (cfg tracerProviderConfig) MarshalLog() interface{} {
 	return struct {
-		SpanProcessors  []SpanProcessor
-		SamplerType     string
+		Readers         []SpanReader
 		IDGeneratorType string
 		SpanLimits      SpanLimits
 		Resource        *resource.Resource
 	}{
-		SpanProcessors:  cfg.processors,
-		SamplerType:     fmt.Sprintf("%T", cfg.sampler),
+		Readers:         cfg.readers,
 		IDGeneratorType: fmt.Sprintf("%T", cfg.idGenerator),
 		SpanLimits:      cfg.spanLimits,
 		Resource:        cfg.resource,
@@ -66,18 +61,18 @@ func (cfg tracerProviderConfig) MarshalLog() interface{} {
 type TracerProvider struct {
 	embedded.TracerProvider
 
-	mu             sync.Mutex
-	namedTracer    map[instrumentation.Scope]*tracer
-	spanProcessors atomic.Pointer[spanProcessorStates]
+	mu          sync.Mutex
+	namedTracer map[instrumentation.Scope]*tracer
+	pipes       atomic.Pointer[pipelines]
 
 	isShutdown atomic.Bool
 
 	// These fields are not protected by the lock mu. They are assumed to be
 	// immutable after creation of the TracerProvider.
+	resource    *resource.Resource
 	sampler     Sampler
 	idGenerator IDGenerator
 	spanLimits  SpanLimits
-	resource    *resource.Resource
 }
 
 var _ trace.TracerProvider = &TracerProvider{}
@@ -113,11 +108,7 @@ func NewTracerProvider(opts ...TracerProviderOption) *TracerProvider {
 	}
 	global.Info("TracerProvider created", "config", o)
 
-	spss := make(spanProcessorStates, 0, len(o.processors))
-	for _, sp := range o.processors {
-		spss = append(spss, newSpanProcessorState(sp))
-	}
-	tp.spanProcessors.Store(&spss)
+	tp.pipes.Store(tp.newPipelines(o.readers))
 
 	return tp
 }
@@ -175,6 +166,11 @@ func (p *TracerProvider) Tracer(name string, opts ...trace.TracerOption) trace.T
 
 // RegisterSpanProcessor adds the given SpanProcessor to the list of SpanProcessors.
 func (p *TracerProvider) RegisterSpanProcessor(sp SpanProcessor) {
+	p.RegisterSpanReader(processorToReader(sp))
+}
+
+func (p *TracerProvider) RegisterSpanReader(sr SpanReader) {
+
 	// This check prevents calls during a shutdown.
 	if p.isShutdown.Load() {
 		return
@@ -186,15 +182,26 @@ func (p *TracerProvider) RegisterSpanProcessor(sp SpanProcessor) {
 		return
 	}
 
-	current := p.getSpanProcessors()
-	newSPS := make(spanProcessorStates, 0, len(current)+1)
-	newSPS = append(newSPS, current...)
-	newSPS = append(newSPS, newSpanProcessorState(sp))
-	p.spanProcessors.Store(&newSPS)
+	p.pipes.Store(p.getPipelines().add(sr))
 }
 
 // UnregisterSpanProcessor removes the given SpanProcessor from the list of SpanProcessors.
 func (p *TracerProvider) UnregisterSpanProcessor(sp SpanProcessor) {
+	p.unregisterPipeline(func(r SpanReader) bool {
+		if pr, ok := r.(*processorReader); ok {
+			return pr.processor == sp
+		}
+		return false
+	})
+}
+
+func (p *TracerProvider) UnregisterSpanReader(sr SpanReader) {
+	p.unregisterPipeline(func(r SpanReader) bool {
+		return sr == r
+	})
+}
+
+func (p *TracerProvider) unregisterPipeline(f func(r SpanReader) bool) {
 	// This check prevents calls during a shutdown.
 	if p.isShutdown.Load() {
 		return
@@ -205,54 +212,25 @@ func (p *TracerProvider) UnregisterSpanProcessor(sp SpanProcessor) {
 	if p.isShutdown.Load() {
 		return
 	}
-	old := p.getSpanProcessors()
-	if len(old) == 0 {
-		return
-	}
-	spss := make(spanProcessorStates, len(old))
-	copy(spss, old)
-
-	// stop the span processor if it is started and remove it from the list
-	var stopOnce *spanProcessorState
-	var idx int
-	for i, sps := range spss {
-		if sps.sp == sp {
-			stopOnce = sps
-			idx = i
-		}
-	}
-	if stopOnce != nil {
-		stopOnce.state.Do(func() {
-			if err := sp.Shutdown(context.Background()); err != nil {
-				otel.Handle(err)
-			}
-		})
-	}
-	if len(spss) > 1 {
-		copy(spss[idx:], spss[idx+1:])
-	}
-	spss[len(spss)-1] = nil
-	spss = spss[:len(spss)-1]
-
-	p.spanProcessors.Store(&spss)
+	p.pipes.Store(p.getPipelines().remove(f))
 }
 
 // ForceFlush immediately exports all spans that have not yet been exported for
 // all the registered span processors.
 func (p *TracerProvider) ForceFlush(ctx context.Context) error {
-	spss := p.getSpanProcessors()
-	if len(spss) == 0 {
+	ps := p.getPipelines()
+	if len(ps.readers) == 0 {
 		return nil
 	}
 
-	for _, sps := range spss {
+	for _, r := range ps.readers {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 		}
 
-		if err := sps.sp.ForceFlush(ctx); err != nil {
+		if err := r.ForceFlush(ctx); err != nil {
 			return err
 		}
 	}
@@ -275,18 +253,15 @@ func (p *TracerProvider) Shutdown(ctx context.Context) error {
 	}
 
 	var retErr error
-	for _, sps := range p.getSpanProcessors() {
+	for _, sps := range p.getPipelines().readers {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 		}
 
-		var err error
-		sps.state.Do(func() {
-			err = sps.sp.Shutdown(ctx)
-		})
-		if err != nil {
+		// @@@ Note reader should internally shutdown using a 'once'
+		if err := sps.Shutdown(ctx); err != nil {
 			if retErr == nil {
 				retErr = err
 			} else {
@@ -295,12 +270,12 @@ func (p *TracerProvider) Shutdown(ctx context.Context) error {
 			}
 		}
 	}
-	p.spanProcessors.Store(&spanProcessorStates{})
+	p.pipes.Store(&pipelines{})
 	return retErr
 }
 
-func (p *TracerProvider) getSpanProcessors() spanProcessorStates {
-	return *(p.spanProcessors.Load())
+func (p *TracerProvider) getPipelines() pipelines {
+	return *(p.pipes.Load())
 }
 
 // TracerProviderOption configures a TracerProvider.
@@ -312,6 +287,17 @@ type traceProviderOptionFunc func(tracerProviderConfig) tracerProviderConfig
 
 func (fn traceProviderOptionFunc) apply(cfg tracerProviderConfig) tracerProviderConfig {
 	return fn(cfg)
+}
+
+// WithSpanReader registers a SpanReader, which is the most general
+// form of registration for a combination Sampler/Processor/Exporter.
+func WithSpanReader(r SpanReader) TracerProviderOption {
+	return traceProviderOptionFunc(func(cfg tracerProviderConfig) tracerProviderConfig {
+		if r != nil {
+			cfg.readers = append(cfg.readers, r)
+		}
+		return cfg
+	})
 }
 
 // WithSyncer registers the exporter with the TracerProvider using a
@@ -334,10 +320,7 @@ func WithBatcher(e SpanExporter, opts ...BatchSpanProcessorOption) TracerProvide
 
 // WithSpanProcessor registers the SpanProcessor with a TracerProvider.
 func WithSpanProcessor(sp SpanProcessor) TracerProviderOption {
-	return traceProviderOptionFunc(func(cfg tracerProviderConfig) tracerProviderConfig {
-		cfg.processors = append(cfg.processors, sp)
-		return cfg
-	})
+	return WithSpanReader(processorToReader(sp))
 }
 
 // WithResource returns a TracerProviderOption that will configure the
@@ -480,9 +463,10 @@ func tracerProviderOptionsFromEnv() []TracerProviderOption {
 
 // ensureValidTracerProviderConfig ensures that given TracerProviderConfig is valid.
 func ensureValidTracerProviderConfig(cfg tracerProviderConfig) tracerProviderConfig {
-	if cfg.sampler == nil {
-		cfg.sampler = ParentBased(AlwaysSample())
-	}
+	// @@@ Not doing this on purpose.
+	// if cfg.sampler == nil {
+	// 	cfg.sampler = ParentBased(AlwaysSample())
+	// }
 	if cfg.idGenerator == nil {
 		cfg.idGenerator = defaultIDGenerator()
 	}
