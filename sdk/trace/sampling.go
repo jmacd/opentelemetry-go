@@ -31,18 +31,22 @@ type Sampler interface {
 	// must never be done outside of a new major release.
 }
 
-// @@@
+// ComposableSampler is the V2 Sampler API.
 type ComposableSampler interface {
+	// Description returns information describing the Sampler.
 	Description() string
+
+	// Register informs the Sampler of its Resource.  This is called before
+	// the first call to ShouldSample.
 	Register(*resource.Resource)
-	Bind(instrumentation.Scope) ScopeSampler
+
+	// ShouldSample returns a decision and threshold.  In this sampler API
+	// the ShouldSample cannot modify the span or its context, but has a
+	// chance to do so in OnSample.
+	ShouldSample(SamplingParameters2) (SamplingDecision, Threshold)
 }
 
 type Threshold uint64
-
-type ScopeSampler interface {
-	ViewSample(SamplingParameters2) (SamplingDecision, Threshold, SpanViewer)
-}
 
 // SamplingParameters contains the values passed to a Sampler.
 type SamplingParameters struct {
@@ -54,12 +58,14 @@ type SamplingParameters struct {
 	Links         []trace.Link
 }
 
+// SamplingParameters2 includes fields that were missing from Sampling
+// Parameters V1.  (In practice we can probably add these fields to
+// SamplingParameters w/o breaking anything?)
 type SamplingParameters2 struct {
-	parameters SamplingParameters
-	spanID     trace.SpanID
-	tValue     uint64
-	rValue     uint64
-	traceState trace.TraceState
+	parameters SamplingParameters    // V1 parameters
+	scope      instrumentation.Scope // missing in V1
+	spanID     trace.SpanID          // missing in V1
+	parent     trace.SpanContext     // derived from parameters.ParentContext, has input T-value
 }
 
 // SamplingDecision indicates whether a span is dropped, recorded and/or sampled.
@@ -78,8 +84,12 @@ const (
 	// *must* be set.
 	RecordAndSample
 
-	SampleUnrecorded
+	// SampleUnexported means the context was sampled but the Span
+	// will not be exported.
 	SampleUnexported
+
+	// ExportUnsampled means the context was not sampled but the Span
+	// will be exported.
 	ExportUnsampled
 )
 

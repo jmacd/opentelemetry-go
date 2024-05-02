@@ -6,27 +6,29 @@ import (
 	"sync"
 
 	"go.opentelemetry.io/otel/sdk/resource"
-	"go.opentelemetry.io/otel/trace"
 )
 
+// SpanReader consists of a composable sampler, a span processor, and
+// an OnSample method which allows per-pipeline customization of the
+// Span data that is emitted into the processor.
 type SpanReader interface {
-	// Register is exported, e.g., so that metrics SDK can provide
-	// a span-to-metrics producer as span reader, logs SDK can
-	// ... etc.  This differs from the metric SDK because the
-	// metric SDK reader is substantially more complex.
-	Register(*resource.Resource)
+	// ComposableSampler includes Description(), Register(), and
+	// ShouldSample().
+	ComposableSampler
 
-	SpanOnStarter
-	SpanOnAddLinker
-	SpanOnEnder
-	SpanWriteOnEnder
-	Component
+	// SpanProcessor includes OnStart(), OnEnd(), ForceFlush(),
+	// Shutdown().
+	SpanProcessor
+
+	// OnSample is called following a decision to sample, receives
+	// the original parameters, the composite decision and returns
+	// a pipeline-specific SpanViewer.
+	OnSample(SamplingParameters2, SamplingDecision) SpanViewer
 }
 
-type SpanViewer interface {
-}
-
-func NewSpanReader(sa ComposableSampler, sp SpanProcessor) SpanReader {
+// NewSimpleSpanReader returns a simple span reader consisting of just
+// a sampler and processor, with no additional OnSample functionality.
+func NewSimpleSpanReader(sa ComposableSampler, sp SpanProcessor) SpanReader {
 	// return a span reader that sends spans to an exporter
 	// includes a composite sampler
 	return &spanReader{
@@ -40,35 +42,32 @@ type spanReader struct {
 	processor SpanProcessor
 
 	shutdownOnce sync.Once
-
-	onStart   []SpanOnStarter
-	onAddLink []SpanOnAddLinker
-	onEndW    []SpanWriteOnEnder
-	onEndR    []SpanOnEnder
 }
 
 var _ SpanReader = &spanReader{}
 
-func (sr *spanReader) Register(*resource.Resource) {
-	// @@@
+func (sr *spanReader) Register(res *resource.Resource) {
+	sr.sampler.Register(res)
+}
+
+func (sr *spanReader) Description() string {
+	return sr.sampler.Description()
 }
 
 func (sr *spanReader) OnStart(parent context.Context, s ReadWriteSpan) {
 	sr.processor.OnStart(parent, s)
-	// @@@
-}
-
-func (sr *spanReader) OnAddLink(trace.Link, ReadWriteSpan) {
-	// @@@
 }
 
 func (sr *spanReader) OnEnd(s ReadOnlySpan) {
 	sr.processor.OnEnd(s)
-	// @@@
 }
 
-func (sr *spanReader) WriteOnEnd(s ReadWriteSpan) {
-	// @@@
+func (sr *spanReader) ShouldSample(params SamplingParameters2) (SamplingDecision, Threshold) {
+	return sr.sampler.ShouldSample(params)
+}
+
+func (sr *spanReader) OnSample(SamplingParameters2, SamplingDecision) SpanViewer {
+	return nil
 }
 
 func (sr *spanReader) Shutdown(ctx context.Context) error {

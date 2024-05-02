@@ -42,12 +42,6 @@ func (tr *tracer) Start(ctx context.Context, name string, options ...trace.SpanS
 	}
 
 	s := tr.newSpan(ctx, name, &config)
-	if rw, ok := s.(ReadWriteSpan); ok && s.IsRecording() {
-		pipes := tr.provider.getPipelines()
-		for _, r := range pipes.readers {
-			r.OnStart(ctx, rw)
-		}
-	}
 	if rtt, ok := s.(runtimeTracer); ok {
 		ctx = rtt.runtimeTrace(ctx)
 	}
@@ -84,31 +78,34 @@ func (tr *tracer) newSpan(ctx context.Context, name string, config *trace.SpanCo
 		sid = tr.provider.idGenerator.NewSpanID(ctx, tid)
 	}
 
-	samplingResult := tr.provider.getPipelines().ShouldSample(SamplingParameters2{
-		ParentContext: ctx,
-		TraceID:       tid,
-		Name:          name,
-		Kind:          config.SpanKind(),
-		Attributes:    config.Attributes(),
-		Links:         config.Links(),
-	})
+	pipes := tr.provider.getPipelines()
+	result, params := pipes.shouldSample(
+		ctx, psc, tr.instrumentationScope, tid, sid, name, config,
+	)
 
 	scc := trace.SpanContextConfig{
 		TraceID:    tid,
 		SpanID:     sid,
-		TraceState: samplingResult.Tracestate,
+		TraceState: result.Tracestate,
 	}
-	if isSampled(samplingResult) {
+	if isSampled(result) {
 		scc.TraceFlags = psc.TraceFlags() | trace.FlagsSampled
 	} else {
 		scc.TraceFlags = psc.TraceFlags() &^ trace.FlagsSampled
 	}
 	sc := trace.NewSpanContext(scc)
 
-	if !isRecording(samplingResult) {
+	if !isRecording(result) {
 		return tr.newNonRecordingSpan(sc)
 	}
-	return tr.newRecordingSpan(psc, sc, name, samplingResult, config)
+	s := tr.newRecordingSpan(psc, sc, name, result, config)
+	for _, r := range pipes.readers {
+		r.OnStart(ctx, s)
+	}
+	for _, r := range pipes.readers {
+		r.OnSample(params, result.Decision)
+	}
+	return s
 }
 
 // newRecordingSpan returns a new configured recordingSpan.

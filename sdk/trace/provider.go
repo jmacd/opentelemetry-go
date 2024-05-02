@@ -24,12 +24,12 @@ const (
 
 // tracerProviderConfig.
 type tracerProviderConfig struct {
+	// readers are {V2 sampler, write-on-end processor, span processor/exporter}
+	readers []SpanReader
+
 	// sampler is the TraceProvider-wide Sampler; attributes and
 	// tracestate modifications apply to all span pipelines.
 	sampler Sampler
-
-	// readers are {V2 sampler, write-on-end processor, span processor/exporter}
-	readers []SpanReader
 
 	// idGenerator is used to generate all Span and Trace IDs when needed.
 	idGenerator IDGenerator
@@ -45,11 +45,13 @@ type tracerProviderConfig struct {
 func (cfg tracerProviderConfig) MarshalLog() interface{} {
 	return struct {
 		Readers         []SpanReader
+		SamplerType     string
 		IDGeneratorType string
 		SpanLimits      SpanLimits
 		Resource        *resource.Resource
 	}{
 		Readers:         cfg.readers,
+		SamplerType:     fmt.Sprintf("%T", cfg.sampler),
 		IDGeneratorType: fmt.Sprintf("%T", cfg.idGenerator),
 		SpanLimits:      cfg.spanLimits,
 		Resource:        cfg.resource,
@@ -69,10 +71,10 @@ type TracerProvider struct {
 
 	// These fields are not protected by the lock mu. They are assumed to be
 	// immutable after creation of the TracerProvider.
-	resource    *resource.Resource
 	sampler     Sampler
 	idGenerator IDGenerator
 	spanLimits  SpanLimits
+	resource    *resource.Resource
 }
 
 var _ trace.TracerProvider = &TracerProvider{}
@@ -166,7 +168,7 @@ func (p *TracerProvider) Tracer(name string, opts ...trace.TracerOption) trace.T
 
 // RegisterSpanProcessor adds the given SpanProcessor to the list of SpanProcessors.
 func (p *TracerProvider) RegisterSpanProcessor(sp SpanProcessor) {
-	p.RegisterSpanReader(NewSpanReader(nil, sp))
+	p.RegisterSpanReader(NewSimpleSpanReader(nil, sp))
 }
 
 func (p *TracerProvider) RegisterSpanReader(sr SpanReader) {
@@ -260,7 +262,6 @@ func (p *TracerProvider) Shutdown(ctx context.Context) error {
 		default:
 		}
 
-		// @@@ Note reader should internally shutdown using a 'once'
 		if err := sps.Shutdown(ctx); err != nil {
 			if retErr == nil {
 				retErr = err
@@ -320,7 +321,7 @@ func WithBatcher(e SpanExporter, opts ...BatchSpanProcessorOption) TracerProvide
 
 // WithSpanProcessor registers the SpanProcessor with a TracerProvider.
 func WithSpanProcessor(sp SpanProcessor) TracerProviderOption {
-	return WithSpanReader(NewSpanReader(nil, sp))
+	return WithSpanReader(NewSimpleSpanReader(nil, sp))
 }
 
 // WithResource returns a TracerProviderOption that will configure the
@@ -463,7 +464,7 @@ func tracerProviderOptionsFromEnv() []TracerProviderOption {
 
 // ensureValidTracerProviderConfig ensures that given TracerProviderConfig is valid.
 func ensureValidTracerProviderConfig(cfg tracerProviderConfig) tracerProviderConfig {
-	// @@@ Not doing this on purpose.
+	// @@@ Not sure what this default should be.
 	// if cfg.sampler == nil {
 	// 	cfg.sampler = ParentBased(AlwaysSample())
 	// }

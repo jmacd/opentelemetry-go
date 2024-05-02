@@ -6,42 +6,28 @@ package trace // import "go.opentelemetry.io/otel/sdk/trace"
 import (
 	"context"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
-type SpanOnStarter interface {
+// SpanProcessor is a processing pipeline for spans in the trace signal.
+// SpanProcessors registered with a TracerProvider and are called at the start
+// and end of a Span's lifecycle, and are called in the order they are
+// registered.
+type SpanProcessor interface {
 	// OnStart is called when a span is started. It is called synchronously
 	// and should not block.
 	OnStart(parent context.Context, s ReadWriteSpan)
 	// DO NOT CHANGE: any modification will not be backwards compatible and
 	// must never be done outside of a new major release.
-}
 
-type SpanOnSampler interface {
-	OnSample(SamplingParameters2, SpanViewer)
-}
-
-type SpanOnEnder interface {
 	// OnEnd is called when span is finished. It is called synchronously and
 	// hence not block.
-	OnEnd(s ReadOnlySpan)
+	OnEnd(ReadOnlySpan)
 	// DO NOT CHANGE: any modification will not be backwards compatible and
 	// must never be done outside of a new major release.
-}
 
-type SpanWriteOnEnder interface {
-	// OnEnd is called when span is finished. It is called synchronously and
-	// hence not block.
-	WriteOnEnd(s ReadWriteSpan)
-	// DO NOT CHANGE: any modification will not be backwards compatible and
-	// must never be done outside of a new major release.
-}
-
-type SpanOnAddLinker interface {
-	OnAddLink(trace.Link, ReadWriteSpan)
-}
-
-type Component interface {
 	// Shutdown is called when the SDK shuts down. Any cleanup or release of
 	// resources held by the processor should be done in this call.
 	//
@@ -63,14 +49,24 @@ type Component interface {
 	// must never be done outside of a new major release.
 }
 
-// SpanProcessor is a processing pipeline for spans in the trace signal.
-// SpanProcessors registered with a TracerProvider and are called at the start
-// and end of a Span's lifecycle, and are called in the order they are
-// registered.
-type SpanProcessor interface {
-	SpanOnStarter
+// SpanViewer is returned from the SpanReader.OnSample callback.  This
+// gives registered SpanReaders an opportunity to observe each span
+// event, build state about those observations specific to the
+// pipeline, and change the per-pipeline sampling decision on-the-fly.
+type SpanViewer interface {
+	// Each of the On*() methods is called by the SDK on the
+	// per-reader SpanViewer interface.  Each allows the
+	// per-reader sampling decision to be modified.
 
-	SpanOnEnder
+	OnSetName(name string) SamplingDecision
+	OnAddLink(link trace.Link) SamplingDecision
+	OnSetAttributes(attrs []attribute.KeyValue) SamplingDecision
+	OnAddEvent(name string, evt trace.EventConfig)
+	OnSetStatus(code codes.Code, msg string)
 
-	Component
+	// ModifyOnEnd is called with the finalized read-only span
+	// calculated by the SDK.  This gives the viewer an
+	// opportunity to modify any aspects of the original span.
+	// This is called prior to the SpanProcessor.OnEnd() method.
+	ModifyOnEnd(final ReadOnlySpan) ReadOnlySpan
 }
