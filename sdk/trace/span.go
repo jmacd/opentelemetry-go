@@ -408,13 +408,12 @@ func (s *recordingSpan) End(options ...trace.SpanEndOption) {
 	}
 	s.mu.Unlock()
 
-	sps := s.tracer.provider.getSpanProcessors()
-	if len(sps) == 0 {
+	pipes := s.tracer.provider.getPipelines()
+	if len(pipes.readers) == 0 {
 		return
 	}
-	snap := s.snapshot()
-	for _, sp := range sps {
-		sp.sp.OnEnd(snap)
+	for _, r := range pipes.readers {
+		r.OnEnd(s)
 	}
 }
 
