@@ -4,6 +4,7 @@
 package attribute_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -80,6 +81,12 @@ func TestValue(t *testing.T) {
 			wantType:  attribute.STRINGSLICE,
 			wantValue: []string{"forty-two", "negative three", "twelve"},
 		},
+		{
+			name:      "Key.Bytes() correctly returns keys's internal []byte value",
+			value:     k.Bytes([]byte{1, 2, 3, 4}).Value,
+			wantType:  attribute.BYTES,
+			wantValue: []byte{1, 2, 3, 4},
+		},
 	} {
 		t.Logf("Running test case %s", testcase.name)
 		if testcase.value.Type() != testcase.wantType {
@@ -136,6 +143,10 @@ func TestEquivalence(t *testing.T) {
 		{
 			attribute.StringSlice("StringSlice", []string{"one", "two", "three"}),
 			attribute.StringSlice("StringSlice", []string{"one", "two", "three"}),
+		},
+		{
+			attribute.Bytes("Bytes", []byte{1, 2, 3, 4}),
+			attribute.Bytes("Bytes", []byte{1, 2, 3, 4}),
 		},
 	}
 
@@ -199,4 +210,12 @@ func TestAsSlice(t *testing.T) {
 	kv = attribute.StringSlice("StringSlice", ss1)
 	ss2 := kv.Value.AsStringSlice()
 	assert.Equal(t, ss1, ss2)
+}
+
+func TestBytesAsJSON(t *testing.T) {
+	// Nothing special is required for bytes to be encoded as base64 in JSON.
+	kv := attribute.Bytes("Bytes", []byte{1, 2, 3, 4})
+	data, err := json.Marshal(kv)
+	assert.NoError(t, err)
+	assert.Equal(t, `{"Key":"Bytes","Value":{"Type":"BYTES","Value":"AQIDBA=="}}`, string(data))
 }

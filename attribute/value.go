@@ -37,6 +37,8 @@ const (
 	FLOAT64
 	// STRING is a string Type Value.
 	STRING
+	// BYTES is represented as string with a distinct Type value for binary data.
+	BYTES
 	// BOOLSLICE is a slice of booleans Type Value.
 	BOOLSLICE
 	// INT64SLICE is a slice of 64-bit signed integral numbers Type Value.
@@ -219,6 +221,8 @@ func (v Value) AsInterface() interface{} {
 		return v.stringly
 	case STRINGSLICE:
 		return v.asStringSlice()
+	case BYTES:
+		return v.AsBytes()
 	}
 	return unknownValueType{}
 }
@@ -254,6 +258,13 @@ func (v Value) Emit() string {
 		return string(j)
 	case STRING:
 		return v.stringly
+	case BYTES:
+		bi := v.AsBytes()
+		j, err := json.Marshal(bi)
+		if err != nil {
+			return fmt.Sprintf("invalid: %v", []byte(v.stringly))
+		}
+		return string(j)
 	default:
 		return "unknown"
 	}
@@ -268,4 +279,16 @@ func (v Value) MarshalJSON() ([]byte, error) {
 	jsonVal.Type = v.Type().String()
 	jsonVal.Value = v.AsInterface()
 	return json.Marshal(jsonVal)
+}
+
+// BytesValue creates a BYTES Value.
+func BytesValue(v []byte) Value {
+	return Value{
+		vtype:    BYTES,
+		stringly: string(v),
+	}
+}
+
+func (v Value) AsBytes() []byte {
+	return []byte(v.stringly)
 }
